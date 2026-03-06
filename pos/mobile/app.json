@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Create Your Style",
+    "slug": "cysmob",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./app/(tabs)/iconz/iconn.jpeg",
+    "scheme": "cysmob",
+    "splash": {
+      "image": "./app/(tabs)/iconz/splash.jpeg",
+      "resizeMode": "cover",
+      "backgroundColor": "#ffffff"
+    },
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.cys.pos.mobile"
+    },
+    "android": {
+      "package": "com.cys.pos.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./app/(tabs)/iconz/iconn.jpeg"
+      },
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "backgroundColor": "#000000"
+          }
+        }
+      ],
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "33ea0bb5-e5ad-4ca8-ac2b-1ba1a113ef23"
+      }
+    }
+  }
+}

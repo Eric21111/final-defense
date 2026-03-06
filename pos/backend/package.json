@@ -1,0 +1,44 @@
+{
+  "name": "pos-system-backend",
+  "version": "1.0.0",
+  "description": "Backend for POS System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "delete-data": "node scripts/deleteDatabaseData.js",
+    "delete-all": "node scripts/deleteDatabaseData.js --yes",
+    "delete-all-local": "node scripts/deleteDatabaseData.js --yes --local"
+  },
+  "keywords": [
+    "pos",
+    "backend",
+    "mongodb"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apicache": "^1.6.3",
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^1.20.2",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongodb": "^7.0.0",
+    "mongoose": "^8.0.0",
+    "node-cron": "^4.2.1",
+    "node-thermal-printer": "^4.5.0",
+    "nodemailer": "^7.0.11",
+    "ws": "^8.19.0"
+  },
+  "optionalDependencies": {
+    "escpos": "^3.0.0-alpha.6",
+    "escpos-usb": "^3.0.0-alpha.4",
+    "printer": "^0.4.0",
+    "usb": "^2.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

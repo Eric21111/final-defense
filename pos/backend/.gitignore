@@ -1,0 +1,23 @@
+node_modules/
+.env
+.env.local
+.env.*.local
+.DS_Store
+logs/
+*.log
+
+# Debug/test files
+db_check_result.txt
+output.txt
+api_response.json
+analytics_response.json
+
+# OS files
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*

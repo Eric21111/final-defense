@@ -1,0 +1,36 @@
+# Render Blueprint for POS Backend
+# This file allows one-click deployment to Render
+
+services:
+  - type: web
+    name: pos-backend
+    runtime: node
+    region: singapore  # Change to your preferred region
+    plan: free  # Use 'starter' for production
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLOUD_ONLY
+        value: true
+      - key: ENABLE_SYNC
+        value: false
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false  # Set this manually in Render dashboard
+      - key: FRONTEND_URL
+        sync: false  # Set this to your Vercel URL
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: ENCRYPTION_SECRET
+        sync: false
+      - key: STORE_NAME
+        value: CreateYourStyle
+      - key: STORE_ADDRESS
+        value: "Pasonanca, Zamboanga City"
+    healthCheckPath: /api/ping
+    autoDeploy: true

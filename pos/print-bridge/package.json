@@ -1,0 +1,36 @@
+{
+  "name": "thermal-print-bridge",
+  "version": "1.0.0",
+  "description": "Cross-platform Electron bridge that exposes a local HTTP API for Bluetooth ESC/POS receipt printers.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "lint": "echo \"No lint step configured\""
+  },
+  "keywords": [
+    "electron",
+    "express",
+    "escpos",
+    "bluetooth",
+    "thermal",
+    "printer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "escpos": "^3.0.0-alpha.8",
+    "escpos-bluetooth": "^0.1.1",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "electron": "^32.0.1"
+  },
+  "optionalDependencies": {
+    "bluetooth-serial-port": "^3.0.3"
+  }
+}
+
+
+
