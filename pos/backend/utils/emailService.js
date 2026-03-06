@@ -6,8 +6,10 @@ const usesSendGrid = () => !!process.env.SENDGRID_API_KEY;
 
 // Initialize SendGrid if API key is available
 if (process.env.SENDGRID_API_KEY) {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    console.log('[EmailService] Using SendGrid for emails');
+    const apiKey = process.env.SENDGRID_API_KEY.trim();
+    sgMail.setApiKey(apiKey);
+    // Log first 10 chars for debugging (safe to show)
+    console.log('[EmailService] Using SendGrid for emails. Key starts with:', apiKey.substring(0, 10) + '...');
 } else {
     console.log('[EmailService] Using Nodemailer/Gmail for emails');
 }
