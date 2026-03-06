@@ -3,17 +3,32 @@ const nodemailer = require('nodemailer');
 // Determine which email service to use
 const usesBrevo = () => !!process.env.BREVO_API_KEY;
 
-// Create Brevo SMTP transporter
-const createBrevoTransporter = () => {
-  return nodemailer.createTransport({
-    host: 'smtp-relay.brevo.com',
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.EMAIL_FROM || process.env.BREVO_SMTP_USER,
-      pass: process.env.BREVO_API_KEY
+// Send email via Brevo HTTP API (works on Render free tier - no SMTP needed)
+const sendViaBrevoAPI = async (to, subject, htmlContent) => {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+            'accept': 'application/json',
+            'api-key': process.env.BREVO_API_KEY,
+            'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+            sender: {
+                name: process.env.STORE_NAME || 'POS System',
+                email: process.env.EMAIL_FROM
+            },
+            to: [{ email: to }],
+            subject: subject,
+            htmlContent: htmlContent
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(JSON.stringify(error));
     }
-  });
+
+    return await response.json();
 };
 
 // Create Gmail transporter (fallback for local dev)
@@ -143,22 +158,21 @@ const sendLowStockAlert = async (ownerEmail, lowStockItems) => {
   const subject = `🔔 Stock Alert: ${outOfStockItems.length} out of stock, ${lowItems.length} low stock items`;
 
   try {
+    // Use Brevo HTTP API if available (works on Render free tier - no SMTP)
+    if (usesBrevo()) {
+      await sendViaBrevoAPI(ownerEmail, subject, htmlContent);
+      console.log(`[EmailService] Low stock alert sent via Brevo API to ${ownerEmail}`);
+      return { success: true };
+    }
+    
+    // Fallback to Gmail (for local development)
     const mailOptions = {
       from: `"${storeName} POS" <${fromEmail}>`,
       to: ownerEmail,
       subject,
       html: htmlContent
     };
-
-    // Use Brevo SMTP if available (works on Render free tier)
-    if (usesBrevo()) {
-      const transporter = createBrevoTransporter();
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`[EmailService] Low stock alert sent via Brevo to ${ownerEmail}. Message ID: ${info.messageId}`);
-      return { success: true, messageId: info.messageId };
-    }
     
-    // Fallback to Gmail (for local development)
     const transporter = createGmailTransporter();
     const info = await transporter.sendMail(mailOptions);
     console.log(`[EmailService] Low stock alert sent via Gmail to ${ownerEmail}. Message ID: ${info.messageId}`);
