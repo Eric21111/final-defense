@@ -24,7 +24,7 @@ import {
   YAxis,
 } from "recharts";
 import { utils, writeFile } from "xlsx";
-import exportIcon from "../../assets/inventory-icons/Export.svg";
+import exportIcon from "../../assets/inventory-icons/export.svg";
 import Header from "../../components/shared/header";
 import { useTheme } from "../../context/ThemeContext";
 
