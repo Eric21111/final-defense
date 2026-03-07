@@ -617,8 +617,22 @@ const Inventory = () => {
         newProduct.selectedSizes?.length > 0
       ) {
         const missingPrices = newProduct.selectedSizes.filter((size) => {
-          const price = newProduct.sizePrices?.[size];
-          return !price || price === "" || parseFloat(price) <= 0;
+          // Check if this size has different prices per variant enabled
+          const hasDifferentPricesPerVariant = newProduct.differentPricesPerVariant?.[size];
+          
+          if (hasDifferentPricesPerVariant) {
+            // Check if variant prices are set for this size
+            const variantPricesForSize = newProduct.variantPrices?.[size];
+            if (!variantPricesForSize || Object.keys(variantPricesForSize).length === 0) {
+              return true; // Missing variant prices
+            }
+            // Check if all variants have prices > 0
+            return Object.values(variantPricesForSize).some((price) => !price || parseFloat(price) <= 0);
+          } else {
+            // Check size-level price
+            const price = newProduct.sizePrices?.[size];
+            return !price || price === "" || parseFloat(price) <= 0;
+          }
         });
 
         if (missingPrices.length > 0) {
