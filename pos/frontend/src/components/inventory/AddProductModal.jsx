@@ -68,6 +68,39 @@ const AddProductModal = ({
   const [customVariant, setCustomVariant] = useState("");
   const [multipleVariantsPerSize, setMultipleVariantsPerSize] = useState({});
   const [sizeMultiVariants, setSizeMultiVariants] = useState({});
+  const [selectedVariants, setSelectedVariants] = useState([]); // Multi-select variants
+  const [showVariantDropdown, setShowVariantDropdown] = useState(false); // Dropdown visibility
+
+  // Handle variant selection toggle
+  const handleVariantToggle = (color) => {
+    if (color === "Custom") {
+      // Handle custom color separately
+      setNewProduct((prev) => ({ ...prev, variant: "Custom" }));
+      return;
+    }
+    
+    setSelectedVariants((prev) => {
+      const newVariants = prev.includes(color)
+        ? prev.filter((v) => v !== color)
+        : [...prev, color];
+      
+      // Update newProduct.variant with comma-separated list or empty
+      const variantString = newVariants.join(", ");
+      setNewProduct((prevProduct) => ({ ...prevProduct, variant: variantString }));
+      
+      return newVariants;
+    });
+  };
+
+  // Remove a selected variant
+  const removeVariant = (color) => {
+    setSelectedVariants((prev) => {
+      const newVariants = prev.filter((v) => v !== color);
+      const variantString = newVariants.join(", ");
+      setNewProduct((prevProduct) => ({ ...prevProduct, variant: variantString }));
+      return newVariants;
+    });
+  };
 
   // Check if there's a recovered draft when modal opens
   useEffect(() => {
@@ -81,6 +114,18 @@ const AddProductModal = ({
         newProduct.itemImage ||
         (newProduct.selectedSizes && newProduct.selectedSizes.length > 0);
       setShowDraftNotice(hasData);
+      
+      // Initialize selectedVariants from existing variant string (for draft recovery)
+      if (newProduct.variant && newProduct.variant !== "Custom") {
+        const variants = newProduct.variant.split(", ").filter(v => v.trim());
+        setSelectedVariants(variants);
+      } else {
+        setSelectedVariants([]);
+      }
+    } else if (!showAddModal) {
+      // Reset when modal closes
+      setSelectedVariants([]);
+      setShowVariantDropdown(false);
     } else {
       setShowDraftNotice(false);
     }
@@ -397,51 +442,129 @@ const AddProductModal = ({
                   </h3>
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
+                      <div className="relative">
                         <label
                           className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}
                         >
                           Variant{" "}
-                          <span className="text-gray-400">Optional</span>
+                          <span className="text-gray-400">Optional - Select multiple colors</span>
                         </label>
-                        <select
-                          name="variant"
-                          value={newProduct.variant || ""}
-                          onChange={(e) => {
-                            handleInputChange(e);
-                            if (e.target.value !== "Custom") {
-                              setCustomVariant("");
-                            }
-                          }}
-                          disabled={newProduct.differentVariantsPerSize}
-                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${
+                        
+                        {/* Multi-select dropdown trigger */}
+                        <div
+                          onClick={() => !newProduct.differentVariantsPerSize && setShowVariantDropdown(!showVariantDropdown)}
+                          className={`w-full px-3 py-2 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${
                             newProduct.differentVariantsPerSize
                               ? theme === "dark"
                                 ? "bg-[#1E1B18] border-gray-600 text-gray-500 cursor-not-allowed"
                                 : "bg-gray-100 text-gray-400 cursor-not-allowed"
                               : theme === "dark"
-                                ? "bg-[#1E1B18] border-gray-600 text-white"
-                                : "bg-gray-50 border-gray-300"
+                                ? "bg-[#1E1B18] border-gray-600 text-white hover:border-[#AD7F65]"
+                                : "bg-gray-50 border-gray-300 hover:border-[#AD7F65]"
                           }`}
                         >
-                          <option
-                            value=""
-                            className={theme === "dark" ? "bg-[#2A2724]" : ""}
-                          >
+                          <span className={selectedVariants.length === 0 ? "text-gray-400" : ""}>
                             {newProduct.differentVariantsPerSize
                               ? "Multiple variants selected"
-                              : "Select a color"}
-                          </option>
-                          {COMMON_COLORS.map((color) => (
-                            <option
-                              key={color}
-                              value={color}
-                              className={theme === "dark" ? "bg-[#2A2724]" : ""}
+                              : selectedVariants.length === 0
+                                ? "Select colors..."
+                                : `${selectedVariants.length} color${selectedVariants.length > 1 ? 's' : ''} selected`}
+                          </span>
+                          <svg
+                            className={`w-4 h-4 transition-transform ${showVariantDropdown ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                        
+                        {/* Selected variants pills */}
+                        {selectedVariants.length > 0 && !newProduct.differentVariantsPerSize && (
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {selectedVariants.map((color) => (
+                              <span
+                                key={color}
+                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${
+                                  theme === "dark"
+                                    ? "bg-[#AD7F65]/20 text-[#AD7F65] border border-[#AD7F65]/30"
+                                    : "bg-[#AD7F65]/10 text-[#AD7F65] border border-[#AD7F65]/20"
+                                }`}
+                              >
+                                {color}
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeVariant(color);
+                                  }}
+                                  className="hover:text-red-500 transition-colors"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Dropdown menu */}
+                        {showVariantDropdown && !newProduct.differentVariantsPerSize && (
+                          <div
+                            className={`absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg shadow-lg ${
+                              theme === "dark"
+                                ? "bg-[#2A2724] border-gray-600"
+                                : "bg-white border-gray-200"
+                            }`}
+                          >
+                            {COMMON_COLORS.filter(c => c !== "Custom").map((color) => (
+                              <div
+                                key={color}
+                                onClick={() => handleVariantToggle(color)}
+                                className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${
+                                  selectedVariants.includes(color)
+                                    ? theme === "dark"
+                                      ? "bg-[#AD7F65]/20 text-[#AD7F65]"
+                                      : "bg-[#AD7F65]/10 text-[#AD7F65]"
+                                    : theme === "dark"
+                                      ? "hover:bg-[#3A3734]"
+                                      : "hover:bg-gray-100"
+                                }`}
+                              >
+                                <span>{color}</span>
+                                {selectedVariants.includes(color) && (
+                                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </div>
+                            ))}
+                            {/* Custom option */}
+                            <div
+                              onClick={() => {
+                                setNewProduct((prev) => ({ ...prev, variant: "Custom" }));
+                                setShowVariantDropdown(false);
+                              }}
+                              className={`px-3 py-2 text-sm cursor-pointer border-t ${
+                                theme === "dark"
+                                  ? "hover:bg-[#3A3734] border-gray-600"
+                                  : "hover:bg-gray-100 border-gray-200"
+                              }`}
                             >
-                              {color}
-                            </option>
-                          ))}
-                        </select>
+                              <span className="italic">+ Add custom color</span>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Click outside to close dropdown */}
+                        {showVariantDropdown && (
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setShowVariantDropdown(false)}
+                          />
+                        )}
+                        
+                        {/* Custom variant input */}
                         {newProduct.variant === "Custom" &&
                           !newProduct.differentVariantsPerSize && (
                             <input
