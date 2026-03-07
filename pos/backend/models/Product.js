@@ -14,8 +14,7 @@ const productSchema = new mongoose.Schema({
   },
   category: {
     type: String,
-    required: true,
-    enum: ['Tops', 'Bottoms', 'Dresses', 'Makeup', 'Accessories', 'Shoes', 'Head Wear', 'Foods']
+    required: true
   },
   brandName: {
     type: String,
@@ -43,7 +42,7 @@ const productSchema = new mongoose.Schema({
   },
   itemPrice: {
     type: Number,
-    required: true,
+    default: 0,
     min: 0
   },
   costPrice: {

@@ -147,15 +147,39 @@ exports.createProduct = async (req, res) => {
         // Construct sizes object
         productData.sizes = {};
         productData.selectedSizes.forEach((size) => {
-          let sizeData = productData.sizeQuantities[size];
-
-          // If we have specific prices or variants, use object structure
-          if (
-            productData.differentPricesPerSize ||
-            productData.differentVariantsPerSize
-          ) {
-            sizeData = {
-              quantity: productData.sizeQuantities[size],
+          // Check if this size has variant pricing
+          const hasDifferentPricesPerVariant = productData.differentPricesPerVariant?.[size];
+          
+          if (hasDifferentPricesPerVariant && productData.variantQuantities?.[size]) {
+            // Variant-level pricing: store each variant with its own qty/price/cost
+            const variants = {};
+            const variantQtys = productData.variantQuantities[size] || {};
+            const variantPrices = productData.variantPrices?.[size] || {};
+            const variantCostPrices = productData.variantCostPrices?.[size] || {};
+            
+            Object.keys(variantQtys).forEach(variantName => {
+              const qty = parseInt(variantQtys[variantName]) || 0;
+              if (qty > 0 || variantPrices[variantName] > 0) {
+                variants[variantName] = {
+                  quantity: qty,
+                  price: parseFloat(variantPrices[variantName]) || productData.itemPrice || 0,
+                  costPrice: parseFloat(variantCostPrices[variantName]) || productData.costPrice || 0,
+                };
+              }
+            });
+            
+            // Calculate total quantity for this size
+            const totalQty = Object.values(variants).reduce((sum, v) => sum + (v.quantity || 0), 0);
+            
+            productData.sizes[size] = {
+              quantity: totalQty,
+              variants: variants,
+              hasDifferentPricesPerVariant: true,
+            };
+          } else if (productData.differentPricesPerSize || productData.differentVariantsPerSize) {
+            // Size-level pricing
+            const sizeData = {
+              quantity: productData.sizeQuantities[size] || 0,
               price: productData.differentPricesPerSize
                 ? productData.sizePrices?.[size] || productData.itemPrice
                 : productData.itemPrice,
@@ -165,26 +189,74 @@ exports.createProduct = async (req, res) => {
             };
 
             // Add cost price if available
-            if (
-              productData.differentPricesPerSize &&
-              productData.sizeCostPrices?.[size]
-            ) {
+            if (productData.differentPricesPerSize && productData.sizeCostPrices?.[size]) {
               sizeData.costPrice = productData.sizeCostPrices[size];
             }
-          }
+            
+            // Also handle variant quantities if present (without variant-specific pricing)
+            if (productData.variantQuantities?.[size]) {
+              const variants = {};
+              const variantQtys = productData.variantQuantities[size];
+              Object.keys(variantQtys).forEach(variantName => {
+                const qty = parseInt(variantQtys[variantName]) || 0;
+                if (qty > 0) {
+                  variants[variantName] = {
+                    quantity: qty,
+                    price: sizeData.price,
+                    costPrice: sizeData.costPrice || productData.costPrice || 0,
+                  };
+                }
+              });
+              if (Object.keys(variants).length > 0) {
+                sizeData.variants = variants;
+                sizeData.quantity = Object.values(variants).reduce((sum, v) => sum + (v.quantity || 0), 0);
+              }
+            }
 
-          productData.sizes[size] = sizeData;
+            productData.sizes[size] = sizeData;
+          } else {
+            // Simple quantity only, but check for variant quantities
+            if (productData.variantQuantities?.[size]) {
+              const variants = {};
+              const variantQtys = productData.variantQuantities[size];
+              Object.keys(variantQtys).forEach(variantName => {
+                const qty = parseInt(variantQtys[variantName]) || 0;
+                if (qty > 0) {
+                  variants[variantName] = {
+                    quantity: qty,
+                    price: productData.itemPrice || 0,
+                    costPrice: productData.costPrice || 0,
+                  };
+                }
+              });
+              
+              const totalQty = Object.values(variants).reduce((sum, v) => sum + (v.quantity || 0), 0);
+              productData.sizes[size] = {
+                quantity: totalQty,
+                variants: variants,
+              };
+            } else {
+              productData.sizes[size] = productData.sizeQuantities[size] || 0;
+            }
+          }
         });
       }
     }
 
+    // Clean up temporary fields
     delete productData.selectedSizes;
     delete productData.sizeQuantities;
-    delete productData.sizeQuantities;
     delete productData.sizePrices;
+    delete productData.sizeCostPrices;
     delete productData.sizeVariants;
     delete productData.differentPricesPerSize;
     delete productData.differentVariantsPerSize;
+    delete productData.differentPricesPerVariant;
+    delete productData.variantQuantities;
+    delete productData.variantPrices;
+    delete productData.variantCostPrices;
+    delete productData.sizeMultiVariants;
+    delete productData.multipleVariantsPerSize;
 
     if (!productData.dateAdded) {
       productData.dateAdded = Date.now();

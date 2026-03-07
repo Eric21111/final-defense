@@ -616,26 +616,29 @@ const Inventory = () => {
         (size) => newProduct.differentPricesPerVariant?.[size]
       );
 
+      // Check if variant prices exist (they might be synced even if differentPricesPerVariant isn't yet)
+      const hasVariantPrices = newProduct.variantPrices && 
+        Object.keys(newProduct.variantPrices).length > 0 &&
+        Object.values(newProduct.variantPrices).some(sizeVariants => 
+          Object.values(sizeVariants || {}).some(price => price > 0)
+        );
+
+      // If we have variant prices filled in, skip global price validation
+      if (hasAnyVariantPricing || hasVariantPrices) {
+        // Variant pricing is being used - no global price needed
+        // Just proceed to confirmation
+        setShowConfirmModal(true);
+        return;
+      }
+
       // Validate size prices if different prices per size is enabled
       if (
         newProduct.differentPricesPerSize &&
         newProduct.selectedSizes?.length > 0
       ) {
-        // For variant pricing: empty qty/price means 0 stock, not required
-        // Just ensure at least one variant per size has valid data if variant pricing is enabled
         const invalidSizes = newProduct.selectedSizes.filter((size) => {
-          // Check if this size has different prices per variant enabled
-          const hasDifferentPricesPerVariant = newProduct.differentPricesPerVariant?.[size];
-          
-          if (hasDifferentPricesPerVariant) {
-            // Variant pricing is enabled - empty values are treated as 0/no stock, which is OK
-            // No validation required for individual variant prices
-            return false;
-          } else {
-            // Check size-level price
-            const price = newProduct.sizePrices?.[size];
-            return !price || price === "" || parseFloat(price) <= 0;
-          }
+          const price = newProduct.sizePrices?.[size];
+          return !price || price === "" || parseFloat(price) <= 0;
         });
 
         if (invalidSizes.length > 0) {
@@ -644,38 +647,13 @@ const Inventory = () => {
           );
           return;
         }
-      } else if (!newProduct.differentPricesPerSize && hasAnyVariantPricing) {
-        // Different prices per size is NOT enabled, but some sizes have variant pricing
-        // Sizes with variant pricing: empty values = 0/no stock (OK)
-        // Sizes without variant pricing: need size-level prices
-        const invalidSizes = newProduct.selectedSizes.filter((size) => {
-          const hasDifferentPricesPerVariant = newProduct.differentPricesPerVariant?.[size];
-          
-          if (hasDifferentPricesPerVariant) {
-            // Variant pricing enabled - empty values are treated as 0/no stock, which is OK
-            return false;
-          } else {
-            // This size doesn't have variant pricing, check if it has size-level price
-            const price = newProduct.sizePrices?.[size];
-            return !price || price === "" || parseFloat(price) <= 0;
-          }
-        });
-
-        if (invalidSizes.length > 0) {
-          alert(
-            `Please enter prices for all sizes/variants: ${invalidSizes.join(", ")}`,
-          );
-          return;
-        }
-      } else if (!newProduct.differentPricesPerSize && !hasAnyVariantPricing) {
-        // Only require itemPrice if different prices per size is not enabled AND no variant pricing at all
+      } else if (!newProduct.differentPricesPerSize) {
+        // Only require itemPrice if different prices per size is not enabled
         if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) {
           alert("Please enter a selling price.");
           return;
         }
       }
-      // If hasAnyVariantPricing is true and differentPricesPerSize is false, 
-      // no global itemPrice is needed - prices come from variants
 
       setShowConfirmModal(true);
     } else {
@@ -704,17 +682,25 @@ const Inventory = () => {
       const method = editingProduct ? "PUT" : "POST";
 
       // Prepare payload - exclude sizes and stock when editing
-      // If differentPricesPerSize is enabled, use first size price as default itemPrice if itemPrice is not set
+      // Get default itemPrice - use first available price from various sources
       let defaultItemPrice = parseFloat(newProduct.itemPrice) || 0;
-      if (
-        newProduct.differentPricesPerSize &&
-        newProduct.selectedSizes?.length > 0 &&
-        !defaultItemPrice
-      ) {
-        const firstSizePrice =
-          newProduct.sizePrices?.[newProduct.selectedSizes[0]];
+      
+      // If no itemPrice, try to get from size prices
+      if (!defaultItemPrice && newProduct.differentPricesPerSize && newProduct.selectedSizes?.length > 0) {
+        const firstSizePrice = newProduct.sizePrices?.[newProduct.selectedSizes[0]];
         if (firstSizePrice) {
           defaultItemPrice = parseFloat(firstSizePrice) || 0;
+        }
+      }
+      
+      // If still no itemPrice, try to get from variant prices
+      if (!defaultItemPrice && newProduct.variantPrices) {
+        const firstSizeWithVariantPrices = Object.keys(newProduct.variantPrices)[0];
+        if (firstSizeWithVariantPrices) {
+          const firstVariantPrice = Object.values(newProduct.variantPrices[firstSizeWithVariantPrices])[0];
+          if (firstVariantPrice) {
+            defaultItemPrice = parseFloat(firstVariantPrice) || 0;
+          }
         }
       }
 

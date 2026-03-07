@@ -213,38 +213,33 @@ const AddProductModal = ({
   const handleFormSubmit = (e) => {
     e.preventDefault();
 
-    //  Update newProduct with custom variant if applicable
-    if (newProduct.variant === "Custom" && customVariant) {
-      setNewProduct((prev) => ({ ...prev, variant: customVariant }));
-    }
-
-    // Store multi-variant data in newProduct for parent to access
-    if (Object.keys(sizeMultiVariants).length > 0) {
-      setNewProduct((prev) => ({
-        ...prev,
+    // Build the complete product data object with all variant info
+    const completeProductData = {
+      ...newProduct,
+      // Custom variant
+      ...(newProduct.variant === "Custom" && customVariant && { variant: customVariant }),
+      // Multi-variant data
+      ...(Object.keys(sizeMultiVariants).length > 0 && {
         sizeMultiVariants: sizeMultiVariants,
         multipleVariantsPerSize: multipleVariantsPerSize,
-      }));
-    }
-
-    // Store variant quantities in newProduct for parent to access
-    if (Object.keys(variantQuantities).length > 0) {
-      setNewProduct((prev) => ({
-        ...prev,
+      }),
+      // Variant quantities
+      ...(Object.keys(variantQuantities).length > 0 && {
         variantQuantities: variantQuantities,
-      }));
-    }
-
-    // Always sync differentPricesPerVariant state, and sync prices if they exist
-    setNewProduct((prev) => ({
-      ...prev,
+      }),
+      // Variant pricing - always include differentPricesPerVariant
       differentPricesPerVariant: differentPricesPerVariant,
       ...(Object.keys(variantPrices).length > 0 && { variantPrices: variantPrices }),
       ...(Object.keys(variantCostPrices).length > 0 && { variantCostPrices: variantCostPrices }),
-    }));
+    };
 
-    // Call the parent's handleAddProduct with a slight delay to ensure state updates
-    setTimeout(() => handleAddProduct(e), 10);
+    // Update newProduct with complete data
+    setNewProduct(completeProductData);
+
+    // Use requestAnimationFrame to ensure state is updated before validation
+    requestAnimationFrame(() => {
+      handleAddProduct(e);
+    });
   };
 
   return (
