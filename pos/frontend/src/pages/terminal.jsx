@@ -46,6 +46,7 @@ const Terminal = () => {
   const [expandedProductId, setExpandedProductId] = useState(null);
   const [productQuantities, setProductQuantities] = useState({});
   const [productSizes, setProductSizes] = useState({});
+  const [productVariants, setProductVariants] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [showCashPaymentModal, setShowCashPaymentModal] = useState(false);
@@ -372,13 +373,17 @@ const Terminal = () => {
     setSelectedProduct(product);
     setShowProductModal(true);
 
-    // Initialize quantity and size if not set
+    // Initialize quantity, size, and variant if not set
     if (!productQuantities[product._id]) {
       setProductQuantities({ ...productQuantities, [product._id]: 1 });
     }
     // Don't auto-select size - let user pick
     if (!productSizes[product._id]) {
       setProductSizes({ ...productSizes, [product._id]: "" });
+    }
+    // Don't auto-select variant - let user pick
+    if (!productVariants[product._id]) {
+      setProductVariants({ ...productVariants, [product._id]: "" });
     }
 
     // Fetch full product details (including sizes) in the background
@@ -435,6 +440,17 @@ const Terminal = () => {
     });
   };
 
+  const handleVariantSelection = (productId, variant) => {
+    // Update selected variant
+    setProductVariants({ ...productVariants, [productId]: variant });
+    
+    // Clear the size selection when variant changes (user must re-select size)
+    setProductSizes({ ...productSizes, [productId]: "" });
+    
+    // Reset quantity to 1
+    setProductQuantities({ ...productQuantities, [productId]: 1 });
+  };
+
   const handleSizeSelection = (productId, size) => {
     const product = products.find((p) => p._id === productId);
     if (!product) return;
@@ -442,19 +458,25 @@ const Terminal = () => {
     // Update selected size
     setProductSizes({ ...productSizes, [productId]: size });
 
+    // Get the selected variant (if product has variants)
+    const selectedVariant = productVariants[productId] || "";
+
     // Get available stock for the new size
     let availableStock = 0;
     if (product.sizes && typeof product.sizes === "object" && size) {
       const sizeData = product.sizes[size];
-      // Handle both formats: number or object with quantity
-      availableStock =
-        typeof sizeData === "object" &&
-        sizeData !== null &&
-        sizeData.quantity !== undefined
-          ? sizeData.quantity
-          : typeof sizeData === "number"
-            ? sizeData
-            : 0;
+      
+      // Check if this size has variants
+      if (typeof sizeData === "object" && sizeData !== null && sizeData.variants && selectedVariant) {
+        // Get stock for the specific variant
+        availableStock = sizeData.variants[selectedVariant] || 0;
+      } else if (typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined) {
+        // Handle object with quantity
+        availableStock = sizeData.quantity;
+      } else if (typeof sizeData === "number") {
+        // Handle number format
+        availableStock = sizeData;
+      }
     } else {
       availableStock = product.currentStock || 0;
     }
@@ -478,6 +500,27 @@ const Terminal = () => {
   const addToCartFromExpanded = (product) => {
     const quantity = productQuantities[product._id] || 1;
     const size = productSizes[product._id] || "";
+    const variant = productVariants[product._id] || "";
+
+    // Check if product has variants per size
+    const hasVariantsPerSize = () => {
+      if (product.sizes && typeof product.sizes === "object") {
+        return Object.values(product.sizes).some((sizeData) => {
+          return typeof sizeData === "object" && sizeData !== null && 
+                 sizeData.variants && typeof sizeData.variants === "object" &&
+                 Object.keys(sizeData.variants).length > 0;
+        });
+      }
+      return false;
+    };
+
+    const productHasVariants = hasVariantsPerSize();
+
+    // Validate variant selection for products with variants
+    if (productHasVariants && !variant) {
+      alert("Please select a variant before adding to cart");
+      return;
+    }
 
     // Validate size selection for products with sizes
     if (
@@ -498,12 +541,23 @@ const Terminal = () => {
     if (product.sizes && typeof product.sizes === "object" && size) {
       const sizeData = product.sizes[size];
       if (typeof sizeData === "object" && sizeData !== null) {
-        availableStock = sizeData.quantity || 0;
-        // Use size-specific price if available, otherwise use default price
-        itemPrice =
-          sizeData.price !== undefined
-            ? sizeData.price
-            : product.itemPrice || 0;
+        // Check if this size has variants
+        if (sizeData.variants && variant) {
+          availableStock = sizeData.variants[variant] || 0;
+          // Use variant-specific price if available
+          if (sizeData.variantPrices && sizeData.variantPrices[variant] !== undefined) {
+            itemPrice = sizeData.variantPrices[variant];
+          } else if (sizeData.price !== undefined) {
+            itemPrice = sizeData.price;
+          }
+        } else {
+          availableStock = sizeData.quantity || 0;
+          // Use size-specific price if available, otherwise use default price
+          itemPrice =
+            sizeData.price !== undefined
+              ? sizeData.price
+              : product.itemPrice || 0;
+        }
       } else {
         availableStock = typeof sizeData === "number" ? sizeData : 0;
       }
@@ -517,9 +571,14 @@ const Terminal = () => {
       return;
     }
 
-    const existingItem = cart.find(
-      (item) => item._id === product._id && item.selectedSize === size,
-    );
+    // For products with variants, also check variant in the existing item match
+    const existingItem = productHasVariants
+      ? cart.find(
+          (item) => item._id === product._id && item.selectedSize === size && item.selectedVariation === variant,
+        )
+      : cart.find(
+          (item) => item._id === product._id && item.selectedSize === size,
+        );
 
     // Calculate total quantity that would be in cart after adding
     const totalQuantityAfterAdd = existingItem
@@ -538,8 +597,9 @@ const Terminal = () => {
       ...product,
       productId: product._id,
       selectedSize: size,
+      selectedVariation: variant, // Add selected variant
       quantity: quantity,
-      itemPrice: itemPrice, // Use size-specific price if available
+      itemPrice: itemPrice, // Use size/variant-specific price if available
     };
 
     // If item already exists in cart, show confirmation modal
@@ -568,7 +628,9 @@ const Terminal = () => {
 
     setCart(
       cart.map((item) =>
-        item._id === product._id && item.selectedSize === product.selectedSize
+        item._id === product._id && 
+        item.selectedSize === product.selectedSize &&
+        item.selectedVariation === product.selectedVariation
           ? { ...item, quantity: item.quantity + product.quantity }
           : item,
       ),
@@ -1685,6 +1747,10 @@ const Terminal = () => {
         selectedSize={selectedProduct ? productSizes[selectedProduct._id] : ""}
         onSelectSize={(size) =>
           selectedProduct && handleSizeSelection(selectedProduct._id, size)
+        }
+        selectedVariant={selectedProduct ? productVariants[selectedProduct._id] : ""}
+        onSelectVariant={(variant) =>
+          selectedProduct && handleVariantSelection(selectedProduct._id, variant)
         }
       />
     </>

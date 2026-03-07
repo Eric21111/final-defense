@@ -12,6 +12,8 @@ const ProductDetailsModal = ({
   onAdd,
   selectedSize,
   onSelectSize,
+  selectedVariant,
+  onSelectVariant,
 }) => {
   const { theme } = useTheme();
 
@@ -41,8 +43,103 @@ const ProductDetailsModal = ({
     return null;
   };
 
-  // Get display price based on selected size
+  // Helper function to get variants from size data
+  const getSizeVariants = (sizeData) => {
+    if (
+      typeof sizeData === "object" &&
+      sizeData !== null &&
+      sizeData.variants &&
+      typeof sizeData.variants === "object"
+    ) {
+      return sizeData.variants;
+    }
+    return null;
+  };
+
+  // Helper function to get variant prices from size data
+  const getSizeVariantPrices = (sizeData) => {
+    if (
+      typeof sizeData === "object" &&
+      sizeData !== null &&
+      sizeData.variantPrices &&
+      typeof sizeData.variantPrices === "object"
+    ) {
+      return sizeData.variantPrices;
+    }
+    return null;
+  };
+
+  // Check if product has variants (variants stored per size)
+  const hasVariants = () => {
+    if (product.sizes && typeof product.sizes === "object") {
+      return Object.values(product.sizes).some((sizeData) => {
+        const variants = getSizeVariants(sizeData);
+        return variants && Object.keys(variants).length > 0;
+      });
+    }
+    return false;
+  };
+
+  // Get all unique variants from all sizes
+  const getAllVariants = () => {
+    const variantSet = new Set();
+    if (product.sizes && typeof product.sizes === "object") {
+      Object.values(product.sizes).forEach((sizeData) => {
+        const variants = getSizeVariants(sizeData);
+        if (variants) {
+          Object.keys(variants).forEach((variant) => {
+            // Only add variants that have stock > 0
+            if (variants[variant] > 0) {
+              variantSet.add(variant);
+            }
+          });
+        }
+      });
+    }
+    return Array.from(variantSet);
+  };
+
+  // Get available sizes for a specific variant
+  const getAvailableSizesForVariant = (variant) => {
+    if (!product.sizes || typeof product.sizes !== "object") return [];
+    
+    return Object.entries(product.sizes)
+      .filter(([size, sizeData]) => {
+        const variants = getSizeVariants(sizeData);
+        return variants && variants[variant] && variants[variant] > 0;
+      })
+      .map(([size]) => size);
+  };
+
+  // Get quantity for a specific variant in a specific size
+  const getVariantQuantityInSize = (size, variant) => {
+    if (!product.sizes || !product.sizes[size]) return 0;
+    const variants = getSizeVariants(product.sizes[size]);
+    if (variants && variants[variant] !== undefined) {
+      return variants[variant];
+    }
+    return 0;
+  };
+
+  // Get price for a specific variant in a specific size
+  const getVariantPriceInSize = (size, variant) => {
+    if (!product.sizes || !product.sizes[size]) return null;
+    const variantPrices = getSizeVariantPrices(product.sizes[size]);
+    if (variantPrices && variantPrices[variant] !== undefined) {
+      return variantPrices[variant];
+    }
+    // Fallback to size price
+    return getSizePrice(product.sizes[size]);
+  };
+
+  // Get display price based on selected size and variant
   const getDisplayPrice = () => {
+    if (selectedSize && selectedVariant && hasVariants()) {
+      const variantPrice = getVariantPriceInSize(selectedSize, selectedVariant);
+      if (variantPrice !== null) {
+        return variantPrice;
+      }
+    }
     if (
       selectedSize &&
       product.sizes &&
@@ -69,15 +166,24 @@ const ProductDetailsModal = ({
     return product.currentStock || 0;
   };
 
-  // Get available sizes with stock
-  const availableSizes =
-    product.sizes && typeof product.sizes === "object"
-      ? Object.keys(product.sizes)
-      : [];
+  // Determine available sizes based on whether product has variants
+  const productHasVariants = hasVariants();
+  const allVariants = productHasVariants ? getAllVariants() : [];
+  
+  // Get available sizes - if has variants, only show sizes that have stock for selected variant
+  const availableSizes = productHasVariants
+    ? (selectedVariant ? getAvailableSizesForVariant(selectedVariant) : [])
+    : (product.sizes && typeof product.sizes === "object"
+        ? Object.keys(product.sizes)
+        : []);
 
   // Get available stock for current selection
   const getAvailableStock = () => {
     if (product.sizes && typeof product.sizes === "object" && selectedSize) {
+      // If product has variants, get stock for specific variant
+      if (productHasVariants && selectedVariant) {
+        return getVariantQuantityInSize(selectedSize, selectedVariant);
+      }
       return getSizeQuantity(product.sizes[selectedSize]);
     }
     return product.currentStock || 0;
@@ -85,13 +191,24 @@ const ProductDetailsModal = ({
 
   // Check if Add button should be disabled
   const isAddButtonDisabled = () => {
+    // If product has variants, must select variant first
+    if (productHasVariants && !selectedVariant) return true;
+    
     if (
       product.sizes &&
       typeof product.sizes === "object" &&
       Object.keys(product.sizes).length > 0
     ) {
       if (!selectedSize) return true;
-      const sizeStock = getSizeQuantity(product.sizes[selectedSize]);
+      
+      // Get stock based on variant selection
+      let sizeStock;
+      if (productHasVariants && selectedVariant) {
+        sizeStock = getVariantQuantityInSize(selectedSize, selectedVariant);
+      } else {
+        sizeStock = getSizeQuantity(product.sizes[selectedSize]);
+      }
+      
       if (sizeStock <= 0 || productQuantity > sizeStock) return true;
     } else {
       const totalStock = product.currentStock || 0;
@@ -215,22 +332,131 @@ const ProductDetailsModal = ({
                     PHP {getDisplayPrice().toFixed(2)}
                   </p>
                 </div>
-                <div>
-                  <p
-                    className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    Variant
-                  </p>
-                  <p
-                    className={`font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}
-                  >
-                    {product.variant || "N/A"}
-                  </p>
-                </div>
+                {/* Show static variant only if product doesn't have variants per size */}
+                {!productHasVariants && (
+                  <div>
+                    <p
+                      className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Variant
+                    </p>
+                    <p
+                      className={`font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}
+                    >
+                      {product.variant || "N/A"}
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Size Selection - full width, prominent */}
-              {availableSizes.length > 0 ? (
+              {/* Variant Selection - show first if product has variants per size */}
+              {productHasVariants && allVariants.length > 0 && (
+                <div className="mb-4">
+                  <p
+                    className={`text-sm font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}
+                  >
+                    Select Variant <span className="text-red-500">*</span>
+                  </p>
+                  {!selectedVariant && (
+                    <p
+                      className={`text-xs mb-2 ${theme === "dark" ? "text-yellow-400" : "text-yellow-600"}`}
+                    >
+                      Please select a variant first
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {allVariants.map((variant) => (
+                      <button
+                        key={variant}
+                        onClick={() => onSelectVariant(variant)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 ${
+                          selectedVariant === variant
+                            ? "bg-[#AD7F65] text-white border-[#AD7F65]"
+                            : theme === "dark"
+                              ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
+                              : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
+                        }`}
+                      >
+                        {variant}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Size Selection - show after variant is selected (if product has variants) */}
+              {productHasVariants ? (
+                selectedVariant && availableSizes.length > 0 ? (
+                  <div className="mb-4">
+                    <p
+                      className={`text-sm font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}
+                    >
+                      Select Size <span className="text-red-500">*</span>
+                    </p>
+                    {!selectedSize && (
+                      <p
+                        className={`text-xs mb-2 ${theme === "dark" ? "text-yellow-400" : "text-yellow-600"}`}
+                      >
+                        Please select a size to continue
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {availableSizes.map((size) => {
+                        const variantStock = getVariantQuantityInSize(size, selectedVariant);
+                        const isOutOfStock = variantStock <= 0;
+                        return (
+                          <button
+                            key={size}
+                            onClick={() => !isOutOfStock && onSelectSize(size)}
+                            disabled={isOutOfStock}
+                            className={`flex flex-col items-center px-4 py-2 rounded-lg text-xs font-medium transition-all border-2 ${
+                              selectedSize === size
+                                ? "bg-[#AD7F65] text-white border-[#AD7F65]"
+                                : isOutOfStock
+                                  ? theme === "dark"
+                                    ? "bg-gray-700 text-gray-500 cursor-not-allowed border-gray-700"
+                                    : "bg-gray-100 text-gray-300 cursor-not-allowed border-gray-100"
+                                  : theme === "dark"
+                                    ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
+                                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
+                            }`}
+                          >
+                            <span className="font-bold text-sm">{size}</span>
+                            <span
+                              className={`text-[10px] mt-0.5 ${
+                                selectedSize === size
+                                  ? "text-white/80"
+                                  : isOutOfStock
+                                    ? theme === "dark"
+                                      ? "text-gray-600"
+                                      : "text-gray-300"
+                                    : theme === "dark"
+                                      ? "text-gray-400"
+                                      : "text-gray-500"
+                              }`}
+                            >
+                              {isOutOfStock ? "Out" : `${variantStock} pcs`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : !selectedVariant ? (
+                  <div className="mb-4">
+                    <p
+                      className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Size
+                    </p>
+                    <p
+                      className={`text-sm mt-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}
+                    >
+                      Select a variant first
+                    </p>
+                  </div>
+                ) : null
+              ) : availableSizes.length > 0 ? (
                 <div className="mb-4">
                   <p
                     className={`text-sm font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}
@@ -310,17 +536,24 @@ const ProductDetailsModal = ({
                     Quantity
                   </p>
                   <div
-                    className={`flex items-center gap-2 mt-1 ${availableSizes.length > 0 && !selectedSize ? "opacity-40 pointer-events-none" : ""}`}
+                    className={`flex items-center gap-2 mt-1 ${
+                      (productHasVariants && (!selectedVariant || !selectedSize)) ||
+                      (!productHasVariants && availableSizes.length > 0 && !selectedSize)
+                        ? "opacity-40 pointer-events-none"
+                        : ""
+                    }`}
                   >
                     <button
                       onClick={onDecrement}
                       disabled={
                         isDecrementDisabled() ||
-                        (availableSizes.length > 0 && !selectedSize)
+                        (productHasVariants && (!selectedVariant || !selectedSize)) ||
+                        (!productHasVariants && availableSizes.length > 0 && !selectedSize)
                       }
                       className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
                         isDecrementDisabled() ||
-                        (availableSizes.length > 0 && !selectedSize)
+                        (productHasVariants && (!selectedVariant || !selectedSize)) ||
+                        (!productHasVariants && availableSizes.length > 0 && !selectedSize)
                           ? theme === "dark"
                             ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
@@ -338,11 +571,13 @@ const ProductDetailsModal = ({
                       onClick={onIncrement}
                       disabled={
                         isIncrementDisabled() ||
-                        (availableSizes.length > 0 && !selectedSize)
+                        (productHasVariants && (!selectedVariant || !selectedSize)) ||
+                        (!productHasVariants && availableSizes.length > 0 && !selectedSize)
                       }
                       className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
                         isIncrementDisabled() ||
-                        (availableSizes.length > 0 && !selectedSize)
+                        (productHasVariants && (!selectedVariant || !selectedSize)) ||
+                        (!productHasVariants && availableSizes.length > 0 && !selectedSize)
                           ? theme === "dark"
                             ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                             : "bg-gray-200 text-gray-400 cursor-not-allowed"
@@ -359,7 +594,27 @@ const ProductDetailsModal = ({
                   >
                     Stock
                   </p>
-                  {availableSizes.length > 0 ? (
+                  {productHasVariants ? (
+                    selectedVariant && selectedSize ? (
+                      <p
+                        className={`font-medium mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}
+                      >
+                        {getVariantQuantityInSize(selectedSize, selectedVariant)} pcs
+                      </p>
+                    ) : !selectedVariant ? (
+                      <p
+                        className={`text-sm mt-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}
+                      >
+                        Select a variant
+                      </p>
+                    ) : (
+                      <p
+                        className={`text-sm mt-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}
+                      >
+                        Select a size
+                      </p>
+                    )
+                  ) : availableSizes.length > 0 ? (
                     selectedSize ? (
                       <p
                         className={`font-medium mt-1 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}
