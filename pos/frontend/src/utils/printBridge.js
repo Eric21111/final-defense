@@ -1,7 +1,5 @@
 const MAX_WIDTH = Number(import.meta.env.VITE_RECEIPT_LINE_WIDTH || 32);
-const PRINT_API_URL = import.meta.env.VITE_PRINT_API_URL || 'http://localhost:9100';
-const USE_NETWORK_PRINTER = import.meta.env.VITE_USE_NETWORK_PRINTER === 'true';
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+const PRINT_SERVER_URL = import.meta.env.VITE_PRINT_SERVER_URL || 'http://localhost:9100';
 
 const formatCurrency = value => `PHP ${Number(value || 0).toFixed(2)}`;
 
@@ -354,46 +352,42 @@ const buildReceiptHTML = (receipt) => {
 };
 
 /**
- * Print receipt using window.print() or send to thermal printer via backend API
+ * Print receipt - sends to thermal printer at localhost:9100 or falls back to window.print()
  */
 export async function sendReceiptToPrinter(receipt) {
   if (!receipt) throw new Error('No receipt payload provided');
 
-  // If network printer is enabled, send to backend API
-  if (USE_NETWORK_PRINTER) {
-    return sendToNetworkPrinter(receipt);
+  // Try to send to thermal printer at localhost:9100
+  try {
+    const result = await sendToThermalPrinter(receipt);
+    return result;
+  } catch (error) {
+    console.warn('Thermal printer not available, using window.print():', error.message);
+    return printViaWindow(receipt);
   }
-
-  // Otherwise, use window.print()
-  return printViaWindow(receipt);
 }
 
 /**
- * Send receipt to thermal printer via backend API (localhost:9100)
+ * Send receipt to thermal printer at localhost:9100
  */
-async function sendToNetworkPrinter(receipt) {
-  try {
-    const response = await fetch(`${API_BASE_URL}/print/receipt`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ receiptData: receipt }),
-    });
+async function sendToThermalPrinter(receipt) {
+  // Build receipt lines for ESC/POS
+  const lines = buildReceiptLines(receipt);
+  
+  const response = await fetch(`${PRINT_SERVER_URL}/print`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ lines }),
+  });
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.message || 'Failed to print receipt');
-    }
-
-    return { success: true, message: 'Receipt sent to printer' };
-  } catch (error) {
-    console.error('Network printer error:', error);
-    // Fallback to window.print() if network printer fails
-    console.log('Falling back to window.print()...');
-    return printViaWindow(receipt);
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.message || `Print server error: ${response.status}`);
   }
+
+  return { success: true, message: 'Receipt sent to thermal printer' };
 }
 
 /**
