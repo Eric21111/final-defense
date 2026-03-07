@@ -75,11 +75,24 @@ const AddProductModal = ({
   const [variantQuantities, setVariantQuantities] = useState({}); // Track quantity per variant per size: { "S": { "Blue": 5, "White": 7 }, "M": { "Blue": 3 } }
   const [differentPricesPerVariant, setDifferentPricesPerVariant] = useState({}); // Track if size has different prices per variant: { "S": true, "M": false }
   const [variantPrices, setVariantPrices] = useState({}); // Track price per variant per size: { "S": { "Blue": 100, "White": 120 }, "M": { "Blue": 95 } }
+  const [variantCostPrices, setVariantCostPrices] = useState({}); // Track cost price per variant per size: { "S": { "Blue": 50, "White": 60 }, "M": { "Blue": 45 } }
 
   // Handle variant price change for a specific size and variant
   const handleVariantPriceChange = (size, variant, price) => {
     const priceValue = parseFloat(price) || 0;
     setVariantPrices((prev) => ({
+      ...prev,
+      [size]: {
+        ...(prev[size] || {}),
+        [variant]: priceValue,
+      },
+    }));
+  };
+
+  // Handle variant cost price change for a specific size and variant
+  const handleVariantCostPriceChange = (size, variant, price) => {
+    const priceValue = parseFloat(price) || 0;
+    setVariantCostPrices((prev) => ({
       ...prev,
       [size]: {
         ...(prev[size] || {}),
@@ -223,10 +236,11 @@ const AddProductModal = ({
     }
 
     // Store variant prices in newProduct for parent to access
-    if (Object.keys(variantPrices).length > 0) {
+    if (Object.keys(variantPrices).length > 0 || Object.keys(variantCostPrices).length > 0) {
       setNewProduct((prev) => ({
         ...prev,
         variantPrices: variantPrices,
+        variantCostPrices: variantCostPrices,
         differentPricesPerVariant: differentPricesPerVariant,
       }));
     }
@@ -355,6 +369,7 @@ const AddProductModal = ({
                             setCustomColorInput("");
                             setVariantQuantities({});
                             setVariantPrices({});
+                            setVariantCostPrices({});
                             setDifferentPricesPerVariant({});
 
                             // Reset foodSubtype when category changes
@@ -1011,27 +1026,59 @@ const AddProductModal = ({
                                           </span>
                                         </div>
                                         
-                                        {/* Size price input - shown when NOT using different prices per variant */}
+                                        {/* Cost Price and Selling Price - shown when NOT using different prices per variant */}
                                         {!differentPricesPerVariant[size] && (
-                                          <div className="mb-3">
-                                            <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                              Price for {size}
-                                            </label>
-                                            <div className="flex items-center gap-1">
-                                              <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
-                                              <input
-                                                type="number"
-                                                min="0"
-                                                step="0.01"
-                                                value={newProduct.sizePrices?.[size] || ""}
-                                                onChange={(e) => handleSizePriceChange(size, e.target.value)}
-                                                placeholder="Enter price"
-                                                className={`flex-1 px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
-                                                  theme === "dark"
-                                                    ? "bg-[#1E1B18] border-gray-600 text-white"
-                                                    : "bg-gray-50 border-gray-300"
-                                                }`}
-                                              />
+                                          <div className="grid grid-cols-2 gap-2 mb-3">
+                                            <div>
+                                              <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                                Cost Price
+                                              </label>
+                                              <div className="flex items-center gap-1">
+                                                <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={newProduct.sizeCostPrices?.[size] || ""}
+                                                  onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setNewProduct((prev) => ({
+                                                      ...prev,
+                                                      sizeCostPrices: {
+                                                        ...(prev.sizeCostPrices || {}),
+                                                        [size]: value,
+                                                      },
+                                                    }));
+                                                  }}
+                                                  placeholder="Cost"
+                                                  className={`flex-1 px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                                    theme === "dark"
+                                                      ? "bg-[#1E1B18] border-gray-600 text-white"
+                                                      : "bg-gray-50 border-gray-300"
+                                                  }`}
+                                                />
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                                Selling Price
+                                              </label>
+                                              <div className="flex items-center gap-1">
+                                                <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={newProduct.sizePrices?.[size] || ""}
+                                                  onChange={(e) => handleSizePriceChange(size, e.target.value)}
+                                                  placeholder="Price"
+                                                  className={`flex-1 px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                                    theme === "dark"
+                                                      ? "bg-[#1E1B18] border-gray-600 text-white"
+                                                      : "bg-gray-50 border-gray-300"
+                                                  }`}
+                                                />
+                                              </div>
                                             </div>
                                           </div>
                                         )}
@@ -1049,13 +1096,20 @@ const AddProductModal = ({
                                               // Initialize prices with default price when enabled
                                               if (e.target.checked) {
                                                 const defaultPrice = parseFloat(newProduct.sizePrices?.[size]) || parseFloat(newProduct.itemPrice) || 0;
+                                                const defaultCostPrice = parseFloat(newProduct.sizeCostPrices?.[size]) || parseFloat(newProduct.costPrice) || 0;
                                                 const initialPrices = {};
+                                                const initialCostPrices = {};
                                                 selectedVariants.forEach((v) => {
                                                   initialPrices[v] = defaultPrice;
+                                                  initialCostPrices[v] = defaultCostPrice;
                                                 });
                                                 setVariantPrices((prev) => ({
                                                   ...prev,
                                                   [size]: initialPrices,
+                                                }));
+                                                setVariantCostPrices((prev) => ({
+                                                  ...prev,
+                                                  [size]: initialCostPrices,
                                                 }));
                                               }
                                             }}
@@ -1068,7 +1122,7 @@ const AddProductModal = ({
                                         
                                         <div className={differentPricesPerVariant[size] ? "space-y-2" : "grid grid-cols-2 gap-2"}>
                                           {selectedVariants.map((variant) => (
-                                            <div key={variant} className={differentPricesPerVariant[size] ? "flex items-center gap-2" : "flex items-center gap-2"}>
+                                            <div key={variant} className={differentPricesPerVariant[size] ? "flex items-center gap-2 flex-wrap" : "flex items-center gap-2"}>
                                               <span 
                                                 className={`text-xs px-2 py-1 rounded-full flex-shrink-0 ${
                                                   theme === "dark"
@@ -1085,29 +1139,47 @@ const AddProductModal = ({
                                                 value={variantQuantities[size]?.[variant] || ""}
                                                 onChange={(e) => handleVariantQuantityChange(size, variant, e.target.value)}
                                                 placeholder="Qty"
-                                                className={`${differentPricesPerVariant[size] ? 'w-20' : 'flex-1'} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                                className={`${differentPricesPerVariant[size] ? 'w-16' : 'flex-1'} px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
                                                   theme === "dark"
                                                     ? "bg-[#1E1B18] border-gray-600 text-white"
                                                     : "bg-gray-50 border-gray-300"
                                                 }`}
                                               />
                                               {differentPricesPerVariant[size] && (
-                                                <div className="flex items-center gap-1 flex-1">
-                                                  <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
-                                                  <input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={variantPrices[size]?.[variant] || ""}
-                                                    onChange={(e) => handleVariantPriceChange(size, variant, e.target.value)}
-                                                    placeholder="Price"
-                                                    className={`flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
-                                                      theme === "dark"
-                                                        ? "bg-[#1E1B18] border-gray-600 text-white"
-                                                        : "bg-gray-50 border-gray-300"
-                                                    }`}
-                                                  />
-                                                </div>
+                                                <>
+                                                  <div className="flex items-center gap-1">
+                                                    <span className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Cost:</span>
+                                                    <input
+                                                      type="number"
+                                                      min="0"
+                                                      step="0.01"
+                                                      value={variantCostPrices[size]?.[variant] || ""}
+                                                      onChange={(e) => handleVariantCostPriceChange(size, variant, e.target.value)}
+                                                      placeholder="₱"
+                                                      className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                                        theme === "dark"
+                                                          ? "bg-[#1E1B18] border-gray-600 text-white"
+                                                          : "bg-gray-50 border-gray-300"
+                                                      }`}
+                                                    />
+                                                  </div>
+                                                  <div className="flex items-center gap-1">
+                                                    <span className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Price:</span>
+                                                    <input
+                                                      type="number"
+                                                      min="0"
+                                                      step="0.01"
+                                                      value={variantPrices[size]?.[variant] || ""}
+                                                      onChange={(e) => handleVariantPriceChange(size, variant, e.target.value)}
+                                                      placeholder="₱"
+                                                      className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                                        theme === "dark"
+                                                          ? "bg-[#1E1B18] border-gray-600 text-white"
+                                                          : "bg-gray-50 border-gray-300"
+                                                      }`}
+                                                    />
+                                                  </div>
+                                                </>
                                               )}
                                             </div>
                                           ))}
@@ -1479,7 +1551,9 @@ const AddProductModal = ({
                   </div>
                 </div>
 
-                {!newProduct.differentPricesPerSize && (
+                {/* Only show Pricing section when NO sizes with variants selected */}
+                {!newProduct.differentPricesPerSize && 
+                 !(selectedVariants.length > 0 && newProduct.selectedSizes?.length > 0) && (
                   <div>
                     <h3 className="text-base font-semibold mb-3">Pricing</h3>
                     <div className="grid grid-cols-2 gap-3">

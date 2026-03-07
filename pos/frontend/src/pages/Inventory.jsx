@@ -745,6 +745,11 @@ const Inventory = () => {
           } else {
             // No different prices per size checkbox, but may have variants with inline prices
             const sizesObject = {};
+            
+            // Check if we have variant cost prices
+            const hasVariantCostPrices = newProduct.variantCostPrices && 
+              Object.keys(newProduct.variantCostPrices).length > 0;
+            
             newProduct.selectedSizes.forEach((size) => {
               // Determine variant value for this size
               let variantValue = "";
@@ -762,8 +767,9 @@ const Inventory = () => {
                 variantValue = newProduct.variant || "";
               }
 
-              // Get size price (from inline price input in size div)
+              // Get size price and cost price (from inline inputs in size div)
               const sizePrice = parseFloat(newProduct.sizePrices?.[size]) || 0;
+              const sizeCostPrice = parseFloat(newProduct.sizeCostPrices?.[size]) || 0;
 
               // If we have variant quantities, store them in the variants field
               if (hasVariantQuantities && newProduct.variantQuantities[size]) {
@@ -775,18 +781,30 @@ const Inventory = () => {
                 // Add variant prices if different prices per variant is enabled for this size
                 if (hasVariantPrices && newProduct.differentPricesPerVariant?.[size] && newProduct.variantPrices[size]) {
                   sizesObject[size].variantPrices = newProduct.variantPrices[size]; // { "Blue": 100, "White": 120 }
-                } else if (sizePrice > 0) {
-                  // Use the inline size price if no variant prices
-                  sizesObject[size].price = sizePrice;
+                  // Add variant cost prices if available
+                  if (hasVariantCostPrices && newProduct.variantCostPrices[size]) {
+                    sizesObject[size].variantCostPrices = newProduct.variantCostPrices[size]; // { "Blue": 50, "White": 60 }
+                  }
+                } else {
+                  // Use the inline size prices if no variant prices
+                  if (sizePrice > 0) {
+                    sizesObject[size].price = sizePrice;
+                  }
+                  if (sizeCostPrice > 0) {
+                    sizesObject[size].costPrice = sizeCostPrice;
+                  }
                 }
               } else {
                 sizesObject[size] = {
                   quantity: newProduct.sizeQuantities[size] || 0,
                   variant: variantValue,
                 };
-                // Include size price if set
+                // Include size prices if set
                 if (sizePrice > 0) {
                   sizesObject[size].price = sizePrice;
+                }
+                if (sizeCostPrice > 0) {
+                  sizesObject[size].costPrice = sizeCostPrice;
                 }
               }
             });
