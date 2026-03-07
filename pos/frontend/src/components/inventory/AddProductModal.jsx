@@ -1026,8 +1026,8 @@ const AddProductModal = ({
                                           </span>
                                         </div>
                                         
-                                        {/* Cost Price and Selling Price - shown when NOT using different prices per variant */}
-                                        {!differentPricesPerVariant[size] && (
+                                        {/* Cost Price and Selling Price - shown when using different prices per size AND NOT using different prices per variant */}
+                                        {newProduct.differentPricesPerSize && !differentPricesPerVariant[size] && (
                                           <div className="grid grid-cols-2 gap-2 mb-3">
                                             <div>
                                               <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
@@ -1083,42 +1083,44 @@ const AddProductModal = ({
                                           </div>
                                         )}
                                         
-                                        {/* Checkbox for different prices per variant in this size */}
-                                        <label className="flex items-center gap-2 cursor-pointer mb-3">
-                                          <input
-                                            type="checkbox"
-                                            checked={differentPricesPerVariant[size] || false}
-                                            onChange={(e) => {
-                                              setDifferentPricesPerVariant((prev) => ({
-                                                ...prev,
-                                                [size]: e.target.checked,
-                                              }));
-                                              // Initialize prices with default price when enabled
-                                              if (e.target.checked) {
-                                                const defaultPrice = parseFloat(newProduct.sizePrices?.[size]) || parseFloat(newProduct.itemPrice) || 0;
-                                                const defaultCostPrice = parseFloat(newProduct.sizeCostPrices?.[size]) || parseFloat(newProduct.costPrice) || 0;
-                                                const initialPrices = {};
-                                                const initialCostPrices = {};
-                                                selectedVariants.forEach((v) => {
-                                                  initialPrices[v] = defaultPrice;
-                                                  initialCostPrices[v] = defaultCostPrice;
-                                                });
-                                                setVariantPrices((prev) => ({
+                                        {/* Checkbox for different prices per variant in this size - only show when differentPricesPerSize is enabled */}
+                                        {newProduct.differentPricesPerSize && (
+                                          <label className="flex items-center gap-2 cursor-pointer mb-3">
+                                            <input
+                                              type="checkbox"
+                                              checked={differentPricesPerVariant[size] || false}
+                                              onChange={(e) => {
+                                                setDifferentPricesPerVariant((prev) => ({
                                                   ...prev,
-                                                  [size]: initialPrices,
+                                                  [size]: e.target.checked,
                                                 }));
-                                                setVariantCostPrices((prev) => ({
-                                                  ...prev,
-                                                  [size]: initialCostPrices,
-                                                }));
-                                              }
-                                            }}
-                                            className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]"
-                                          />
-                                          <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                            Different prices each variant?
-                                          </span>
-                                        </label>
+                                                // Initialize prices with default price when enabled
+                                                if (e.target.checked) {
+                                                  const defaultPrice = parseFloat(newProduct.sizePrices?.[size]) || parseFloat(newProduct.itemPrice) || 0;
+                                                  const defaultCostPrice = parseFloat(newProduct.sizeCostPrices?.[size]) || parseFloat(newProduct.costPrice) || 0;
+                                                  const initialPrices = {};
+                                                  const initialCostPrices = {};
+                                                  selectedVariants.forEach((v) => {
+                                                    initialPrices[v] = defaultPrice;
+                                                    initialCostPrices[v] = defaultCostPrice;
+                                                  });
+                                                  setVariantPrices((prev) => ({
+                                                    ...prev,
+                                                    [size]: initialPrices,
+                                                  }));
+                                                  setVariantCostPrices((prev) => ({
+                                                    ...prev,
+                                                    [size]: initialCostPrices,
+                                                  }));
+                                                }
+                                              }}
+                                              className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]"
+                                            />
+                                            <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                              Different prices each variant?
+                                            </span>
+                                          </label>
+                                        )}
                                         
                                         <div className={differentPricesPerVariant[size] ? "space-y-2" : "grid grid-cols-2 gap-2"}>
                                           {selectedVariants.map((variant) => (
@@ -1440,7 +1442,8 @@ const AddProductModal = ({
                                 </div>
                               )}
 
-                              {newProduct.differentPricesPerSize && (
+                              {/* Pricing per Size - only show when differentPricesPerSize is checked AND no variants are selected */}
+                              {newProduct.differentPricesPerSize && selectedVariants.length === 0 && (
                                 <div
                                   className={`space-y-2 mt-3 p-3 rounded-lg ${theme === "dark" ? "bg-[#1E1B18]" : "bg-gray-50"}`}
                                 >
@@ -1551,9 +1554,8 @@ const AddProductModal = ({
                   </div>
                 </div>
 
-                {/* Only show Pricing section when NO sizes with variants selected */}
-                {!newProduct.differentPricesPerSize && 
-                 !(selectedVariants.length > 0 && newProduct.selectedSizes?.length > 0) && (
+                {/* Only show Pricing section when differentPricesPerSize is NOT checked */}
+                {!newProduct.differentPricesPerSize && (
                   <div>
                     <h3 className="text-base font-semibold mb-3">Pricing</h3>
                     <div className="grid grid-cols-2 gap-3">
