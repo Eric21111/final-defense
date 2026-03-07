@@ -1,4 +1,7 @@
 const MAX_WIDTH = Number(import.meta.env.VITE_RECEIPT_LINE_WIDTH || 32);
+const PRINT_API_URL = import.meta.env.VITE_PRINT_API_URL || 'http://localhost:9100';
+const USE_NETWORK_PRINTER = import.meta.env.VITE_USE_NETWORK_PRINTER === 'true';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 const formatCurrency = value => `PHP ${Number(value || 0).toFixed(2)}`;
 
@@ -351,11 +354,52 @@ const buildReceiptHTML = (receipt) => {
 };
 
 /**
- * Print receipt using window.print() - opens a new window with the receipt and triggers print dialog
+ * Print receipt using window.print() or send to thermal printer via backend API
  */
 export async function sendReceiptToPrinter(receipt) {
   if (!receipt) throw new Error('No receipt payload provided');
 
+  // If network printer is enabled, send to backend API
+  if (USE_NETWORK_PRINTER) {
+    return sendToNetworkPrinter(receipt);
+  }
+
+  // Otherwise, use window.print()
+  return printViaWindow(receipt);
+}
+
+/**
+ * Send receipt to thermal printer via backend API (localhost:9100)
+ */
+async function sendToNetworkPrinter(receipt) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/print/receipt`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ receiptData: receipt }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to print receipt');
+    }
+
+    return { success: true, message: 'Receipt sent to printer' };
+  } catch (error) {
+    console.error('Network printer error:', error);
+    // Fallback to window.print() if network printer fails
+    console.log('Falling back to window.print()...');
+    return printViaWindow(receipt);
+  }
+}
+
+/**
+ * Print receipt using window.print() - opens a new window with the receipt and triggers print dialog
+ */
+async function printViaWindow(receipt) {
   return new Promise((resolve, reject) => {
     try {
       // Build the receipt HTML
