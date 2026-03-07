@@ -351,65 +351,38 @@ const buildReceiptHTML = (receipt) => {
 };
 
 /**
- * Print receipt by sending to the local print server at localhost:9100
- * No fallback - requires the PowerShell print server to be running
+ * Print receipt using window.print() - opens a new window with the receipt and triggers print dialog
  */
 export async function sendReceiptToPrinter(receipt) {
   if (!receipt) throw new Error('No receipt payload provided');
 
-  // Send the receipt data in your original format
-  const printData = {
-    // Store info
-    storeName: receipt.storeName || 'Create Your Style',
-    contactNumber: receipt.contactNumber || '+631112224444',
-    location: receipt.location || 'Pasonanca, Zamboanga City',
-    
-    // Receipt info
-    receiptNo: receipt.receiptNo || '000000',
-    referenceNo: receipt.referenceNo || receipt.reference || '-',
-    date: receipt.date || new Date().toLocaleDateString(),
-    time: receipt.time || new Date().toLocaleTimeString(),
-    
-    // Cashier
-    cashier: receipt.cashier || receipt.performedByName || 'N/A',
-    
-    // Items
-    items: (receipt.items || []).map(item => ({
-      name: item.name || item.itemName || 'Item',
-      qty: item.qty || item.quantity || 1,
-      price: item.price || item.itemPrice || 0,
-      total: (item.price || item.itemPrice || 0) * (item.qty || item.quantity || 1),
-      size: item.size || item.selectedSize || '',
-      variant: item.variant || '',
-    })),
-    
-    // Payment
-    paymentMethod: receipt.paymentMethod || 'CASH',
-    subtotal: receipt.subtotal || 0,
-    discount: receipt.discount || 0,
-    discounts: receipt.discounts || [],
-    total: receipt.total || 0,
-    cash: receipt.cash,
-    change: receipt.change,
-  };
+  return new Promise((resolve, reject) => {
+    try {
+      // Build the receipt HTML
+      const receiptHTML = buildReceiptHTML(receipt);
+      
+      // Open a new window for printing
+      const printWindow = window.open('', '_blank', 'width=300,height=600');
+      
+      if (!printWindow) {
+        throw new Error('Unable to open print window. Please allow pop-ups for this site.');
+      }
 
-  // Send to the local print server
-  const response = await fetch('http://localhost:9100/print', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(printData),
+      // Write the receipt HTML to the new window
+      printWindow.document.write(receiptHTML);
+      printWindow.document.close();
+      
+      // Focus the print window
+      printWindow.focus();
+
+      // Resolve after a short delay to allow the print dialog to open
+      setTimeout(() => {
+        resolve({ success: true, message: 'Print dialog opened' });
+      }, 500);
+
+    } catch (error) {
+      reject(error);
+    }
   });
-
-  const result = await response.json();
-
-  if (result.ok) {
-    return { success: true, message: 'Receipt printed successfully' };
-  } else {
-    throw new Error(result.message || 'Print failed');
-  }
 }
-
-
 
