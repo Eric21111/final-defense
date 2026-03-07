@@ -107,7 +107,6 @@ export default function ProductCard({ product, onToggleExpand }) {
           className={`font-medium text-sm mb-1 truncate ${theme === "dark" ? "text-white" : "text-gray-900"}`}
         >
           {product.itemName}
-          {product.variant ? ` (${product.variant})` : ""}
         </h3>
         <div className="flex justify-between items-start gap-1 min-h-[36px]">
           <span

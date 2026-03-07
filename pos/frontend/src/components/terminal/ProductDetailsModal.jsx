@@ -293,7 +293,6 @@ const ProductDetailsModal = ({
                 className={`text-2xl font-bold mb-4 ${theme === "dark" ? "text-white" : "text-gray-800"}`}
               >
                 {product.itemName}
-                {product.variant ? ` (${product.variant})` : ""}
               </h3>
 
               <div className="grid grid-cols-2 gap-4 mb-4">
