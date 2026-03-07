@@ -1011,6 +1011,31 @@ const AddProductModal = ({
                                           </span>
                                         </div>
                                         
+                                        {/* Size price input - shown when NOT using different prices per variant */}
+                                        {!differentPricesPerVariant[size] && (
+                                          <div className="mb-3">
+                                            <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                              Price for {size}
+                                            </label>
+                                            <div className="flex items-center gap-1">
+                                              <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
+                                              <input
+                                                type="number"
+                                                min="0"
+                                                step="0.01"
+                                                value={newProduct.sizePrices?.[size] || ""}
+                                                onChange={(e) => handleSizePriceChange(size, e.target.value)}
+                                                placeholder="Enter price"
+                                                className={`flex-1 px-2 py-1.5 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                                  theme === "dark"
+                                                    ? "bg-[#1E1B18] border-gray-600 text-white"
+                                                    : "bg-gray-50 border-gray-300"
+                                                }`}
+                                              />
+                                            </div>
+                                          </div>
+                                        )}
+                                        
                                         {/* Checkbox for different prices per variant in this size */}
                                         <label className="flex items-center gap-2 cursor-pointer mb-3">
                                           <input

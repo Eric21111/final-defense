@@ -743,7 +743,7 @@ const Inventory = () => {
             });
             payload.sizes = sizesWithPrices;
           } else {
-            // No different prices, but may have variants
+            // No different prices per size checkbox, but may have variants with inline prices
             const sizesObject = {};
             newProduct.selectedSizes.forEach((size) => {
               // Determine variant value for this size
@@ -762,6 +762,9 @@ const Inventory = () => {
                 variantValue = newProduct.variant || "";
               }
 
+              // Get size price (from inline price input in size div)
+              const sizePrice = parseFloat(newProduct.sizePrices?.[size]) || 0;
+
               // If we have variant quantities, store them in the variants field
               if (hasVariantQuantities && newProduct.variantQuantities[size]) {
                 sizesObject[size] = {
@@ -772,12 +775,19 @@ const Inventory = () => {
                 // Add variant prices if different prices per variant is enabled for this size
                 if (hasVariantPrices && newProduct.differentPricesPerVariant?.[size] && newProduct.variantPrices[size]) {
                   sizesObject[size].variantPrices = newProduct.variantPrices[size]; // { "Blue": 100, "White": 120 }
+                } else if (sizePrice > 0) {
+                  // Use the inline size price if no variant prices
+                  sizesObject[size].price = sizePrice;
                 }
               } else {
                 sizesObject[size] = {
                   quantity: newProduct.sizeQuantities[size] || 0,
                   variant: variantValue,
                 };
+                // Include size price if set
+                if (sizePrice > 0) {
+                  sizesObject[size].price = sizePrice;
+                }
               }
             });
             payload.sizes = sizesObject;
