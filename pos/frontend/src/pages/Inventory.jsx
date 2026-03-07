@@ -670,9 +670,14 @@ const Inventory = () => {
           return;
         }
         
-        // Also require global price for sizes without variant pricing
-        if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) {
-          alert("Please enter a selling price.");
+        // Check if ALL sizes have variant pricing - if so, no global price needed
+        const allSizesHaveVariantPricing = newProduct.selectedSizes?.every(
+          (size) => newProduct.differentPricesPerVariant?.[size]
+        );
+        
+        // Only require global price if some sizes don't have variant pricing
+        if (!allSizesHaveVariantPricing && (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0)) {
+          alert("Please enter a selling price for sizes without variant pricing.");
           return;
         }
       } else if (!newProduct.differentPricesPerSize) {

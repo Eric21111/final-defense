@@ -1515,8 +1515,9 @@ const AddProductModal = ({
                   </div>
                 </div>
 
-                {/* Only show Pricing section when differentPricesPerSize is NOT checked */}
-                {!newProduct.differentPricesPerSize && (
+                {/* Only show Pricing section when differentPricesPerSize is NOT checked AND no variant pricing is enabled */}
+                {!newProduct.differentPricesPerSize && 
+                 !Object.values(differentPricesPerVariant).some(v => v) && (
                   <div>
                     <h3 className="text-base font-semibold mb-3">Pricing</h3>
                     <div className="grid grid-cols-2 gap-3">
