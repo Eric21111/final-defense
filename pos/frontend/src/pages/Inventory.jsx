@@ -621,18 +621,16 @@ const Inventory = () => {
         newProduct.differentPricesPerSize &&
         newProduct.selectedSizes?.length > 0
       ) {
-        const missingPrices = newProduct.selectedSizes.filter((size) => {
+        // For variant pricing: empty qty/price means 0 stock, not required
+        // Just ensure at least one variant per size has valid data if variant pricing is enabled
+        const invalidSizes = newProduct.selectedSizes.filter((size) => {
           // Check if this size has different prices per variant enabled
           const hasDifferentPricesPerVariant = newProduct.differentPricesPerVariant?.[size];
           
           if (hasDifferentPricesPerVariant) {
-            // Check if variant prices are set for this size
-            const variantPricesForSize = newProduct.variantPrices?.[size];
-            if (!variantPricesForSize || Object.keys(variantPricesForSize).length === 0) {
-              return true; // Missing variant prices
-            }
-            // Check if all variants have prices > 0
-            return Object.values(variantPricesForSize).some((price) => !price || parseFloat(price) <= 0);
+            // Variant pricing is enabled - empty values are treated as 0/no stock, which is OK
+            // No validation required for individual variant prices
+            return false;
           } else {
             // Check size-level price
             const price = newProduct.sizePrices?.[size];
@@ -640,26 +638,22 @@ const Inventory = () => {
           }
         });
 
-        if (missingPrices.length > 0) {
+        if (invalidSizes.length > 0) {
           alert(
-            `Please enter prices for all selected sizes: ${missingPrices.join(", ")}`,
+            `Please enter prices for all selected sizes: ${invalidSizes.join(", ")}`,
           );
           return;
         }
       } else if (!newProduct.differentPricesPerSize && hasAnyVariantPricing) {
         // Different prices per size is NOT enabled, but some sizes have variant pricing
-        // This means sizes with variant pricing need variant prices, and sizes without need size-level prices
-        const missingPrices = newProduct.selectedSizes.filter((size) => {
+        // Sizes with variant pricing: empty values = 0/no stock (OK)
+        // Sizes without variant pricing: need size-level prices
+        const invalidSizes = newProduct.selectedSizes.filter((size) => {
           const hasDifferentPricesPerVariant = newProduct.differentPricesPerVariant?.[size];
           
           if (hasDifferentPricesPerVariant) {
-            // Check if variant prices are set for this size
-            const variantPricesForSize = newProduct.variantPrices?.[size];
-            if (!variantPricesForSize || Object.keys(variantPricesForSize).length === 0) {
-              return true; // Missing variant prices
-            }
-            // Check if all variants have prices > 0
-            return Object.values(variantPricesForSize).some((price) => !price || parseFloat(price) <= 0);
+            // Variant pricing enabled - empty values are treated as 0/no stock, which is OK
+            return false;
           } else {
             // This size doesn't have variant pricing, check if it has size-level price
             const price = newProduct.sizePrices?.[size];
@@ -667,9 +661,9 @@ const Inventory = () => {
           }
         });
 
-        if (missingPrices.length > 0) {
+        if (invalidSizes.length > 0) {
           alert(
-            `Please enter prices for all sizes/variants: ${missingPrices.join(", ")}`,
+            `Please enter prices for all sizes/variants: ${invalidSizes.join(", ")}`,
           );
           return;
         }
