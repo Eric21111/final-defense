@@ -75,7 +75,11 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   // Get current variant quantity for a size
   const getVariantCurrentQty = (size, variant) => {
     const variants = getSizeVariants(size);
-    if (variants && variants[variant]) {
+    if (variants && variants[variant] !== undefined) {
+      // Handle both number format and object format
+      if (typeof variants[variant] === "number") {
+        return variants[variant];
+      }
       return variants[variant].quantity || 0;
     }
     return 0;

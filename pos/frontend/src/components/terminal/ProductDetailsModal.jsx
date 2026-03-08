@@ -70,11 +70,16 @@ const ProductDetailsModal = ({
   };
 
   // Check if product has variants (variants stored per size)
+  // Only returns true if there are variants with stock > 0
   const hasVariants = () => {
     if (product.sizes && typeof product.sizes === "object") {
       return Object.values(product.sizes).some((sizeData) => {
         const variants = getSizeVariants(sizeData);
-        return variants && Object.keys(variants).length > 0;
+        if (variants && typeof variants === "object") {
+          // Check if any variant has stock > 0
+          return Object.values(variants).some((stock) => stock > 0);
+        }
+        return false;
       });
     }
     return false;

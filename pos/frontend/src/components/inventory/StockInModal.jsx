@@ -10,6 +10,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [otherReason, setOtherReason] = useState("");
   const [newVariantInputs, setNewVariantInputs] = useState({}); // { "S": "Red" } - input for new variant per size
   const [addedVariants, setAddedVariants] = useState([]); // New variants added by user
+  const [newVariantPrices, setNewVariantPrices] = useState({}); // { "Red": { price: 100, costPrice: 50 } }
   const { theme } = useTheme();
 
   const allSizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
@@ -76,6 +77,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setOtherReason("");
       setNewVariantInputs({});
       setAddedVariants([]);
+      setNewVariantPrices({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, product?._id]);
@@ -91,6 +93,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setOtherReason("");
     setNewVariantInputs({});
     setAddedVariants([]);
+    setNewVariantPrices({});
     onClose();
   };
 
@@ -144,7 +147,11 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   // Get current variant quantity for a size
   const getVariantCurrentQty = (size, variant) => {
     const variants = getSizeVariants(size);
-    if (variants && variants[variant]) {
+    if (variants && variants[variant] !== undefined) {
+      // Handle both number format and object format
+      if (typeof variants[variant] === "number") {
+        return variants[variant];
+      }
       return variants[variant].quantity || 0;
     }
     return 0;
@@ -172,10 +179,29 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     }
     // Add to addedVariants
     setAddedVariants((prev) => [...prev, variantName]);
+    // Initialize prices with product defaults
+    setNewVariantPrices((prev) => ({
+      ...prev,
+      [variantName]: {
+        price: product.itemPrice || 0,
+        costPrice: product.costPrice || 0,
+      },
+    }));
     // Clear the input
     setNewVariantInputs((prev) => ({
       ...prev,
       [size]: "",
+    }));
+  };
+
+  // Handle new variant price change
+  const handleNewVariantPriceChange = (variantName, field, value) => {
+    setNewVariantPrices((prev) => ({
+      ...prev,
+      [variantName]: {
+        ...(prev[variantName] || { price: 0, costPrice: 0 }),
+        [field]: parseFloat(value) || 0,
+      },
     }));
   };
 
@@ -230,6 +256,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         selectedSizes: selectedSizes,
         reason: finalReason,
         hasVariants: true,
+        newVariantPrices: addedVariants.length > 0 ? newVariantPrices : null,
       });
       return;
     }
@@ -506,6 +533,56 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                       </button>
                                     </div>
                                   </div>
+                                  
+                                  {/* New Variant Price Inputs - Show only for the first size to avoid duplicates */}
+                                  {selectedSizes[0] === size && addedVariants.length > 0 && (
+                                    <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                                      <label
+                                        className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}
+                                      >
+                                        New Variant Prices
+                                      </label>
+                                      <div className="space-y-3">
+                                        {addedVariants.map((variant) => (
+                                          <div key={`price-${variant}`} className={`p-2 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
+                                            <p className={`text-sm font-medium mb-2 ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
+                                              {variant} <span className="text-xs font-normal">(New)</span>
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-2">
+                                              <div>
+                                                <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                                  Selling Price
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={newVariantPrices[variant]?.price || ""}
+                                                  onChange={(e) => handleNewVariantPriceChange(variant, "price", e.target.value)}
+                                                  placeholder="0.00"
+                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
+                                                />
+                                              </div>
+                                              <div>
+                                                <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                                  Cost Price
+                                                </label>
+                                                <input
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={newVariantPrices[variant]?.costPrice || ""}
+                                                  onChange={(e) => handleNewVariantPriceChange(variant, "costPrice", e.target.value)}
+                                                  placeholder="0.00"
+                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
+                                                />
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
                                   
                                   {Object.keys(variantQuantities[size] || {}).length > 0 && (
                                     <p className={`text-xs mt-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>

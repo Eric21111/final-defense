@@ -1232,37 +1232,45 @@ const Inventory = () => {
           stockData.selectedSizes.forEach((size) => {
             const currentSizeData = updatedSizes[size] || {};
             const currentVariants = (typeof currentSizeData === "object" && currentSizeData.variants) || {};
+            const currentVariantPrices = (typeof currentSizeData === "object" && currentSizeData.variantPrices) || {};
             const addVariantQtys = stockData.variantQuantities[size] || {};
+            
+            // Helper to get current variant quantity (handles both number and object formats)
+            const getVariantQty = (variantData) => {
+              if (typeof variantData === "number") return variantData;
+              if (typeof variantData === "object" && variantData !== null) {
+                return variantData.quantity || 0;
+              }
+              return 0;
+            };
             
             // Create new variants object with updated quantities
             const newVariants = { ...currentVariants };
+            const newVariantPrices = { ...currentVariantPrices };
+            
             Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
               if (addQty > 0) {
-                if (newVariants[variant]) {
-                  newVariants[variant] = {
-                    ...newVariants[variant],
-                    quantity: (newVariants[variant].quantity || 0) + addQty,
-                  };
-                } else {
-                  // New variant - use default prices
-                  newVariants[variant] = {
-                    quantity: addQty,
-                    price: currentSizeData.price || editingProduct.itemPrice || 0,
-                    costPrice: currentSizeData.costPrice || editingProduct.costPrice || 0,
-                  };
+                const currentQty = getVariantQty(newVariants[variant]);
+                // Always store as a simple number for consistency
+                newVariants[variant] = currentQty + addQty;
+                
+                // Add prices for new variants if provided
+                if (stockData.newVariantPrices && stockData.newVariantPrices[variant]) {
+                  newVariantPrices[variant] = stockData.newVariantPrices[variant].price || editingProduct.itemPrice || 0;
                 }
               }
             });
 
             // Calculate new total quantity for this size
             const newTotalQty = Object.values(newVariants).reduce(
-              (sum, v) => sum + (v.quantity || 0), 0
+              (sum, v) => sum + getVariantQty(v), 0
             );
 
             updatedSizes[size] = {
               ...currentSizeData,
               quantity: newTotalQty,
               variants: newVariants,
+              variantPrices: Object.keys(newVariantPrices).length > 0 ? newVariantPrices : currentSizeData.variantPrices,
             };
           });
         } else {
@@ -1449,20 +1457,28 @@ const Inventory = () => {
             const currentVariants = (typeof currentSizeData === "object" && currentSizeData.variants) || {};
             const removeVariantQtys = stockData.variantQuantities[size] || {};
             
+            // Helper to get current variant quantity (handles both number and object formats)
+            const getVariantQty = (variantData) => {
+              if (typeof variantData === "number") return variantData;
+              if (typeof variantData === "object" && variantData !== null) {
+                return variantData.quantity || 0;
+              }
+              return 0;
+            };
+            
             // Create new variants object with updated quantities
             const newVariants = { ...currentVariants };
             Object.entries(removeVariantQtys).forEach(([variant, removeQty]) => {
-              if (removeQty > 0 && newVariants[variant]) {
-                newVariants[variant] = {
-                  ...newVariants[variant],
-                  quantity: Math.max(0, (newVariants[variant].quantity || 0) - removeQty),
-                };
+              if (removeQty > 0 && newVariants[variant] !== undefined) {
+                const currentQty = getVariantQty(newVariants[variant]);
+                // Always store as a simple number for consistency
+                newVariants[variant] = Math.max(0, currentQty - removeQty);
               }
             });
 
             // Calculate new total quantity for this size
             const newTotalQty = Object.values(newVariants).reduce(
-              (sum, v) => sum + (v.quantity || 0), 0
+              (sum, v) => sum + getVariantQty(v), 0
             );
 
             updatedSizes[size] = {
