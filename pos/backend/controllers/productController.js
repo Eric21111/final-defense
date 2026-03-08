@@ -759,6 +759,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
             }
             product.markModified("sizes");
           }
+        }
 
         // Recalculate total stock from all sizes
         let totalStock = 0;
