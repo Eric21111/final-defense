@@ -153,7 +153,7 @@ const ReceiptModal = ({
           {receipt.items && receipt.items.map((item, index) => (
             <div key={index} style={{ marginBottom: '8px' }}>
               <p style={{ fontSize: '11px', fontWeight: '600', margin: '0', color: '#1a202c' }}>{item.name}</p>
-              <p style={{ fontSize: '10px', margin: '2px 0', color: '#718096' }}>{item.qty} x ₱{item.price.toFixed(2)}</p>
+              <p style={{ fontSize: '10px', margin: '2px 0', color: '#718096' }}>{item.qty} x PHP {item.price.toFixed(2)}</p>
             </div>
           ))}
         </div>
@@ -162,23 +162,23 @@ const ReceiptModal = ({
         <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', fontSize: '11px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Subtotal:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.subtotal.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>PHP {receipt.subtotal.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Discount:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.discount.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>PHP {receipt.discount.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
             <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>Total:</span>
-            <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>₱{receipt.total.toFixed(2)}</span>
+            <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>PHP {receipt.total.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Amount Received:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.cash.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>PHP {receipt.cash.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Change:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.change.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>PHP {receipt.change.toFixed(2)}</span>
           </div>
         </div>
 
@@ -229,7 +229,7 @@ const ReceiptModal = ({
                 receipt.items.map((item, index) => (
                   <div key={index} className="mb-3">
                     <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>{item.name}</p>
-                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{item.qty} x ₱{item.price.toFixed(2)}</p>
+                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{item.qty} x PHP {item.price.toFixed(2)}</p>
                   </div>
                 ))
               ) : (
@@ -241,23 +241,23 @@ const ReceiptModal = ({
             <div className={`border-t pt-4 space-y-2 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
               <div className="flex justify-between text-sm">
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Subtotal:</span>
-                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>₱{receipt.subtotal.toFixed(2)}</span>
+                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {receipt.subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Discount:</span>
-                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>₱{receipt.discount.toFixed(2)}</span>
+                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {receipt.discount.toFixed(2)}</span>
               </div>
               <div className={`flex justify-between pt-3 mt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                 <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>Total:</span>
-                <span className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>₱{receipt.total.toFixed(2)}</span>
+                <span className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>PHP {receipt.total.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Amount Received:</span>
-                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>₱{receipt.cash.toFixed(2)}</span>
+                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {receipt.cash.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Change:</span>
-                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>₱{receipt.change.toFixed(2)}</span>
+                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {receipt.change.toFixed(2)}</span>
               </div>
             </div>
 
