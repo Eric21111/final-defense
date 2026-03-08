@@ -412,21 +412,35 @@ const Terminal = () => {
     const currentQuantity = productQuantities[productId] || 1;
     const newQuantity = currentQuantity + delta;
 
-    // Get available stock for the selected size
+    // Get available stock for the selected size and variant
     const selectedSize = productSizes[productId];
+    const selectedVariant = productVariants[productId] || "";
     let availableStock = 0;
+
+    // Helper to get quantity from variant data (handles both number and object formats)
+    const getVariantQty = (variantData) => {
+      if (typeof variantData === 'number') return variantData;
+      if (typeof variantData === 'object' && variantData !== null) {
+        return variantData.quantity || 0;
+      }
+      return 0;
+    };
 
     if (product.sizes && typeof product.sizes === "object" && selectedSize) {
       const sizeData = product.sizes[selectedSize];
-      // Handle both formats: number or object with quantity
-      availableStock =
-        typeof sizeData === "object" &&
-        sizeData !== null &&
-        sizeData.quantity !== undefined
-          ? sizeData.quantity
-          : typeof sizeData === "number"
-            ? sizeData
-            : 0;
+      
+      // Check if this size has variants and a variant is selected
+      if (typeof sizeData === "object" && sizeData !== null && sizeData.variants && selectedVariant) {
+        // Get stock for the specific variant
+        const variantData = sizeData.variants[selectedVariant];
+        availableStock = getVariantQty(variantData);
+      } else if (typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined) {
+        // Handle object with quantity (no variants or simple variants)
+        availableStock = sizeData.quantity;
+      } else if (typeof sizeData === "number") {
+        // Handle number format
+        availableStock = sizeData;
+      }
     } else {
       availableStock = product.currentStock || 0;
     }
@@ -461,6 +475,15 @@ const Terminal = () => {
     // Get the selected variant (if product has variants)
     const selectedVariant = productVariants[productId] || "";
 
+    // Helper to get quantity from variant data (handles both number and object formats)
+    const getVariantQty = (variantData) => {
+      if (typeof variantData === 'number') return variantData;
+      if (typeof variantData === 'object' && variantData !== null) {
+        return variantData.quantity || 0;
+      }
+      return 0;
+    };
+
     // Get available stock for the new size
     let availableStock = 0;
     if (product.sizes && typeof product.sizes === "object" && size) {
@@ -468,8 +491,9 @@ const Terminal = () => {
       
       // Check if this size has variants
       if (typeof sizeData === "object" && sizeData !== null && sizeData.variants && selectedVariant) {
-        // Get stock for the specific variant
-        availableStock = sizeData.variants[selectedVariant] || 0;
+        // Get stock for the specific variant (handle both number and object format)
+        const variantData = sizeData.variants[selectedVariant];
+        availableStock = getVariantQty(variantData);
       } else if (typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined) {
         // Handle object with quantity
         availableStock = sizeData.quantity;
@@ -502,7 +526,16 @@ const Terminal = () => {
     const size = productSizes[product._id] || "";
     const variant = productVariants[product._id] || "";
 
-    // Check if product has variants per size
+    // Helper to get quantity from variant data (handles both number and object formats)
+    const getVariantQty = (variantData) => {
+      if (typeof variantData === 'number') return variantData;
+      if (typeof variantData === 'object' && variantData !== null) {
+        return variantData.quantity || 0;
+      }
+      return 0;
+    };
+
+    // Check if product has variants per size (stored in sizes[size].variants)
     const hasVariantsPerSize = () => {
       if (product.sizes && typeof product.sizes === "object") {
         return Object.values(product.sizes).some((sizeData) => {
@@ -514,10 +547,21 @@ const Terminal = () => {
       return false;
     };
 
-    const productHasVariants = hasVariantsPerSize();
+    // Check if product has simple variants (comma-separated in product.variant field)
+    const hasSimpleVariants = () => {
+      if (product.variant && typeof product.variant === 'string') {
+        const variants = product.variant.split(',').map(v => v.trim()).filter(v => v.length > 0);
+        return variants.length > 1;
+      }
+      return false;
+    };
+
+    const productHasSizeVariants = hasVariantsPerSize();
+    const productHasSimpleVariants = hasSimpleVariants();
+    const productHasAnyVariants = productHasSizeVariants || productHasSimpleVariants;
 
     // Validate variant selection for products with variants
-    if (productHasVariants && !variant) {
+    if (productHasAnyVariants && !variant) {
       alert("Please select a variant before adding to cart");
       return;
     }
@@ -541,16 +585,23 @@ const Terminal = () => {
     if (product.sizes && typeof product.sizes === "object" && size) {
       const sizeData = product.sizes[size];
       if (typeof sizeData === "object" && sizeData !== null) {
-        // Check if this size has variants
-        if (sizeData.variants && variant) {
-          availableStock = sizeData.variants[variant] || 0;
-          // Use variant-specific price if available
-          if (sizeData.variantPrices && sizeData.variantPrices[variant] !== undefined) {
+        // Check if this size has variants (per-size variants)
+        if (sizeData.variants && variant && !productHasSimpleVariants) {
+          // Get stock for the specific variant (handle both number and object format)
+          const variantData = sizeData.variants[variant];
+          availableStock = getVariantQty(variantData);
+          
+          // Get price from variant data object first
+          if (typeof variantData === 'object' && variantData !== null && variantData.price !== undefined) {
+            itemPrice = variantData.price;
+          } else if (sizeData.variantPrices && sizeData.variantPrices[variant] !== undefined) {
+            // Use variant-specific price from variantPrices
             itemPrice = sizeData.variantPrices[variant];
           } else if (sizeData.price !== undefined) {
             itemPrice = sizeData.price;
           }
         } else {
+          // For simple variants or no variants, use size quantity
           availableStock = sizeData.quantity || 0;
           // Use size-specific price if available, otherwise use default price
           itemPrice =
@@ -572,7 +623,7 @@ const Terminal = () => {
     }
 
     // For products with variants, also check variant in the existing item match
-    const existingItem = productHasVariants
+    const existingItem = productHasAnyVariants
       ? cart.find(
           (item) => item._id === product._id && item.selectedSize === size && item.selectedVariation === variant,
         )
