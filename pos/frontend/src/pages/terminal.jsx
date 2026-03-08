@@ -78,6 +78,7 @@ const Terminal = () => {
     itemPrice: item.itemPrice || item.price || 0,
     quantity: item.quantity || 1,
     selectedSize: resolveItemSize(item),
+    selectedVariation: item.selectedVariation || item.variant || '',
     sizes:
       item.sizes ||
       productSizes[item._id || item.productId] ||

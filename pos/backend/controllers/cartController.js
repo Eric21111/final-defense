@@ -54,7 +54,7 @@ exports.saveCart = async (req, res) => {
       itemPrice: item.itemPrice || 0,
       quantity: item.quantity || 1,
       selectedSize: item.selectedSize || '',
-      variant: item.variant || '',
+      variant: item.selectedVariation || item.variant || '',
       itemImage: item.itemImage || ''
     }));
 
