@@ -34,7 +34,7 @@ const ViewProductModal = ({
       onClick={() => setShowViewModal(false)}
     >
       <div
-        className={`rounded-2xl w-full max-w-4xl relative overflow-hidden ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
+        className={`rounded-2xl w-full max-w-4xl max-h-[90vh] relative overflow-hidden flex flex-col ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
         style={{
           boxShadow:
             "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1)",
@@ -43,7 +43,7 @@ const ViewProductModal = ({
       >
         {/* Header */}
         <div
-          className={`flex justify-between items-center px-6 py-4 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}
+          className={`flex justify-between items-center px-6 py-4 border-b flex-shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}
         >
           <div className="flex items-center gap-3">
             <div
@@ -77,8 +77,8 @@ const ViewProductModal = ({
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
+        {/* Content - Scrollable */}
+        <div className="p-6 overflow-y-auto flex-1">
           <div className="grid grid-cols-2 gap-6">
             {/* Left: Product Image */}
             <div
