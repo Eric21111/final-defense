@@ -80,11 +80,23 @@ const buildReceiptLines = receipt => {
 
   // Items
   (receipt.items || []).forEach(item => {
-    const itemName = (item.name || item.itemName || 'Item').toString();
+    // Remove colors/variants in parentheses from item name
+    let itemName = (item.name || item.itemName || 'Item').toString();
+    itemName = itemName.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    
     const qty = item.qty || item.quantity || 1;
     const price = item.price || item.itemPrice || 0;
+    const size = item.size || item.selectedSize || '';
+    const color = item.variant || '';
 
     lines.push(itemName);
+    // Add size/color info if available
+    if (size || color) {
+      const parts = [];
+      if (size) parts.push(size);
+      if (color) parts.push(color);
+      lines.push(parts.join(' / '));
+    }
     lines.push(`${qty} x P${Number(price).toFixed(2)}`);
   });
   lines.push('');

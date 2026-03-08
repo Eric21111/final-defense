@@ -117,7 +117,8 @@ const VoidTransactionModal = ({ isOpen, onClose, onConfirm, cartItems }) => {
                     {/* Item Details */}
                     <div className="flex-1">
                       <h3 className={`font-semibold text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                        {item.itemName}{item.variant ? `, ${item.variant}` : ''}
+                        {/* Remove colors/variants from item name if they're in parentheses */}
+                        {item.itemName ? item.itemName.replace(/\s*\([^)]*\)\s*$/, '').trim() : 'Item'}
                       </h3>
                       <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         SKU: {item.sku}
@@ -126,7 +127,7 @@ const VoidTransactionModal = ({ isOpen, onClose, onConfirm, cartItems }) => {
                         Size: {item.selectedSize || item.size || 'N/A'}
                       </p>
                       <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Color: {item.selectedVariation || item.variant || 'N/A'}
+                        Color: {item.selectedVariation || 'N/A'}
                       </p>
                       <p className="text-sm font-bold text-red-500 mt-1">
                         PHP {(item.itemPrice * item.quantity).toFixed(2)}

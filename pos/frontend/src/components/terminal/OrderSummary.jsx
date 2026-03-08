@@ -614,12 +614,13 @@ const OrderSummary = ({
                     </div>
                     <div className="flex-1">
                       <h3 className={`font-medium text-sm mb-1 pr-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                        {item.itemName}{item.variant ? ` (${item.variant})` : ''}
+                        {/* Remove colors/variants from item name if they're in parentheses */}
+                        {item.itemName ? item.itemName.replace(/\s*\([^)]*\)\s*$/, '').trim() : 'Item'}
                       </h3>
                       <p className={`text-xs mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         SKU: {item.sku}<br />
                         Size: {item.selectedSize || item.size || 'N/A'}<br />
-                        Color: {item.selectedVariation || item.variant || 'N/A'}
+                        Color: {item.selectedVariation || 'N/A'}
                       </p>
                       <p className="text-sm font-bold text-[#AD7F65]">
                         PHP {((item.itemPrice || 0) * displayQty).toFixed(2)}
