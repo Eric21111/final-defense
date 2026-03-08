@@ -94,11 +94,6 @@ const ProductDetailsModal = ({
     return [];
   };
 
-  // Check if product has simple variants (from variant field, not sizes.variants)
-  const hasSimpleVariants = () => {
-    return getSimpleVariants().length > 0;
-  };
-
   // Check if product has variants (variants stored per size)
   // Only returns true if there are variants with stock > 0
   const hasSizeVariants = () => {
@@ -115,6 +110,14 @@ const ProductDetailsModal = ({
     return false;
   };
 
+  // Check if product has simple variants (from variant field, not sizes.variants)
+  // BUT only if there are NO size-based variants (size-based takes priority)
+  const hasSimpleVariants = () => {
+    // If product has size-based variants, don't use simple variants
+    if (hasSizeVariants()) return false;
+    return getSimpleVariants().length > 0;
+  };
+
   // Combined check for any type of variants
   const hasVariants = () => {
     return hasSizeVariants() || hasSimpleVariants();
@@ -124,14 +127,7 @@ const ProductDetailsModal = ({
   const getAllVariants = () => {
     const variantSet = new Set();
     
-    // First check for simple variants from product.variant field
-    const simpleVariants = getSimpleVariants();
-    if (simpleVariants.length > 0) {
-      simpleVariants.forEach((v) => variantSet.add(v));
-      return Array.from(variantSet);
-    }
-    
-    // Otherwise check for size-based variants
+    // FIRST check for size-based variants (these have actual stock tracking)
     if (product.sizes && typeof product.sizes === "object") {
       Object.values(product.sizes).forEach((sizeData) => {
         const variants = getSizeVariants(sizeData);
@@ -146,6 +142,18 @@ const ProductDetailsModal = ({
         }
       });
     }
+    
+    // If we found size-based variants, return them
+    if (variantSet.size > 0) {
+      return Array.from(variantSet);
+    }
+    
+    // Otherwise fall back to simple variants from product.variant field
+    const simpleVariants = getSimpleVariants();
+    if (simpleVariants.length > 0) {
+      simpleVariants.forEach((v) => variantSet.add(v));
+    }
+    
     return Array.from(variantSet);
   };
 
