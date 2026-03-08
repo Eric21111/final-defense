@@ -669,7 +669,10 @@ exports.updateStockAfterTransaction = async (req, res) => {
             );
           }
         } else {
-          const currentSizeData = product.sizes[sizeKey];
+          // Get current size data (handle both Map and object types)
+          const currentSizeData = product.sizes.get
+            ? product.sizes.get(sizeKey)
+            : product.sizes[sizeKey];
           const currentQuantity = getSizeQuantity(currentSizeData);
           const currentPrice = getSizePrice(currentSizeData);
 
@@ -716,6 +719,13 @@ exports.updateStockAfterTransaction = async (req, res) => {
               }
             }
             currentSizeData.quantity = sizeTotal;
+            
+            // Explicitly reassign the updated size data back to product.sizes (handle both Map and object types)
+            if (product.sizes.set) {
+              product.sizes.set(sizeKey, currentSizeData);
+            } else {
+              product.sizes[sizeKey] = currentSizeData;
+            }
             product.markModified("sizes");
           } else {
             // No variants, update size quantity directly
@@ -729,20 +739,23 @@ exports.updateStockAfterTransaction = async (req, res) => {
               ? (currentQuantity || 0) + item.quantity
               : Math.max(0, currentQuantity - item.quantity);
 
-            if (
+            // Update size data (handle both Map and object types)
+            const updatedSizeData = (
               currentPrice !== null ||
               (typeof currentSizeData === "object" && currentSizeData !== null)
-            ) {
-              product.sizes[sizeKey] = {
+            ) ? {
                 ...currentSizeData,
                 quantity: newQuantity,
                 price:
                   currentPrice !== null
                     ? currentPrice
                     : item.price || product.itemPrice || 0,
-              };
+              } : newQuantity;
+            
+            if (product.sizes.set) {
+              product.sizes.set(sizeKey, updatedSizeData);
             } else {
-              product.sizes[sizeKey] = newQuantity;
+              product.sizes[sizeKey] = updatedSizeData;
             }
             product.markModified("sizes");
           }

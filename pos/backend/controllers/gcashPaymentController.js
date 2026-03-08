@@ -671,6 +671,13 @@ async function updateStockAfterPayment(transaction) {
               }
             }
             currentSizeData.quantity = sizeTotal;
+            
+            // Explicitly reassign the updated size data back to product.sizes
+            if (product.sizes.set) {
+              product.sizes.set(sizeKey, currentSizeData);
+            } else {
+              product.sizes[sizeKey] = currentSizeData;
+            }
             product.markModified("sizes");
           } else {
             // No variants, update size quantity directly

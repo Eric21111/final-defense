@@ -95,16 +95,13 @@ const ProductDetailsModal = ({
   };
 
   // Check if product has variants (variants stored per size)
-  // Only returns true if there are variants with stock > 0
+  // Returns true if any size has a variants object, regardless of stock
   const hasSizeVariants = () => {
     if (product.sizes && typeof product.sizes === "object") {
       return Object.values(product.sizes).some((sizeData) => {
         const variants = getSizeVariants(sizeData);
-        if (variants && typeof variants === "object") {
-          // Check if any variant has stock > 0
-          return Object.values(variants).some((v) => getVariantQty(v) > 0);
-        }
-        return false;
+        // Check if variants exist (regardless of stock quantity)
+        return variants && typeof variants === "object" && Object.keys(variants).length > 0;
       });
     }
     return false;
@@ -124,6 +121,7 @@ const ProductDetailsModal = ({
   };
 
   // Get all unique variants from all sizes OR from simple variant field
+  // Returns ALL variants including those with 0 stock (they will be shown as disabled)
   const getAllVariants = () => {
     const variantSet = new Set();
     
@@ -132,12 +130,9 @@ const ProductDetailsModal = ({
       Object.values(product.sizes).forEach((sizeData) => {
         const variants = getSizeVariants(sizeData);
         if (variants) {
+          // Add ALL variants regardless of stock quantity
           Object.keys(variants).forEach((variant) => {
-            // Only add variants that have stock > 0
-            const qty = getVariantQty(variants[variant]);
-            if (qty > 0) {
-              variantSet.add(variant);
-            }
+            variantSet.add(variant);
           });
         }
       });
@@ -157,24 +152,22 @@ const ProductDetailsModal = ({
     return Array.from(variantSet);
   };
 
-  // Get available sizes for a specific variant (for size-based variants)
+  // Get all sizes for a specific variant (for size-based variants)
+  // Returns ALL sizes including those with 0 stock (they will be shown as disabled)
   const getAvailableSizesForVariant = (variant) => {
     if (!product.sizes || typeof product.sizes !== "object") return [];
     
-    // For simple variants, all sizes with stock are available
+    // For simple variants, return all sizes
     if (hasSimpleVariants()) {
-      return Object.entries(product.sizes)
-        .filter(([size, sizeData]) => getSizeQuantity(sizeData) > 0)
-        .map(([size]) => size);
+      return Object.keys(product.sizes);
     }
     
-    // For size-based variants, filter by variant stock
+    // For size-based variants, return all sizes that have this variant defined
     return Object.entries(product.sizes)
       .filter(([size, sizeData]) => {
         const variants = getSizeVariants(sizeData);
-        if (!variants || variants[variant] === undefined) return false;
-        const qty = getVariantQty(variants[variant]);
-        return qty > 0;
+        // Include size if this variant exists (regardless of stock quantity)
+        return variants && variants[variant] !== undefined;
       })
       .map(([size]) => size);
   };
