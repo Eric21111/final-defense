@@ -91,17 +91,20 @@ const AddProductModal = ({
             sizePrices[size] = {
               hasVariants: true,
               basePrice: sizeData.price || editingProduct.itemPrice || 0,
+              baseCostPrice: sizeData.costPrice || editingProduct.costPrice || 0,
               variants: {}
             };
             Object.entries(sizeData.variants).forEach(([variant, variantData]) => {
               if (typeof variantData === 'object' && variantData !== null) {
                 sizePrices[size].variants[variant] = {
-                  price: variantData.price || sizeData.price || editingProduct.itemPrice || 0,
+                  price: variantData.price || sizeData.variantPrices?.[variant] || sizeData.price || editingProduct.itemPrice || 0,
+                  costPrice: variantData.costPrice || sizeData.variantCostPrices?.[variant] || sizeData.costPrice || editingProduct.costPrice || 0,
                   quantity: variantData.quantity || 0
                 };
               } else {
                 sizePrices[size].variants[variant] = {
                   price: sizeData.variantPrices?.[variant] || sizeData.price || editingProduct.itemPrice || 0,
+                  costPrice: sizeData.variantCostPrices?.[variant] || sizeData.costPrice || editingProduct.costPrice || 0,
                   quantity: typeof variantData === 'number' ? variantData : 0
                 };
               }
@@ -111,6 +114,7 @@ const AddProductModal = ({
             sizePrices[size] = {
               hasVariants: false,
               price: sizeData.price || editingProduct.itemPrice || 0,
+              costPrice: sizeData.costPrice || editingProduct.costPrice || 0,
               quantity: sizeData.quantity || 0
             };
           }
@@ -119,6 +123,7 @@ const AddProductModal = ({
           sizePrices[size] = {
             hasVariants: false,
             price: editingProduct.itemPrice || 0,
+            costPrice: editingProduct.costPrice || 0,
             quantity: sizeData
           };
         }
@@ -140,6 +145,17 @@ const AddProductModal = ({
     }));
   };
 
+  // Handle updating size cost price when editing
+  const handleEditableSizeCostPriceChange = (size, costPrice) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        costPrice: parseFloat(costPrice) || 0
+      }
+    }));
+  };
+
   // Handle updating variant price when editing
   const handleEditableVariantPriceChange = (size, variant, price) => {
     setEditableSizePrices(prev => ({
@@ -151,6 +167,23 @@ const AddProductModal = ({
           [variant]: {
             ...prev[size]?.variants?.[variant],
             price: parseFloat(price) || 0
+          }
+        }
+      }
+    }));
+  };
+
+  // Handle updating variant cost price when editing
+  const handleEditableVariantCostPriceChange = (size, variant, costPrice) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        variants: {
+          ...prev[size]?.variants,
+          [variant]: {
+            ...prev[size]?.variants?.[variant],
+            costPrice: parseFloat(costPrice) || 0
           }
         }
       }
@@ -638,14 +671,32 @@ const AddProductModal = ({
                             {sizeData.hasVariants ? (
                               <div className="space-y-2">
                                 {Object.entries(sizeData.variants || {}).map(([variant, variantData]) => (
-                                  <div key={variant} className="flex items-center gap-3">
-                                    <span className={`min-w-[80px] text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                                  <div key={variant} className="flex items-center gap-3 flex-wrap">
+                                    <span className={`min-w-[100px] text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
                                       {variant}
                                     </span>
-                                    <span className={`text-xs min-w-[60px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                                    <span className={`text-xs min-w-[50px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
                                       Qty: {variantData.quantity || 0}
                                     </span>
                                     <div className="flex items-center gap-1">
+                                      <span className={`text-xs ${theme === "dark" ? "text-red-400" : "text-red-500"}`}>Cost:</span>
+                                      <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={variantData.costPrice || ""}
+                                        onChange={(e) => handleEditableVariantCostPriceChange(size, variant, e.target.value)}
+                                        placeholder="Cost"
+                                        className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                          theme === "dark"
+                                            ? "bg-[#2A2724] border-gray-600 text-white"
+                                            : "bg-white border-gray-300"
+                                        }`}
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <span className={`text-xs ${theme === "dark" ? "text-green-400" : "text-green-500"}`}>Price:</span>
                                       <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
                                       <input
                                         type="number"
@@ -654,7 +705,7 @@ const AddProductModal = ({
                                         value={variantData.price || ""}
                                         onChange={(e) => handleEditableVariantPriceChange(size, variant, e.target.value)}
                                         placeholder="Price"
-                                        className={`w-24 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                        className={`w-20 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
                                           theme === "dark"
                                             ? "bg-[#2A2724] border-gray-600 text-white"
                                             : "bg-white border-gray-300"
@@ -665,9 +716,26 @@ const AddProductModal = ({
                                 ))}
                               </div>
                             ) : (
-                              <div className="flex items-center gap-3">
-                                <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Price:</span>
+                              <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-1">
+                                  <span className={`text-xs ${theme === "dark" ? "text-red-400" : "text-red-500"}`}>Cost:</span>
+                                  <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={sizeData.costPrice || ""}
+                                    onChange={(e) => handleEditableSizeCostPriceChange(size, e.target.value)}
+                                    placeholder="Cost"
+                                    className={`w-24 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                      theme === "dark"
+                                        ? "bg-[#2A2724] border-gray-600 text-white"
+                                        : "bg-white border-gray-300"
+                                    }`}
+                                  />
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className={`text-xs ${theme === "dark" ? "text-green-400" : "text-green-500"}`}>Price:</span>
                                   <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
                                   <input
                                     type="number"

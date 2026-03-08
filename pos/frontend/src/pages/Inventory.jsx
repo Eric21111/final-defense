@@ -994,7 +994,7 @@ const Inventory = () => {
       delete payload.sizePrices;
       delete payload.differentPricesPerSize;
 
-      // Handle editable size prices - if present, update the sizes with new prices
+      // Handle editable size prices - if present, update the sizes with new prices and cost prices
       if (payload.editableSizePrices && Object.keys(payload.editableSizePrices).length > 0) {
         // Get existing sizes from editing product and update prices
         const updatedSizes = { ...editingProduct.sizes };
@@ -1002,40 +1002,46 @@ const Inventory = () => {
         Object.entries(payload.editableSizePrices).forEach(([size, sizeData]) => {
           if (updatedSizes[size]) {
             if (sizeData.hasVariants && sizeData.variants) {
-              // Update variant prices - need to handle both number and object formats
+              // Update variant prices and cost prices - need to handle both number and object formats
               const currentSizeData = updatedSizes[size];
               const currentVariants = currentSizeData.variants || {};
               const currentVariantPrices = currentSizeData.variantPrices || {};
+              const currentVariantCostPrices = currentSizeData.variantCostPrices || {};
               
               Object.entries(sizeData.variants).forEach(([variant, variantData]) => {
                 const newPrice = parseFloat(variantData.price) || 0;
+                const newCostPrice = parseFloat(variantData.costPrice) || 0;
                 
                 // Check if variants store quantities as numbers or objects
                 if (currentVariants[variant] !== undefined) {
                   if (typeof currentVariants[variant] === 'number') {
-                    // Variants store quantities as numbers, so update variantPrices separately
+                    // Variants store quantities as numbers, so update variantPrices/variantCostPrices separately
                     currentVariantPrices[variant] = newPrice;
+                    currentVariantCostPrices[variant] = newCostPrice;
                   } else if (typeof currentVariants[variant] === 'object') {
-                    // Variants store objects with quantity and price
+                    // Variants store objects with quantity, price, and costPrice
                     currentVariants[variant] = {
                       ...currentVariants[variant],
-                      price: newPrice
+                      price: newPrice,
+                      costPrice: newCostPrice
                     };
                   }
                 }
               });
               
-              // Update the size data with modified variants/variantPrices
+              // Update the size data with modified variants/variantPrices/variantCostPrices
               updatedSizes[size] = {
                 ...currentSizeData,
                 variants: currentVariants,
-                variantPrices: Object.keys(currentVariantPrices).length > 0 ? currentVariantPrices : currentSizeData.variantPrices
+                variantPrices: Object.keys(currentVariantPrices).length > 0 ? currentVariantPrices : currentSizeData.variantPrices,
+                variantCostPrices: Object.keys(currentVariantCostPrices).length > 0 ? currentVariantCostPrices : currentSizeData.variantCostPrices
               };
             } else {
-              // Update size price directly
+              // Update size price and cost price directly
               updatedSizes[size] = {
                 ...updatedSizes[size],
-                price: parseFloat(sizeData.price) || 0
+                price: parseFloat(sizeData.price) || 0,
+                costPrice: parseFloat(sizeData.costPrice) || 0
               };
             }
           }
