@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useState, Component } from "react";
 import { Toaster } from "react-hot-toast";
 import { Route, BrowserRouter as Router, Routes } from "react-router-dom";
 import "./App.css";
@@ -11,25 +11,92 @@ import { SidebarContext } from "./context/SidebarContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { API_ENDPOINTS } from "./config/api";
 
-// Lazy load all pages for better performance
-const StaffSelection = lazy(() => import("./pages/StaffSelection"));
-const PinEntry = lazy(() => import("./pages/PinEntry"));
-const Inventory = lazy(() => import("./pages/Inventory"));
-const Logs = lazy(() => import("./pages/logs"));
-const Terminal = lazy(() => import("./pages/terminal"));
-const Transaction = lazy(() => import("./pages/transaction"));
-const Settings = lazy(() => import("./pages/Settings"));
-const Dashboard = lazy(() => import("./pages/owner/Dashboard"));
-const Reports = lazy(() => import("./pages/owner/Reports"));
-const ManageEmployees = lazy(() => import("./pages/owner/ManageEmployees"));
-const DiscountManagement = lazy(
+// Retry function for lazy loading chunks
+const lazyWithRetry = (componentImport) => {
+  return lazy(async () => {
+    const pageHasAlreadyBeenForceRefreshed = JSON.parse(
+      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
+    );
+
+    try {
+      const component = await componentImport();
+      window.sessionStorage.setItem('page-has-been-force-refreshed', 'false');
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenForceRefreshed) {
+        // The page failed to load and hasn't been refreshed yet
+        window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
+        window.location.reload();
+        return { default: () => null };
+      }
+      // The page has already been refreshed, throw the error
+      throw error;
+    }
+  });
+};
+
+// Error Boundary Component
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('ErrorBoundary caught an error:', error, errorInfo);
+  }
+
+  handleRetry = () => {
+    window.sessionStorage.removeItem('page-has-been-force-refreshed');
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center p-8">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">Something went wrong</h1>
+            <p className="text-gray-600 mb-6">The page failed to load. This usually happens after an update.</p>
+            <button
+              onClick={this.handleRetry}
+              className="px-6 py-3 bg-[#AD7F65] text-white rounded-lg hover:bg-[#8B6B4F] transition-colors font-semibold"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Lazy load all pages with retry for better performance
+const StaffSelection = lazyWithRetry(() => import("./pages/StaffSelection"));
+const PinEntry = lazyWithRetry(() => import("./pages/PinEntry"));
+const Inventory = lazyWithRetry(() => import("./pages/Inventory"));
+const Logs = lazyWithRetry(() => import("./pages/logs"));
+const Terminal = lazyWithRetry(() => import("./pages/terminal"));
+const Transaction = lazyWithRetry(() => import("./pages/transaction"));
+const Settings = lazyWithRetry(() => import("./pages/Settings"));
+const Dashboard = lazyWithRetry(() => import("./pages/owner/Dashboard"));
+const Reports = lazyWithRetry(() => import("./pages/owner/Reports"));
+const ManageEmployees = lazyWithRetry(() => import("./pages/owner/ManageEmployees"));
+const DiscountManagement = lazyWithRetry(
   () => import("./pages/owner/DiscountManagement"),
 );
-const BrandPartners = lazy(() => import("./pages/owner/BrandPartners"));
-const Categories = lazy(() => import("./pages/owner/Categories"));
-const SetNewPin = lazy(() => import("./pages/SetNewPin"));
-const OwnerOnboarding = lazy(() => import("./pages/OwnerOnboarding"));
-const ManageData = lazy(() => import("./pages/ManageData"));
+const BrandPartners = lazyWithRetry(() => import("./pages/owner/BrandPartners"));
+const Categories = lazyWithRetry(() => import("./pages/owner/Categories"));
+const SetNewPin = lazyWithRetry(() => import("./pages/SetNewPin"));
+const OwnerOnboarding = lazyWithRetry(() => import("./pages/OwnerOnboarding"));
+const ManageData = lazyWithRetry(() => import("./pages/ManageData"));
 
 // Loading fallback component
 const PageLoader = () => (
@@ -185,12 +252,13 @@ function App() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <DataCacheProvider>
-          <Router>
-            <Toaster position="top-center" reverseOrder={false} />
-            <PageTitle />
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <DataCacheProvider>
+            <Router>
+              <Toaster position="top-center" reverseOrder={false} />
+              <PageTitle />
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<LandingGate />} />
@@ -374,6 +442,7 @@ function App() {
         </DataCacheProvider>
       </AuthProvider>
     </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 
