@@ -153,7 +153,7 @@ const ReceiptModal = ({
           {receipt.items && receipt.items.map((item, index) => (
             <div key={index} style={{ marginBottom: '8px' }}>
               <p style={{ fontSize: '11px', fontWeight: '600', margin: '0', color: '#1a202c' }}>{item.name}</p>
-              <p style={{ fontSize: '10px', margin: '2px 0', color: '#718096' }}>{item.qty} x ₱{item.price.toFixed(2)}</p>
+              <p style={{ fontSize: '10px', margin: '2px 0', color: '#718096' }}>{item.qty} x P{item.price.toFixed(2)}</p>
             </div>
           ))}
         </div>
@@ -162,23 +162,23 @@ const ReceiptModal = ({
         <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px', fontSize: '11px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Subtotal:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.subtotal.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>P{receipt.subtotal.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Discount:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.discount.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>P{receipt.discount.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', paddingTop: '8px', borderTop: '1px solid #e2e8f0' }}>
             <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>Total:</span>
-            <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>₱{receipt.total.toFixed(2)}</span>
+            <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>P{receipt.total.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Amount Received:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.cash.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>P{receipt.cash.toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Change:</span>
-            <span style={{ color: '#1a202c' }}>₱{receipt.change.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>P{receipt.change.toFixed(2)}</span>
           </div>
         </div>
 

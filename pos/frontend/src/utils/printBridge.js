@@ -126,7 +126,7 @@ const buildReceiptHTML = (receipt) => {
     return `
       <div style="margin-bottom: 8px;">
         <div style="font-weight: 600; font-size: 11px; color: #1a202c;">${itemName}</div>
-        <div style="font-size: 10px; color: #718096;">${qty} x ₱${price.toFixed(2)}</div>
+        <div style="font-size: 10px; color: #718096;">${qty} x P${price.toFixed(2)}</div>
       </div>
     `;
   }).join('');
@@ -211,30 +211,30 @@ const buildReceiptHTML = (receipt) => {
         <div style="border-top: 1px solid #e2e8f0; padding-top: 10px;">
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
             <span style="color: #4a5568;">Subtotal:</span>
-            <span style="color: #1a202c;">₱${subtotal.toFixed(2)}</span>
+            <span style="color: #1a202c;">P${subtotal.toFixed(2)}</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
             <span style="color: #4a5568;">Discount:</span>
-            <span style="color: #1a202c;">₱${discount.toFixed(2)}</span>
+            <span style="color: #1a202c;">P${discount.toFixed(2)}</span>
           </div>
           
           <!-- Total -->
           <div style="display: flex; justify-content: space-between; margin: 8px 0; padding-top: 8px; border-top: 1px solid #e2e8f0;">
             <span style="font-weight: bold; color: #1a365d; font-size: 13px;">Total:</span>
-            <span style="font-weight: bold; color: #1a365d; font-size: 13px;">₱${total.toFixed(2)}</span>
+            <span style="font-weight: bold; color: #1a365d; font-size: 13px;">P${total.toFixed(2)}</span>
           </div>
           
           ${cash !== null ? `
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
             <span style="color: #4a5568;">Amount Received:</span>
-            <span style="color: #1a202c;">₱${cash.toFixed(2)}</span>
+            <span style="color: #1a202c;">P${cash.toFixed(2)}</span>
           </div>
           ` : ''}
           
           ${change !== null ? `
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
             <span style="color: #4a5568;">Change:</span>
-            <span style="color: #1a202c;">₱${change.toFixed(2)}</span>
+            <span style="color: #1a202c;">P${change.toFixed(2)}</span>
           </div>
           ` : ''}
         </div>
