@@ -25,11 +25,11 @@ const clearCache = (req, res, next) => {
 };
 
 router.get('/', cache('30 seconds'), getAllTransactions);
-router.get('/stats', cache('30 seconds'), getTransactionStats);
-router.get('/dashboard/stats', cache('30 seconds'), getDashboardStats);
-router.get('/top-selling', cache('1 minute'), getTopSellingProducts);
-router.get('/sales-over-time', cache('1 minute'), getSalesOverTime);
-router.get('/sales-by-category', cache('1 minute'), getSalesByCategory);
+router.get('/stats', cache('2 minutes'), getTransactionStats);
+router.get('/dashboard/stats', cache('2 minutes'), getDashboardStats);
+router.get('/top-selling', cache('2 minutes'), getTopSellingProducts);
+router.get('/sales-over-time', cache('2 minutes'), getSalesOverTime);
+router.get('/sales-by-category', cache('2 minutes'), getSalesByCategory);
 router.post('/', clearCache, createTransaction);
 router.get('/:id', getTransactionById);
 router.put('/:id', clearCache, updateTransaction);

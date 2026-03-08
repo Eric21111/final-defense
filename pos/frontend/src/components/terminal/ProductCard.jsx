@@ -1,7 +1,6 @@
 import { memo, useMemo } from "react";
 import { MdCategory } from "react-icons/md";
 import { useTheme } from "../../context/ThemeContext";
-import { API_BASE_URL } from "../../config/api";
 
 const ProductCard = memo(function ProductCard({ product, onToggleExpand }) {
   const { theme } = useTheme();
@@ -122,29 +121,20 @@ const ProductCard = memo(function ProductCard({ product, onToggleExpand }) {
       onClick={() => onToggleExpand(product)}
     >
       <div
-        className={`aspect-square flex justify-center items-center overflow-hidden ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"
+        className={`aspect-square flex items-center justify-center overflow-hidden ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"
           }`}
       >
-        <img
-          src={`${API_BASE_URL}/api/products/${product._id}/image`}
-          alt={product.itemName}
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            e.target.style.display = 'none';
-            if (e.target.nextElementSibling) {
-              e.target.nextElementSibling.style.display = 'block';
-            }
-          }}
-          onLoad={(e) => {
-            if (e.target.nextElementSibling) {
-              e.target.nextElementSibling.style.display = 'none';
-            }
-          }}
-        />
-        <MdCategory
-          className={`text-4xl ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}
-          style={{ display: 'none' }}
-        />
+        {product.itemImage && product.itemImage.trim() !== "" ? (
+          <img
+            src={product.itemImage}
+            alt={product.itemName}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <MdCategory
+            className={`text-4xl ${theme === "dark" ? "text-gray-600" : "text-gray-400"}`}
+          />
+        )}
       </div>
 
       <div className="p-3">

@@ -79,28 +79,33 @@ const Dashboard = () => {
   const PIE_COLORS = ["#F4A6C1", "#A7C7E7", "#FAD02E", "#98FB98", "#FFB7B2"];
 
   useEffect(() => {
-    if (timeframe === "Custom" && (!startDate || !endDate)) {
-      return; // Don't fetch if custom range is incomplete
-    }
-    fetchData();
-  }, [timeframe, topSellingSort, lowStockFilter, startDate, endDate]);
+    if (timeframe === "Custom" && (!startDate || !endDate)) return;
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        fetchDashboardStats(),
-        fetchSalesOverTime(),
-        fetchSalesByCategory(),
-        fetchTopSellingProducts(),
-        fetchLowStockProducts(),
-      ]);
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchCoreData = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([
+          fetchDashboardStats(),
+          fetchSalesOverTime(),
+          fetchSalesByCategory(),
+        ]);
+      } catch (error) {
+        console.error("Error fetching core dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCoreData();
+  }, [timeframe, startDate, endDate]);
+
+  useEffect(() => {
+    if (timeframe === "Custom" && (!startDate || !endDate)) return;
+    fetchTopSellingProducts();
+  }, [timeframe, topSellingSort, startDate, endDate]);
+
+  useEffect(() => {
+    fetchLowStockProducts();
+  }, [lowStockFilter]);
 
   const getQueryParams = () => {
     let params = `?timeframe=${timeframe}`;

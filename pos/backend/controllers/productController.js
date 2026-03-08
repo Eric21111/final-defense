@@ -7,9 +7,10 @@ exports.getAllProducts = async (req, res) => {
     let limit = parseInt(req.query.limit);
     let skip = 0;
 
-    // Build projection: always exclude heavy fields (stockHistory, itemImage)
-    // We send images via a separate lazy-load endpoint for performance
-    const projection = "-stockHistory -itemImage";
+    // Build projection: always exclude stockHistory, optionally exclude heavy fields
+    // ?fields=minimal excludes itemImage (base64 strings can be 50-500KB per product)
+    const isMinimal = req.query.fields === "minimal";
+    const projection = isMinimal ? "-stockHistory -itemImage" : "-stockHistory";
 
     let query = Product.find({}, projection).sort({ dateAdded: -1 });
 
@@ -134,33 +135,6 @@ exports.getProductById = async (req, res) => {
       message: "Error fetching product",
       error: error.message,
     });
-  }
-};
-
-exports.getProductImage = async (req, res) => {
-  try {
-    const product = await Product.findById(req.params.id).select("itemImage").lean();
-
-    if (!product || !product.itemImage) {
-      return res.status(404).send("Image not found");
-    }
-
-    // Extract base64 data and content type
-    const matches = product.itemImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-      return res.status(400).send("Invalid image format");
-    }
-
-    const contentType = matches[1];
-    const base64Data = matches[2];
-
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    res.set('Content-Type', contentType);
-    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-    res.send(buffer);
-  } catch (error) {
-    res.status(500).send("Server error");
   }
 };
 

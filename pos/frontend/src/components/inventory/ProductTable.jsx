@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { MdCategory } from "react-icons/md";
 import { useTheme } from "../../context/ThemeContext";
-import { API_BASE_URL } from "../../config/api";
 
 const ProductTable = ({
   loading,
@@ -155,30 +154,19 @@ const ProductTable = ({
                     </td>
                   )}
                   <td className="py-3 pr-4">
-                    <div className="relative w-12 h-12">
+                    {product.itemImage && product.itemImage.trim() !== "" ? (
                       <img
-                        src={`${API_BASE_URL}/api/products/${product._id}/image`}
+                        src={product.itemImage}
                         alt={product.itemName}
                         className="w-12 h-12 object-cover rounded"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          if (e.target.nextElementSibling) {
-                            e.target.nextElementSibling.style.display = 'flex';
-                          }
-                        }}
-                        onLoad={(e) => {
-                          if (e.target.nextElementSibling) {
-                            e.target.nextElementSibling.style.display = 'none';
-                          }
-                        }}
                       />
+                    ) : (
                       <div
-                        className={`absolute inset-0 w-12 h-12 rounded flex items-center justify-center ${theme === "dark" ? "bg-[#352F2A] text-gray-500" : "bg-gray-200 text-gray-400"}`}
-                        style={{ display: 'none' }}
+                        className={`w-12 h-12 rounded flex items-center justify-center ${theme === "dark" ? "bg-[#352F2A] text-gray-500" : "bg-gray-200 text-gray-400"}`}
                       >
                         <MdCategory />
                       </div>
-                    </div>
+                    )}
                   </td>
                   <td className="py-3 px-4">{product.sku}</td>
                   <td className="py-3 px-4">{product.itemName}</td>
