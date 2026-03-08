@@ -69,6 +69,15 @@ const ProductDetailsModal = ({
     return null;
   };
 
+  // Helper to get variant quantity (handles both number and object formats)
+  const getVariantQty = (variantData) => {
+    if (typeof variantData === "number") return variantData;
+    if (typeof variantData === "object" && variantData !== null) {
+      return variantData.quantity || 0;
+    }
+    return 0;
+  };
+
   // Check if product has variants (variants stored per size)
   // Only returns true if there are variants with stock > 0
   const hasVariants = () => {
@@ -77,7 +86,7 @@ const ProductDetailsModal = ({
         const variants = getSizeVariants(sizeData);
         if (variants && typeof variants === "object") {
           // Check if any variant has stock > 0
-          return Object.values(variants).some((stock) => stock > 0);
+          return Object.values(variants).some((v) => getVariantQty(v) > 0);
         }
         return false;
       });
@@ -94,7 +103,8 @@ const ProductDetailsModal = ({
         if (variants) {
           Object.keys(variants).forEach((variant) => {
             // Only add variants that have stock > 0
-            if (variants[variant] > 0) {
+            const qty = getVariantQty(variants[variant]);
+            if (qty > 0) {
               variantSet.add(variant);
             }
           });
@@ -111,7 +121,9 @@ const ProductDetailsModal = ({
     return Object.entries(product.sizes)
       .filter(([size, sizeData]) => {
         const variants = getSizeVariants(sizeData);
-        return variants && variants[variant] && variants[variant] > 0;
+        if (!variants || variants[variant] === undefined) return false;
+        const qty = getVariantQty(variants[variant]);
+        return qty > 0;
       })
       .map(([size]) => size);
   };
@@ -121,7 +133,7 @@ const ProductDetailsModal = ({
     if (!product.sizes || !product.sizes[size]) return 0;
     const variants = getSizeVariants(product.sizes[size]);
     if (variants && variants[variant] !== undefined) {
-      return variants[variant];
+      return getVariantQty(variants[variant]);
     }
     return 0;
   };
