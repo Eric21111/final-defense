@@ -198,6 +198,8 @@ function AddItem({ onBack, item, isEditing = false }) {
     item?.brandName || item?.brand || "Default",
   );
   const [brandsList, setBrandsList] = useState([]);
+  // Editable size/variant prices for edit mode (similar to web)
+  const [editableSizePrices, setEditableSizePrices] = useState({});
   const [expirationDate, setExpirationDate] = useState(
     item?.expirationDate || "",
   );
@@ -444,10 +446,119 @@ function AddItem({ onBack, item, isEditing = false }) {
       setDifferentVariantsPerSize(false);
       setSizeVariants({});
       setIsForPOS(!!item.isForPOS);
+      
+      // Initialize editable size prices from existing product data (like web)
+      if (item.sizes && typeof item.sizes === 'object') {
+        const sizePricesData = {};
+        Object.entries(item.sizes).forEach(([size, sizeData]) => {
+          if (typeof sizeData === 'object' && sizeData !== null) {
+            // Check if this size has variants with prices
+            if (sizeData.variants && typeof sizeData.variants === 'object') {
+              sizePricesData[size] = {
+                hasVariants: true,
+                basePrice: sizeData.price || item.itemPrice || 0,
+                baseCostPrice: sizeData.costPrice || item.costPrice || 0,
+                variants: {}
+              };
+              Object.entries(sizeData.variants).forEach(([variant, variantData]) => {
+                if (typeof variantData === 'object' && variantData !== null) {
+                  sizePricesData[size].variants[variant] = {
+                    price: variantData.price || sizeData.variantPrices?.[variant] || sizeData.price || item.itemPrice || 0,
+                    costPrice: variantData.costPrice || sizeData.variantCostPrices?.[variant] || sizeData.costPrice || item.costPrice || 0,
+                    quantity: variantData.quantity || 0
+                  };
+                } else {
+                  sizePricesData[size].variants[variant] = {
+                    price: sizeData.variantPrices?.[variant] || sizeData.price || item.itemPrice || 0,
+                    costPrice: sizeData.variantCostPrices?.[variant] || sizeData.costPrice || item.costPrice || 0,
+                    quantity: typeof variantData === 'number' ? variantData : 0
+                  };
+                }
+              });
+            } else {
+              // Size without variants
+              sizePricesData[size] = {
+                hasVariants: false,
+                price: sizeData.price || item.itemPrice || 0,
+                costPrice: sizeData.costPrice || item.costPrice || 0,
+                quantity: sizeData.quantity || 0
+              };
+            }
+          } else if (typeof sizeData === 'number') {
+            // Simple number quantity
+            sizePricesData[size] = {
+              hasVariants: false,
+              price: item.itemPrice || 0,
+              costPrice: item.costPrice || 0,
+              quantity: sizeData
+            };
+          }
+        });
+        setEditableSizePrices(sizePricesData);
+      } else {
+        setEditableSizePrices({});
+      }
     } else {
       initializeForm();
+      setEditableSizePrices({});
     }
   }, [isEditing, item]);
+
+  // Handle updating size price when editing
+  const handleEditableSizePriceChange = (size, price) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        price: parseFloat(price) || 0
+      }
+    }));
+  };
+
+  // Handle updating size cost price when editing
+  const handleEditableSizeCostPriceChange = (size, costPrice) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        costPrice: parseFloat(costPrice) || 0
+      }
+    }));
+  };
+
+  // Handle updating variant price when editing
+  const handleEditableVariantPriceChange = (size, variant, price) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        variants: {
+          ...prev[size]?.variants,
+          [variant]: {
+            ...prev[size]?.variants?.[variant],
+            price: parseFloat(price) || 0
+          }
+        }
+      }
+    }));
+  };
+
+  // Handle updating variant cost price when editing
+  const handleEditableVariantCostPriceChange = (size, variant, costPrice) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        variants: {
+          ...prev[size]?.variants,
+          [variant]: {
+            ...prev[size]?.variants?.[variant],
+            costPrice: parseFloat(costPrice) || 0
+          }
+        }
+      }
+    }));
+  };
 
   const showImagePickerOptions = () => {
     Alert.alert(
@@ -751,6 +862,8 @@ function AddItem({ onBack, item, isEditing = false }) {
         differentPricesPerSize: differentPricesPerSize,
         sizePrices: sizePrices,
         sizeCostPrices: sizeCostPrices,
+        // Include editable size prices for edit mode
+        editableSizePrices: isEditing ? editableSizePrices : undefined,
         waistSize,
         accessoryType,
         makeupBrand,
@@ -767,6 +880,60 @@ function AddItem({ onBack, item, isEditing = false }) {
         dateAdded: item?.dateAdded || new Date().toISOString(),
         isForPOS,
       };
+
+      // If editing and we have editable size prices, update the sizes with new prices
+      if (isEditing && Object.keys(editableSizePrices).length > 0) {
+        const updatedSizes = { ...(item.sizes || {}) };
+        
+        Object.entries(editableSizePrices).forEach(([size, sizeData]) => {
+          if (updatedSizes[size]) {
+            if (sizeData.hasVariants && sizeData.variants) {
+              // Update variant prices and cost prices
+              const currentSizeData = updatedSizes[size];
+              const currentVariants = currentSizeData.variants || {};
+              const currentVariantPrices = currentSizeData.variantPrices || {};
+              const currentVariantCostPrices = currentSizeData.variantCostPrices || {};
+              
+              Object.entries(sizeData.variants).forEach(([variant, variantData]) => {
+                const newPrice = parseFloat(variantData.price) || 0;
+                const newCostPrice = parseFloat(variantData.costPrice) || 0;
+                
+                if (currentVariants[variant] !== undefined) {
+                  if (typeof currentVariants[variant] === 'number') {
+                    // Variants store quantities as numbers
+                    currentVariantPrices[variant] = newPrice;
+                    currentVariantCostPrices[variant] = newCostPrice;
+                  } else if (typeof currentVariants[variant] === 'object') {
+                    // Variants store objects
+                    currentVariants[variant] = {
+                      ...currentVariants[variant],
+                      price: newPrice,
+                      costPrice: newCostPrice
+                    };
+                  }
+                }
+              });
+              
+              updatedSizes[size] = {
+                ...currentSizeData,
+                variants: currentVariants,
+                variantPrices: Object.keys(currentVariantPrices).length > 0 ? currentVariantPrices : currentSizeData.variantPrices,
+                variantCostPrices: Object.keys(currentVariantCostPrices).length > 0 ? currentVariantCostPrices : currentSizeData.variantCostPrices
+              };
+            } else {
+              // Update size price and cost price directly
+              updatedSizes[size] = {
+                ...updatedSizes[size],
+                price: parseFloat(sizeData.price) || 0,
+                costPrice: parseFloat(sizeData.costPrice) || 0
+              };
+            }
+          }
+        });
+        
+        itemData.sizes = updatedSizes;
+        delete itemData.editableSizePrices;
+      }
 
       console.log(isEditing ? "Updating item:" : "Adding new item:", itemData);
 
@@ -1231,8 +1398,89 @@ function AddItem({ onBack, item, isEditing = false }) {
           </View>
         )}
 
+        {/* Edit Mode: Show existing sizes/variants with editable prices */}
+        {isEditing && Object.keys(editableSizePrices).length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Size & Variant Prices</Text>
+            <Text style={styles.sectionHint}>
+              Update prices for each size/variant below. Stock adjustments should be done via Stock In/Out.
+            </Text>
+            
+            {Object.entries(editableSizePrices).map(([size, sizeData]) => (
+              <View key={size} style={styles.editableSizeCard}>
+                <View style={styles.editableSizeHeader}>
+                  <Text style={styles.editableSizeTitle}>{size}</Text>
+                  <Text style={styles.editableSizeInfo}>
+                    {sizeData.hasVariants
+                      ? `${Object.keys(sizeData.variants || {}).length} variants`
+                      : `Stock: ${sizeData.quantity || 0}`}
+                  </Text>
+                </View>
+                
+                {sizeData.hasVariants ? (
+                  <View style={styles.editableVariantsContainer}>
+                    {Object.entries(sizeData.variants || {}).map(([variant, variantData]) => (
+                      <View key={variant} style={styles.editableVariantRow}>
+                        <View style={styles.editableVariantInfo}>
+                          <Text style={styles.editableVariantName}>{variant}</Text>
+                          <Text style={styles.editableVariantQty}>Qty: {variantData.quantity || 0}</Text>
+                        </View>
+                        <View style={styles.editablePriceInputs}>
+                          <View style={styles.editablePriceInput}>
+                            <Text style={styles.editablePriceLabelCost}>Cost:</Text>
+                            <TextInput
+                              style={styles.editablePriceField}
+                              value={variantData.costPrice?.toString() || ""}
+                              onChangeText={(text) => handleEditableVariantCostPriceChange(size, variant, text)}
+                              placeholder="0"
+                              keyboardType="numeric"
+                            />
+                          </View>
+                          <View style={styles.editablePriceInput}>
+                            <Text style={styles.editablePriceLabelPrice}>Price:</Text>
+                            <TextInput
+                              style={styles.editablePriceField}
+                              value={variantData.price?.toString() || ""}
+                              onChangeText={(text) => handleEditableVariantPriceChange(size, variant, text)}
+                              placeholder="0"
+                              keyboardType="numeric"
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.editableSizePriceRow}>
+                    <View style={styles.editablePriceInput}>
+                      <Text style={styles.editablePriceLabelCost}>Cost:</Text>
+                      <TextInput
+                        style={styles.editablePriceField}
+                        value={sizeData.costPrice?.toString() || ""}
+                        onChangeText={(text) => handleEditableSizeCostPriceChange(size, text)}
+                        placeholder="0"
+                        keyboardType="numeric"
+                      />
+                    </View>
+                    <View style={styles.editablePriceInput}>
+                      <Text style={styles.editablePriceLabelPrice}>Price:</Text>
+                      <TextInput
+                        style={styles.editablePriceField}
+                        value={sizeData.price?.toString() || ""}
+                        onChangeText={(text) => handleEditableSizePriceChange(size, text)}
+                        placeholder="0"
+                        keyboardType="numeric"
+                      />
+                    </View>
+                  </View>
+                )}
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Size Selection - Dynamic based on category (matching web) */}
-        {itemCategory &&
+        {!isEditing && itemCategory &&
           !["Essentials"].includes(itemCategory) &&
           (() => {
             const builtInCategories = [
@@ -2598,6 +2846,104 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  // Editable size prices styles (for edit mode)
+  sectionContainer: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  sectionHint: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginBottom: 12,
+  },
+  editableSizeCard: {
+    backgroundColor: "#f9fafb",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  editableSizeHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  editableSizeTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+  },
+  editableSizeInfo: {
+    fontSize: 12,
+    color: "#6b7280",
+  },
+  editableVariantsContainer: {
+    gap: 8,
+  },
+  editableVariantRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  editableVariantInfo: {
+    flex: 1,
+  },
+  editableVariantName: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#333",
+  },
+  editableVariantQty: {
+    fontSize: 11,
+    color: "#6b7280",
+    marginTop: 2,
+  },
+  editablePriceInputs: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  editablePriceInput: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  editablePriceLabelCost: {
+    fontSize: 11,
+    color: "#ef4444",
+    fontWeight: "500",
+  },
+  editablePriceLabelPrice: {
+    fontSize: 11,
+    color: "#22c55e",
+    fontWeight: "500",
+  },
+  editablePriceField: {
+    width: 70,
+    height: 32,
+    backgroundColor: "#fff",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    paddingHorizontal: 8,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  editableSizePriceRow: {
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    gap: 16,
+    paddingTop: 4,
   },
 });
 
