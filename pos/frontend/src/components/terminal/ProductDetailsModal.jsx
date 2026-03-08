@@ -78,9 +78,30 @@ const ProductDetailsModal = ({
     return 0;
   };
 
+  // Parse simple variant field (comma-separated string like "#1, #2, #3")
+  const getSimpleVariants = () => {
+    if (product.variant && typeof product.variant === "string") {
+      // Split by comma and clean up
+      const variants = product.variant
+        .split(",")
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0);
+      // Only return if there are multiple variants
+      if (variants.length > 1) {
+        return variants;
+      }
+    }
+    return [];
+  };
+
+  // Check if product has simple variants (from variant field, not sizes.variants)
+  const hasSimpleVariants = () => {
+    return getSimpleVariants().length > 0;
+  };
+
   // Check if product has variants (variants stored per size)
   // Only returns true if there are variants with stock > 0
-  const hasVariants = () => {
+  const hasSizeVariants = () => {
     if (product.sizes && typeof product.sizes === "object") {
       return Object.values(product.sizes).some((sizeData) => {
         const variants = getSizeVariants(sizeData);
@@ -94,9 +115,23 @@ const ProductDetailsModal = ({
     return false;
   };
 
-  // Get all unique variants from all sizes
+  // Combined check for any type of variants
+  const hasVariants = () => {
+    return hasSizeVariants() || hasSimpleVariants();
+  };
+
+  // Get all unique variants from all sizes OR from simple variant field
   const getAllVariants = () => {
     const variantSet = new Set();
+    
+    // First check for simple variants from product.variant field
+    const simpleVariants = getSimpleVariants();
+    if (simpleVariants.length > 0) {
+      simpleVariants.forEach((v) => variantSet.add(v));
+      return Array.from(variantSet);
+    }
+    
+    // Otherwise check for size-based variants
     if (product.sizes && typeof product.sizes === "object") {
       Object.values(product.sizes).forEach((sizeData) => {
         const variants = getSizeVariants(sizeData);
@@ -114,10 +149,18 @@ const ProductDetailsModal = ({
     return Array.from(variantSet);
   };
 
-  // Get available sizes for a specific variant
+  // Get available sizes for a specific variant (for size-based variants)
   const getAvailableSizesForVariant = (variant) => {
     if (!product.sizes || typeof product.sizes !== "object") return [];
     
+    // For simple variants, all sizes with stock are available
+    if (hasSimpleVariants()) {
+      return Object.entries(product.sizes)
+        .filter(([size, sizeData]) => getSizeQuantity(sizeData) > 0)
+        .map(([size]) => size);
+    }
+    
+    // For size-based variants, filter by variant stock
     return Object.entries(product.sizes)
       .filter(([size, sizeData]) => {
         const variants = getSizeVariants(sizeData);
@@ -130,6 +173,15 @@ const ProductDetailsModal = ({
 
   // Get quantity for a specific variant in a specific size
   const getVariantQuantityInSize = (size, variant) => {
+    // For simple variants, return size quantity divided by number of variants (approximate)
+    if (hasSimpleVariants()) {
+      if (!product.sizes || !product.sizes[size]) return 0;
+      const sizeQty = getSizeQuantity(product.sizes[size]);
+      const variantCount = getSimpleVariants().length;
+      // For simple variants, we don't track per-variant stock, so show size stock
+      return sizeQty;
+    }
+    
     if (!product.sizes || !product.sizes[size]) return 0;
     const variants = getSizeVariants(product.sizes[size]);
     if (variants && variants[variant] !== undefined) {
@@ -197,10 +249,11 @@ const ProductDetailsModal = ({
   // Get available stock for current selection
   const getAvailableStock = () => {
     if (product.sizes && typeof product.sizes === "object" && selectedSize) {
-      // If product has variants, get stock for specific variant
-      if (productHasVariants && selectedVariant) {
+      // If product has size-based variants, get stock for specific variant
+      if (hasSizeVariants() && selectedVariant) {
         return getVariantQuantityInSize(selectedSize, selectedVariant);
       }
+      // For simple variants or no variants, use size stock
       return getSizeQuantity(product.sizes[selectedSize]);
     }
     return product.currentStock || 0;
@@ -220,9 +273,11 @@ const ProductDetailsModal = ({
       
       // Get stock based on variant selection
       let sizeStock;
-      if (productHasVariants && selectedVariant) {
+      if (hasSizeVariants() && selectedVariant) {
+        // For size-based variants, get specific variant stock
         sizeStock = getVariantQuantityInSize(selectedSize, selectedVariant);
       } else {
+        // For simple variants or no variants, use size stock
         sizeStock = getSizeQuantity(product.sizes[selectedSize]);
       }
       
