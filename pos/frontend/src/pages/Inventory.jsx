@@ -987,13 +987,47 @@ const Inventory = () => {
         payload.displayInTerminal,
       );
 
-      // Remove stock and size-related fields from payload
+      // Remove stock and size-related fields from payload (we'll handle sizes separately)
       delete payload.currentStock;
-      delete payload.sizes;
       delete payload.selectedSizes;
       delete payload.sizeQuantities;
       delete payload.sizePrices;
       delete payload.differentPricesPerSize;
+
+      // Handle editable size prices - if present, update the sizes with new prices
+      if (payload.editableSizePrices && Object.keys(payload.editableSizePrices).length > 0) {
+        // Get existing sizes from editing product and update prices
+        const updatedSizes = { ...editingProduct.sizes };
+        
+        Object.entries(payload.editableSizePrices).forEach(([size, sizeData]) => {
+          if (updatedSizes[size]) {
+            if (sizeData.hasVariants && sizeData.variants) {
+              // Update variant prices
+              Object.entries(sizeData.variants).forEach(([variant, variantData]) => {
+                if (updatedSizes[size].variants && updatedSizes[size].variants[variant]) {
+                  updatedSizes[size].variants[variant] = {
+                    ...updatedSizes[size].variants[variant],
+                    price: parseFloat(variantData.price) || 0
+                  };
+                }
+              });
+            } else {
+              // Update size price directly
+              updatedSizes[size] = {
+                ...updatedSizes[size],
+                price: parseFloat(sizeData.price) || 0
+              };
+            }
+          }
+        });
+        
+        // Include the updated sizes in the payload
+        payload.sizes = updatedSizes;
+        delete payload.editableSizePrices;
+      } else {
+        // No price updates, remove sizes from payload
+        delete payload.sizes;
+      }
 
       const response = await fetch(url, {
         method: "PUT",

@@ -77,6 +77,86 @@ const AddProductModal = ({
   const [variantPrices, setVariantPrices] = useState({}); // Track price per variant per size: { "S": { "Blue": 100, "White": 120 }, "M": { "Blue": 95 } }
   const [variantCostPrices, setVariantCostPrices] = useState({}); // Track cost price per variant per size: { "S": { "Blue": 50, "White": 60 }, "M": { "Blue": 45 } }
 
+  // State for editing existing size/variant prices
+  const [editableSizePrices, setEditableSizePrices] = useState({});
+
+  // Initialize editable size prices when editing a product
+  useEffect(() => {
+    if (editingProduct && editingProduct.sizes && typeof editingProduct.sizes === 'object') {
+      const sizePrices = {};
+      Object.entries(editingProduct.sizes).forEach(([size, sizeData]) => {
+        if (typeof sizeData === 'object' && sizeData !== null) {
+          // Check if this size has variants with prices
+          if (sizeData.variants && typeof sizeData.variants === 'object') {
+            sizePrices[size] = {
+              hasVariants: true,
+              basePrice: sizeData.price || editingProduct.itemPrice || 0,
+              variants: {}
+            };
+            Object.entries(sizeData.variants).forEach(([variant, variantData]) => {
+              if (typeof variantData === 'object' && variantData !== null) {
+                sizePrices[size].variants[variant] = {
+                  price: variantData.price || sizeData.price || editingProduct.itemPrice || 0,
+                  quantity: variantData.quantity || 0
+                };
+              } else {
+                sizePrices[size].variants[variant] = {
+                  price: sizeData.variantPrices?.[variant] || sizeData.price || editingProduct.itemPrice || 0,
+                  quantity: typeof variantData === 'number' ? variantData : 0
+                };
+              }
+            });
+          } else {
+            // Size without variants
+            sizePrices[size] = {
+              hasVariants: false,
+              price: sizeData.price || editingProduct.itemPrice || 0,
+              quantity: sizeData.quantity || 0
+            };
+          }
+        } else if (typeof sizeData === 'number') {
+          // Simple number quantity
+          sizePrices[size] = {
+            hasVariants: false,
+            price: editingProduct.itemPrice || 0,
+            quantity: sizeData
+          };
+        }
+      });
+      setEditableSizePrices(sizePrices);
+    } else {
+      setEditableSizePrices({});
+    }
+  }, [editingProduct]);
+
+  // Handle updating size price when editing
+  const handleEditableSizePriceChange = (size, price) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        price: parseFloat(price) || 0
+      }
+    }));
+  };
+
+  // Handle updating variant price when editing
+  const handleEditableVariantPriceChange = (size, variant, price) => {
+    setEditableSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...prev[size],
+        variants: {
+          ...prev[size]?.variants,
+          [variant]: {
+            ...prev[size]?.variants?.[variant],
+            price: parseFloat(price) || 0
+          }
+        }
+      }
+    }));
+  };
+
   // Handle variant price change for a specific size and variant
   const handleVariantPriceChange = (size, variant, price) => {
     const priceValue = parseFloat(price) || 0;
@@ -231,6 +311,10 @@ const AddProductModal = ({
       differentPricesPerVariant: differentPricesPerVariant,
       ...(Object.keys(variantPrices).length > 0 && { variantPrices: variantPrices }),
       ...(Object.keys(variantCostPrices).length > 0 && { variantCostPrices: variantCostPrices }),
+      // Editable size prices for edit mode - convert to sizes format
+      ...(editingProduct && Object.keys(editableSizePrices).length > 0 && {
+        editableSizePrices: editableSizePrices,
+      }),
     };
 
     // Update newProduct with complete data
@@ -527,6 +611,84 @@ const AddProductModal = ({
                     Stock Details
                   </h3>
                   <div className="space-y-3">
+                    {/* Edit mode: Show existing sizes/variants with editable prices */}
+                    {editingProduct && Object.keys(editableSizePrices).length > 0 ? (
+                      <div className="space-y-4">
+                        <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                          Update prices for each size/variant below. Stock adjustments should be done via Stock In/Out.
+                        </p>
+                        {Object.entries(editableSizePrices).map(([size, sizeData]) => (
+                          <div
+                            key={size}
+                            className={`p-4 rounded-lg border ${
+                              theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"
+                            }`}
+                          >
+                            <div className="flex justify-between items-center mb-3">
+                              <span className={`font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                                {size}
+                              </span>
+                              <span className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                {sizeData.hasVariants
+                                  ? `${Object.keys(sizeData.variants || {}).length} variants`
+                                  : `Stock: ${sizeData.quantity || 0}`}
+                              </span>
+                            </div>
+                            
+                            {sizeData.hasVariants ? (
+                              <div className="space-y-2">
+                                {Object.entries(sizeData.variants || {}).map(([variant, variantData]) => (
+                                  <div key={variant} className="flex items-center gap-3">
+                                    <span className={`min-w-[80px] text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                                      {variant}
+                                    </span>
+                                    <span className={`text-xs min-w-[60px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                                      Qty: {variantData.quantity || 0}
+                                    </span>
+                                    <div className="flex items-center gap-1">
+                                      <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={variantData.price || ""}
+                                        onChange={(e) => handleEditableVariantPriceChange(size, variant, e.target.value)}
+                                        placeholder="Price"
+                                        className={`w-24 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                          theme === "dark"
+                                            ? "bg-[#2A2724] border-gray-600 text-white"
+                                            : "bg-white border-gray-300"
+                                        }`}
+                                      />
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3">
+                                <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Price:</span>
+                                <div className="flex items-center gap-1">
+                                  <span className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>₱</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={sizeData.price || ""}
+                                    onChange={(e) => handleEditableSizePriceChange(size, e.target.value)}
+                                    placeholder="Price"
+                                    className={`w-24 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${
+                                      theme === "dark"
+                                        ? "bg-[#2A2724] border-gray-600 text-white"
+                                        : "bg-white border-gray-300"
+                                    }`}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : !editingProduct ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="relative">
                         <label
@@ -761,6 +923,7 @@ const AddProductModal = ({
                         )}
                       </div>
                     </div>
+                    ) : null}
 
                     {!editingProduct && (
                       <>
