@@ -7,10 +7,9 @@ exports.getAllProducts = async (req, res) => {
     let limit = parseInt(req.query.limit);
     let skip = 0;
 
-    // Build projection: always exclude stockHistory, optionally exclude heavy fields
-    // ?fields=minimal excludes itemImage (base64 strings can be 50-500KB per product)
-    const isMinimal = req.query.fields === "minimal";
-    const projection = isMinimal ? "-stockHistory -itemImage" : "-stockHistory";
+    // Build projection: always exclude heavy fields (stockHistory, itemImage)
+    // We send images via a separate lazy-load endpoint for performance
+    const projection = "-stockHistory -itemImage";
 
     let query = Product.find({}, projection).sort({ dateAdded: -1 });
 
@@ -138,6 +137,33 @@ exports.getProductById = async (req, res) => {
   }
 };
 
+exports.getProductImage = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).select("itemImage").lean();
+
+    if (!product || !product.itemImage) {
+      return res.status(404).send("Image not found");
+    }
+
+    // Extract base64 data and content type
+    const matches = product.itemImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).send("Invalid image format");
+    }
+
+    const contentType = matches[1];
+    const base64Data = matches[2];
+
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    res.set('Content-Type', contentType);
+    res.set('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).send("Server error");
+  }
+};
+
 exports.createProduct = async (req, res) => {
   try {
     const productData = { ...req.body };
@@ -149,14 +175,14 @@ exports.createProduct = async (req, res) => {
         productData.selectedSizes.forEach((size) => {
           // Check if this size has variant pricing
           const hasDifferentPricesPerVariant = productData.differentPricesPerVariant?.[size];
-          
+
           if (hasDifferentPricesPerVariant && productData.variantQuantities?.[size]) {
             // Variant-level pricing: store each variant with its own qty/price/cost
             const variants = {};
             const variantQtys = productData.variantQuantities[size] || {};
             const variantPrices = productData.variantPrices?.[size] || {};
             const variantCostPrices = productData.variantCostPrices?.[size] || {};
-            
+
             Object.keys(variantQtys).forEach(variantName => {
               const qty = parseInt(variantQtys[variantName]) || 0;
               if (qty > 0 || variantPrices[variantName] > 0) {
@@ -167,10 +193,10 @@ exports.createProduct = async (req, res) => {
                 };
               }
             });
-            
+
             // Calculate total quantity for this size
             const totalQty = Object.values(variants).reduce((sum, v) => sum + (v.quantity || 0), 0);
-            
+
             productData.sizes[size] = {
               quantity: totalQty,
               variants: variants,
@@ -192,7 +218,7 @@ exports.createProduct = async (req, res) => {
             if (productData.differentPricesPerSize && productData.sizeCostPrices?.[size]) {
               sizeData.costPrice = productData.sizeCostPrices[size];
             }
-            
+
             // Also handle variant quantities if present (without variant-specific pricing)
             if (productData.variantQuantities?.[size]) {
               const variants = {};
@@ -229,7 +255,7 @@ exports.createProduct = async (req, res) => {
                   };
                 }
               });
-              
+
               const totalQty = Object.values(variants).reduce((sum, v) => sum + (v.quantity || 0), 0);
               productData.sizes[size] = {
                 quantity: totalQty,
@@ -680,7 +706,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
           if (item.variant && typeof currentSizeData === "object" && currentSizeData !== null && currentSizeData.variants) {
             // Handle variant-specific stock
             const variantData = currentSizeData.variants[item.variant];
-            
+
             // Get current variant quantity (handles both number and object formats)
             let currentVariantQty = 0;
             if (typeof variantData === "number") {
@@ -719,7 +745,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
               }
             }
             currentSizeData.quantity = sizeTotal;
-            
+
             // Explicitly reassign the updated size data back to product.sizes (handle both Map and object types)
             if (product.sizes.set) {
               product.sizes.set(sizeKey, currentSizeData);
@@ -744,14 +770,14 @@ exports.updateStockAfterTransaction = async (req, res) => {
               currentPrice !== null ||
               (typeof currentSizeData === "object" && currentSizeData !== null)
             ) ? {
-                ...currentSizeData,
-                quantity: newQuantity,
-                price:
-                  currentPrice !== null
-                    ? currentPrice
-                    : item.price || product.itemPrice || 0,
-              } : newQuantity;
-            
+              ...currentSizeData,
+              quantity: newQuantity,
+              price:
+                currentPrice !== null
+                  ? currentPrice
+                  : item.price || product.itemPrice || 0,
+            } : newQuantity;
+
             if (product.sizes.set) {
               product.sizes.set(sizeKey, updatedSizeData);
             } else {

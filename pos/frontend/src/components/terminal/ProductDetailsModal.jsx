@@ -1,6 +1,7 @@
 import { FaMinus, FaPlus, FaTimes } from "react-icons/fa";
 import { MdCategory, MdShoppingBag } from "react-icons/md";
 import { useTheme } from "../../context/ThemeContext";
+import { API_BASE_URL } from "../../config/api";
 
 const ProductDetailsModal = ({
   isOpen,
@@ -124,7 +125,7 @@ const ProductDetailsModal = ({
   // Returns ALL variants including those with 0 stock (they will be shown as disabled)
   const getAllVariants = () => {
     const variantSet = new Set();
-    
+
     // FIRST check for size-based variants (these have actual stock tracking)
     if (product.sizes && typeof product.sizes === "object") {
       Object.values(product.sizes).forEach((sizeData) => {
@@ -137,18 +138,18 @@ const ProductDetailsModal = ({
         }
       });
     }
-    
+
     // If we found size-based variants, return them
     if (variantSet.size > 0) {
       return Array.from(variantSet);
     }
-    
+
     // Otherwise fall back to simple variants from product.variant field
     const simpleVariants = getSimpleVariants();
     if (simpleVariants.length > 0) {
       simpleVariants.forEach((v) => variantSet.add(v));
     }
-    
+
     return Array.from(variantSet);
   };
 
@@ -156,12 +157,12 @@ const ProductDetailsModal = ({
   // Returns ALL sizes including those with 0 stock (they will be shown as disabled)
   const getAvailableSizesForVariant = (variant) => {
     if (!product.sizes || typeof product.sizes !== "object") return [];
-    
+
     // For simple variants, return all sizes
     if (hasSimpleVariants()) {
       return Object.keys(product.sizes);
     }
-    
+
     // For size-based variants, return all sizes that have this variant defined
     return Object.entries(product.sizes)
       .filter(([size, sizeData]) => {
@@ -182,7 +183,7 @@ const ProductDetailsModal = ({
       // For simple variants, we don't track per-variant stock, so show size stock
       return sizeQty;
     }
-    
+
     if (!product.sizes || !product.sizes[size]) return 0;
     const variants = getSizeVariants(product.sizes[size]);
     if (variants && variants[variant] !== undefined) {
@@ -239,13 +240,13 @@ const ProductDetailsModal = ({
   // Determine available sizes based on whether product has variants
   const productHasVariants = hasVariants();
   const allVariants = productHasVariants ? getAllVariants() : [];
-  
+
   // Get available sizes - if has variants, only show sizes that have stock for selected variant
   const availableSizes = productHasVariants
     ? (selectedVariant ? getAvailableSizesForVariant(selectedVariant) : [])
     : (product.sizes && typeof product.sizes === "object"
-        ? Object.keys(product.sizes)
-        : []);
+      ? Object.keys(product.sizes)
+      : []);
 
   // Get available stock for current selection
   const getAvailableStock = () => {
@@ -264,14 +265,14 @@ const ProductDetailsModal = ({
   const isAddButtonDisabled = () => {
     // If product has variants, must select variant first
     if (productHasVariants && !selectedVariant) return true;
-    
+
     if (
       product.sizes &&
       typeof product.sizes === "object" &&
       Object.keys(product.sizes).length > 0
     ) {
       if (!selectedSize) return true;
-      
+
       // Get stock based on variant selection
       let sizeStock;
       if (hasSizeVariants() && selectedVariant) {
@@ -281,7 +282,7 @@ const ProductDetailsModal = ({
         // For simple variants or no variants, use size stock
         sizeStock = getSizeQuantity(product.sizes[selectedSize]);
       }
-      
+
       if (sizeStock <= 0 || productQuantity > sizeStock) return true;
     } else {
       const totalStock = product.currentStock || 0;
@@ -342,17 +343,30 @@ const ProductDetailsModal = ({
             <div
               className={`w-64 h-64 rounded-xl overflow-hidden flex-shrink-0 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}
             >
-              {product.itemImage && product.itemImage.trim() !== "" ? (
+              <div className="relative w-full h-full">
                 <img
-                  src={product.itemImage}
+                  src={`${API_BASE_URL}/api/products/${product._id}/image`}
                   alt={product.itemName}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    if (e.target.nextElementSibling) {
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }
+                  }}
+                  onLoad={(e) => {
+                    if (e.target.nextElementSibling) {
+                      e.target.nextElementSibling.style.display = 'none';
+                    }
+                  }}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <MdCategory className="text-6xl text-gray-400" />
+                <div
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 dark:bg-[#352F2A] text-gray-400 dark:text-gray-500"
+                  style={{ display: 'none' }}
+                >
+                  <MdCategory className="text-6xl" />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Product Info */}
@@ -441,13 +455,12 @@ const ProductDetailsModal = ({
                       <button
                         key={variant}
                         onClick={() => onSelectVariant(variant)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 ${
-                          selectedVariant === variant
-                            ? "bg-[#AD7F65] text-white border-[#AD7F65]"
-                            : theme === "dark"
-                              ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
-                              : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
-                        }`}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all border-2 ${selectedVariant === variant
+                          ? "bg-[#AD7F65] text-white border-[#AD7F65]"
+                          : theme === "dark"
+                            ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
+                            : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
+                          }`}
                       >
                         {variant}
                       </button>
@@ -481,31 +494,29 @@ const ProductDetailsModal = ({
                             key={size}
                             onClick={() => !isOutOfStock && onSelectSize(size)}
                             disabled={isOutOfStock}
-                            className={`flex flex-col items-center px-4 py-2 rounded-lg text-xs font-medium transition-all border-2 ${
-                              selectedSize === size
-                                ? "bg-[#AD7F65] text-white border-[#AD7F65]"
-                                : isOutOfStock
-                                  ? theme === "dark"
-                                    ? "bg-gray-700 text-gray-500 cursor-not-allowed border-gray-700"
-                                    : "bg-gray-100 text-gray-300 cursor-not-allowed border-gray-100"
-                                  : theme === "dark"
-                                    ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
-                                    : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
-                            }`}
+                            className={`flex flex-col items-center px-4 py-2 rounded-lg text-xs font-medium transition-all border-2 ${selectedSize === size
+                              ? "bg-[#AD7F65] text-white border-[#AD7F65]"
+                              : isOutOfStock
+                                ? theme === "dark"
+                                  ? "bg-gray-700 text-gray-500 cursor-not-allowed border-gray-700"
+                                  : "bg-gray-100 text-gray-300 cursor-not-allowed border-gray-100"
+                                : theme === "dark"
+                                  ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
+                                  : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
+                              }`}
                           >
                             <span className="font-bold text-sm">{size}</span>
                             <span
-                              className={`text-[10px] mt-0.5 ${
-                                selectedSize === size
-                                  ? "text-white/80"
-                                  : isOutOfStock
-                                    ? theme === "dark"
-                                      ? "text-gray-600"
-                                      : "text-gray-300"
-                                    : theme === "dark"
-                                      ? "text-gray-400"
-                                      : "text-gray-500"
-                              }`}
+                              className={`text-[10px] mt-0.5 ${selectedSize === size
+                                ? "text-white/80"
+                                : isOutOfStock
+                                  ? theme === "dark"
+                                    ? "text-gray-600"
+                                    : "text-gray-300"
+                                  : theme === "dark"
+                                    ? "text-gray-400"
+                                    : "text-gray-500"
+                                }`}
                             >
                               {isOutOfStock ? "Out" : `${variantStock} pcs`}
                             </span>
@@ -551,31 +562,29 @@ const ProductDetailsModal = ({
                           key={size}
                           onClick={() => !isOutOfStock && onSelectSize(size)}
                           disabled={isOutOfStock}
-                          className={`flex flex-col items-center px-4 py-2 rounded-lg text-xs font-medium transition-all border-2 ${
-                            selectedSize === size
-                              ? "bg-[#AD7F65] text-white border-[#AD7F65]"
-                              : isOutOfStock
-                                ? theme === "dark"
-                                  ? "bg-gray-700 text-gray-500 cursor-not-allowed border-gray-700"
-                                  : "bg-gray-100 text-gray-300 cursor-not-allowed border-gray-100"
-                                : theme === "dark"
-                                  ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
-                                  : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
-                          }`}
+                          className={`flex flex-col items-center px-4 py-2 rounded-lg text-xs font-medium transition-all border-2 ${selectedSize === size
+                            ? "bg-[#AD7F65] text-white border-[#AD7F65]"
+                            : isOutOfStock
+                              ? theme === "dark"
+                                ? "bg-gray-700 text-gray-500 cursor-not-allowed border-gray-700"
+                                : "bg-gray-100 text-gray-300 cursor-not-allowed border-gray-100"
+                              : theme === "dark"
+                                ? "bg-[#2A2724] text-gray-300 hover:bg-gray-600 border-[#4A4037] hover:border-[#AD7F65]"
+                                : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200 hover:border-[#AD7F65]"
+                            }`}
                         >
                           <span className="font-bold text-sm">{size}</span>
                           <span
-                            className={`text-[10px] mt-0.5 ${
-                              selectedSize === size
-                                ? "text-white/80"
-                                : isOutOfStock
-                                  ? theme === "dark"
-                                    ? "text-gray-600"
-                                    : "text-gray-300"
-                                  : theme === "dark"
-                                    ? "text-gray-400"
-                                    : "text-gray-500"
-                            }`}
+                            className={`text-[10px] mt-0.5 ${selectedSize === size
+                              ? "text-white/80"
+                              : isOutOfStock
+                                ? theme === "dark"
+                                  ? "text-gray-600"
+                                  : "text-gray-300"
+                                : theme === "dark"
+                                  ? "text-gray-400"
+                                  : "text-gray-500"
+                              }`}
                           >
                             {isOutOfStock ? "Out" : `${sizeStock} pcs`}
                           </span>
@@ -608,12 +617,11 @@ const ProductDetailsModal = ({
                     Quantity
                   </p>
                   <div
-                    className={`flex items-center gap-2 mt-1 ${
-                      (productHasVariants && (!selectedVariant || !selectedSize)) ||
+                    className={`flex items-center gap-2 mt-1 ${(productHasVariants && (!selectedVariant || !selectedSize)) ||
                       (!productHasVariants && availableSizes.length > 0 && !selectedSize)
-                        ? "opacity-40 pointer-events-none"
-                        : ""
-                    }`}
+                      ? "opacity-40 pointer-events-none"
+                      : ""
+                      }`}
                   >
                     <button
                       onClick={onDecrement}
@@ -622,15 +630,14 @@ const ProductDetailsModal = ({
                         (productHasVariants && (!selectedVariant || !selectedSize)) ||
                         (!productHasVariants && availableSizes.length > 0 && !selectedSize)
                       }
-                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
-                        isDecrementDisabled() ||
+                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${isDecrementDisabled() ||
                         (productHasVariants && (!selectedVariant || !selectedSize)) ||
                         (!productHasVariants && availableSizes.length > 0 && !selectedSize)
-                          ? theme === "dark"
-                            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-[#AD7F65] text-white hover:bg-[#8B5F45]"
-                      }`}
+                        ? theme === "dark"
+                          ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                          : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-[#AD7F65] text-white hover:bg-[#8B5F45]"
+                        }`}
                     >
                       <FaMinus className="text-xs" />
                     </button>
@@ -646,15 +653,14 @@ const ProductDetailsModal = ({
                         (productHasVariants && (!selectedVariant || !selectedSize)) ||
                         (!productHasVariants && availableSizes.length > 0 && !selectedSize)
                       }
-                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${
-                        isIncrementDisabled() ||
+                      className={`w-8 h-8 flex items-center justify-center rounded-full transition-all ${isIncrementDisabled() ||
                         (productHasVariants && (!selectedVariant || !selectedSize)) ||
                         (!productHasVariants && availableSizes.length > 0 && !selectedSize)
-                          ? theme === "dark"
-                            ? "bg-gray-700 text-gray-500 cursor-not-allowed"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                          : "bg-[#AD7F65] text-white hover:bg-[#8B5F45]"
-                      }`}
+                        ? theme === "dark"
+                          ? "bg-gray-700 text-gray-500 cursor-not-allowed"
+                          : "bg-gray-200 text-gray-400 cursor-not-allowed"
+                        : "bg-[#AD7F65] text-white hover:bg-[#8B5F45]"
+                        }`}
                     >
                       <FaPlus className="text-xs" />
                     </button>
@@ -714,11 +720,10 @@ const ProductDetailsModal = ({
               <button
                 onClick={handleAdd}
                 disabled={isAddButtonDisabled()}
-                className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${
-                  isAddButtonDisabled()
-                    ? "bg-gray-300 cursor-not-allowed"
-                    : "bg-green-500 hover:bg-green-600"
-                }`}
+                className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${isAddButtonDisabled()
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-green-500 hover:bg-green-600"
+                  }`}
               >
                 Add to Cart
               </button>

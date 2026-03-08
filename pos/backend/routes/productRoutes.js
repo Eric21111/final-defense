@@ -11,7 +11,8 @@ const {
   searchProducts,
   updateStockAfterTransaction,
   toggleDisplayInTerminal,
-  getInventoryStats
+  getInventoryStats,
+  getProductImage
 } = require('../controllers/productController');
 
 // Cache middleware — caches GET responses in memory
@@ -137,6 +138,8 @@ router.route('/:id')
   .get(getProductById)
   .put(clearCache, updateProduct)
   .delete(clearCache, deleteProduct);
+
+router.get('/:id/image', cache('60 minutes'), getProductImage);
 
 router.patch('/:id/toggle-display', clearCache, toggleDisplayInTerminal);
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { MdCategory } from "react-icons/md";
 import { useTheme } from "../../context/ThemeContext";
+import { API_BASE_URL } from "../../config/api";
 
 const ProductTable = ({
   loading,
@@ -132,11 +133,10 @@ const ProductTable = ({
               {filteredProducts.map((product) => (
                 <tr
                   key={product._id}
-                  className={`border-b transition-colors cursor-pointer ${
-                    theme === "dark"
+                  className={`border-b transition-colors cursor-pointer ${theme === "dark"
                       ? "border-[#4A4037] hover:bg-[#352F2A] text-gray-300"
                       : "border-gray-100 hover:bg-gray-50 text-gray-800"
-                  }`}
+                    }`}
                   onClick={() => handleViewProduct(product)}
                 >
                   {showSelection && (
@@ -155,19 +155,30 @@ const ProductTable = ({
                     </td>
                   )}
                   <td className="py-3 pr-4">
-                    {product.itemImage && product.itemImage.trim() !== "" ? (
+                    <div className="relative w-12 h-12">
                       <img
-                        src={product.itemImage}
+                        src={`${API_BASE_URL}/api/products/${product._id}/image`}
                         alt={product.itemName}
                         className="w-12 h-12 object-cover rounded"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          if (e.target.nextElementSibling) {
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }
+                        }}
+                        onLoad={(e) => {
+                          if (e.target.nextElementSibling) {
+                            e.target.nextElementSibling.style.display = 'none';
+                          }
+                        }}
                       />
-                    ) : (
                       <div
-                        className={`w-12 h-12 rounded flex items-center justify-center ${theme === "dark" ? "bg-[#352F2A] text-gray-500" : "bg-gray-200 text-gray-400"}`}
+                        className={`absolute inset-0 w-12 h-12 rounded flex items-center justify-center ${theme === "dark" ? "bg-[#352F2A] text-gray-500" : "bg-gray-200 text-gray-400"}`}
+                        style={{ display: 'none' }}
                       >
                         <MdCategory />
                       </div>
-                    )}
+                    </div>
                   </td>
                   <td className="py-3 px-4">{product.sku}</td>
                   <td className="py-3 px-4">{product.itemName}</td>
@@ -185,22 +196,21 @@ const ProductTable = ({
                     {(() => {
                       const totalStock =
                         product.sizes &&
-                        typeof product.sizes === "object" &&
-                        Object.keys(product.sizes).length > 0
+                          typeof product.sizes === "object" &&
+                          Object.keys(product.sizes).length > 0
                           ? Object.values(product.sizes).reduce(
-                              (sum, sd) => sum + getSizeQuantity(sd),
-                              0,
-                            )
+                            (sum, sd) => sum + getSizeQuantity(sd),
+                            0,
+                          )
                           : product.currentStock || 0;
                       return (
                         <span
-                          className={`px-2 py-1 rounded font-semibold ${
-                            totalStock === 0
+                          className={`px-2 py-1 rounded font-semibold ${totalStock === 0
                               ? "bg-red-100 text-red-700"
                               : totalStock <= (product.reorderNumber || 10)
                                 ? "bg-yellow-100 text-yellow-700"
                                 : "bg-green-100 text-green-700"
-                          }`}
+                            }`}
                         >
                           {totalStock}
                         </span>
@@ -209,11 +219,10 @@ const ProductTable = ({
                   </td>
                   <td className="py-3 px-4 text-center">
                     <span
-                      className={`px-2 py-1 rounded text-sm font-medium ${
-                        product.displayInTerminal !== false
+                      className={`px-2 py-1 rounded text-sm font-medium ${product.displayInTerminal !== false
                           ? "bg-green-100 text-green-700"
                           : "bg-gray-100 text-gray-600"
-                      }`}
+                        }`}
                     >
                       {product.terminalStatus ||
                         (product.displayInTerminal !== false
