@@ -318,37 +318,40 @@ exports.verifyPin = async (req, res) => {
       });
     }
 
-    // Run bcrypt comparisons sequentially. It exits early if a match is found
-    // instead of hashing 50+ pins all at once blocking the event loop for 10 seconds.
-    let found = null;
-    for (const emp of employees) {
-      if (!emp.pin) continue;
-      try {
-        const isMatch = await bcrypt.compare(pin, emp.pin);
-        if (isMatch) {
-          found = { match: true, employee: emp };
-          break; // Early exit!
+    // Run bcrypt comparisons concurrently and return IMMEDIATELY when the first match is found.
+    // Node.js will use the UV thread pool to process hashes in parallel, drastically reducing wait times.
+    const matchPromises = employees.map(emp => {
+      return new Promise(async (resolve, reject) => {
+        if (!emp.pin) return reject(new Error('No PIN'));
+        try {
+          const isMatch = await bcrypt.compare(pin, emp.pin);
+          if (isMatch) resolve(emp);
+          else reject(new Error('Mismatch'));
+        } catch (err) {
+          console.error('Bcrypt error on', emp.email, err);
+          reject(err);
         }
-      } catch (err) {
-        console.error('Bcrypt error on', emp.email, err);
-      }
-    }
+      });
+    });
 
-    if (found) {
-      const { pin: _, profileImage: __, ...employeeWithoutPin } = found.employee;
+    try {
+      const matchedEmployee = await Promise.any(matchPromises);
+
+      const { pin: _, profileImage: __, ...employeeWithoutPin } = matchedEmployee;
 
       return res.json({
         success: true,
         message: 'PIN verified successfully',
         data: employeeWithoutPin,
-        requiresPinReset: found.employee.requiresPinReset || false
+        requiresPinReset: matchedEmployee.requiresPinReset || false
+      });
+    } catch (aggregateError) {
+      // Promise.any throws AggregateError if ALL promises reject (i.e. no PIN matched)
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid PIN or insufficient permissions'
       });
     }
-
-    return res.status(401).json({
-      success: false,
-      message: 'Invalid PIN'
-    });
   } catch (error) {
     console.error('Error verifying PIN:', error);
     res.status(500).json({
