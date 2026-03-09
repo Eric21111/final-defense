@@ -308,7 +308,7 @@ exports.verifyPin = async (req, res) => {
       status: 'Active',
       role: { $in: ['Manager', 'Admin', 'Owner', 'Super Admin'] }
     })
-      .select('+pin -profileImage')
+      .select('+pin')
       .lean();
 
     if (employees.length === 0) {
@@ -335,7 +335,7 @@ exports.verifyPin = async (req, res) => {
     }
 
     if (found) {
-      const { pin: _, ...employeeWithoutPin } = found.employee;
+      const { pin: _, profileImage: __, ...employeeWithoutPin } = found.employee;
 
       return res.json({
         success: true,
