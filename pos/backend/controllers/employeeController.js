@@ -1,6 +1,10 @@
 const Employee = require('../models/Employee');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { sendEmail } = require('../utils/emailService');
+
+// In-memory cache for fast PIN logins avoiding O(N) bcrypt hashes. Map<sha256(pin), employeeId>
+const pinCache = new Map();
 
 // Get all employees
 exports.getAllEmployees = async (req, res) => {
@@ -318,40 +322,65 @@ exports.verifyPin = async (req, res) => {
       });
     }
 
-    // Run bcrypt comparisons concurrently and return IMMEDIATELY when the first match is found.
-    // Node.js will use the UV thread pool to process hashes in parallel, drastically reducing wait times.
-    const matchPromises = employees.map(emp => {
-      return new Promise(async (resolve, reject) => {
-        if (!emp.pin) return reject(new Error('No PIN'));
-        try {
-          const isMatch = await bcrypt.compare(pin, emp.pin);
-          if (isMatch) resolve(emp);
-          else reject(new Error('Mismatch'));
-        } catch (err) {
-          console.error('Bcrypt error on', emp.email, err);
-          reject(err);
+    // FAST PATH: Check the in-memory cache
+    // We hash the PIN instantly using SHA-256 so we don't store plain text PINs in RAM
+    const hashedInput = crypto.createHash('sha256').update(pin).digest('hex');
+    const cachedEmpId = pinCache.get(hashedInput);
+
+    if (cachedEmpId) {
+      const emp = employees.find(e => e._id.toString() === cachedEmpId);
+      if (emp) {
+        // Validate with exactly ONE bcrypt.compare instead of checking everyone
+        const isMatch = await bcrypt.compare(pin, emp.pin);
+        if (isMatch) {
+          const { pin: _, profileImage: __, ...employeeWithoutPin } = emp;
+          return res.json({
+            success: true,
+            message: 'PIN verified successfully (cached)',
+            data: employeeWithoutPin,
+            requiresPinReset: emp.requiresPinReset || false
+          });
+        } else {
+          // PIN was changed recently, invalidate cache
+          pinCache.delete(hashedInput);
         }
-      });
-    });
+      }
+    }
 
-    try {
-      const matchedEmployee = await Promise.any(matchPromises);
+    // SLOW PATH: First time this PIN is used since server start. 
+    // We check sequentially because queuing 20+ bcrypt promises at once blocks
+    // the Node event loop and UV thread pool for several seconds.
+    let found = null;
+    for (const emp of employees) {
+      if (!emp.pin) continue;
+      try {
+        const isMatch = await bcrypt.compare(pin, emp.pin);
+        if (isMatch) {
+          found = emp;
+          // Save to cache for instant future logins!
+          pinCache.set(hashedInput, emp._id.toString());
+          break; // Early exit
+        }
+      } catch (err) {
+        console.error('Bcrypt error on', emp.email, err);
+      }
+    }
 
-      const { pin: _, profileImage: __, ...employeeWithoutPin } = matchedEmployee;
+    if (found) {
+      const { pin: _, profileImage: __, ...employeeWithoutPin } = found;
 
       return res.json({
         success: true,
         message: 'PIN verified successfully',
         data: employeeWithoutPin,
-        requiresPinReset: matchedEmployee.requiresPinReset || false
-      });
-    } catch (aggregateError) {
-      // Promise.any throws AggregateError if ALL promises reject (i.e. no PIN matched)
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid PIN or insufficient permissions'
+        requiresPinReset: found.requiresPinReset || false
       });
     }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid PIN or insufficient permissions'
+    });
   } catch (error) {
     console.error('Error verifying PIN:', error);
     res.status(500).json({
