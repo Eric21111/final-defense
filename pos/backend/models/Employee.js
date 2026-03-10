@@ -39,6 +39,10 @@ const employeeSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  fastPinHash: { // O(1) instantaneous login lookup
+    type: String,
+    default: ''
+  },
   dateJoined: {
     type: Date,
     default: Date.now
@@ -98,6 +102,12 @@ employeeSchema.pre('save', async function (next) {
 
     const salt = await bcrypt.genSalt(10);
     this.pin = await bcrypt.hash(this.pin, salt);
+
+    // Also maintain a deterministic HMAC hash for fast exact-match lookup
+    const crypto = require('crypto');
+    const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
+    this.fastPinHash = crypto.createHmac('sha256', hmacSecret).update(this.pin.toString()).digest('hex');
+
     next();
   } catch (error) {
     next(error);
@@ -148,6 +158,7 @@ employeeSchema.index({ status: 1 });
 employeeSchema.index({ role: 1 });
 employeeSchema.index({ dateJoined: -1 });
 employeeSchema.index({ firstName: 'text', lastName: 'text', name: 'text', email: 'text' }); // Text search index
+employeeSchema.index({ fastPinHash: 1 }); // Fast login lookup
 
 // Export schema for dynamic connection
 module.exports.schema = employeeSchema;

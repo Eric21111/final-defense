@@ -231,7 +231,11 @@ exports.updateEmployee = async (req, res) => {
     // If PIN is being updated, hash it
     if (updateData.pin) {
       const salt = await bcrypt.genSalt(10);
-      updateData.pin = await bcrypt.hash(updateData.pin, salt);
+      const rawPin = updateData.pin.toString();
+      updateData.pin = await bcrypt.hash(rawPin, salt);
+
+      const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
+      updateData.fastPinHash = crypto.createHmac('sha256', hmacSecret).update(rawPin).digest('hex');
     }
 
     updateData.lastUpdated = Date.now();
@@ -305,7 +309,27 @@ exports.verifyPin = async (req, res) => {
       });
     }
 
-    // Get only active managers/admins/owners with pin for comparison
+    const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
+    const computedFastHash = crypto.createHmac('sha256', hmacSecret).update(pin.toString()).digest('hex');
+
+    // 1. FAST PATH: O(1) exact match lookup using fastPinHash
+    const fastEmployee = await Employee.findOne({
+      fastPinHash: computedFastHash,
+      status: 'Active',
+      role: { $in: ['Manager', 'Admin', 'Owner', 'Super Admin'] }
+    }).select('-profileImage').lean();
+
+    if (fastEmployee) {
+      const { pin: unusedPin, fastPinHash: unusedFastHash, ...employeeWithoutPin } = fastEmployee;
+      return res.json({
+        success: true,
+        message: 'PIN verified successfully (fast path)',
+        data: employeeWithoutPin,
+        requiresPinReset: fastEmployee.requiresPinReset || false
+      });
+    }
+
+    // 2. SLOW PATH (Lazy Migration): Fallback to checking all active admins/managers if not found
     const employees = await Employee.find({
       status: 'Active',
       role: { $in: ['Manager', 'Admin', 'Owner', 'Super Admin'] }
@@ -320,34 +344,11 @@ exports.verifyPin = async (req, res) => {
       });
     }
 
-    // FAST PATH: Check the in-memory cache
-    const hashedInput = crypto.createHash('sha256').update(pin).digest('hex');
-    const cachedEmpId = pinCache.get(hashedInput);
-
-    if (cachedEmpId) {
-      const emp = employees.find(e => e._id.toString() === cachedEmpId);
-      if (emp) {
-        const isMatch = await bcrypt.compare(pin, emp.pin);
-        if (isMatch) {
-          const { pin: unusedPin, profileImage: unusedImage, ...employeeWithoutPin } = emp;
-          return res.json({
-            success: true,
-            message: 'PIN verified successfully (cached)',
-            data: employeeWithoutPin,
-            requiresPinReset: emp.requiresPinReset || false
-          });
-        } else {
-          pinCache.delete(hashedInput);
-        }
-      }
-    }
-
-    // SLOW PATH: First time this PIN is used since server start.
-    // Check all employees concurrently mapped to promises to speed it up.
+    // Check all employees concurrently mapped to promises
     const matchPromises = employees.map(async (emp) => {
       if (!emp.pin) return null;
       try {
-        const isMatch = await bcrypt.compare(pin, emp.pin);
+        const isMatch = await bcrypt.compare(pin.toString(), emp.pin);
         return isMatch ? emp : null;
       } catch (err) {
         console.error('Bcrypt error on', emp.email, err);
@@ -359,12 +360,14 @@ exports.verifyPin = async (req, res) => {
     const found = results.find(emp => emp !== null);
 
     if (found) {
-      pinCache.set(hashedInput, found._id.toString());
-      const { pin: unusedPin, profileImage: unusedImage, ...employeeWithoutPin } = found;
+      // Lazy migration: Save the fastPinHash for this employee so their next login is instant
+      await Employee.findByIdAndUpdate(found._id, { fastPinHash: computedFastHash });
+
+      const { pin: unusedPin, profileImage: unusedImage, fastPinHash: unusedFastHash, ...employeeWithoutPin } = found;
 
       return res.json({
         success: true,
-        message: 'PIN verified successfully',
+        message: 'PIN verified successfully (migrated)',
         data: employeeWithoutPin,
         requiresPinReset: found.requiresPinReset || false
       });
@@ -398,12 +401,16 @@ exports.resetPin = async (req, res) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPin = await bcrypt.hash(newPin, salt);
+    const hashedPin = await bcrypt.hash(newPin.toString(), salt);
+
+    const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
+    const fastPinHash = crypto.createHmac('sha256', hmacSecret).update(newPin.toString()).digest('hex');
 
     const employee = await Employee.findByIdAndUpdate(
       id,
       {
         pin: hashedPin,
+        fastPinHash: fastPinHash,
         requiresPinReset: requiresPinReset !== undefined ? requiresPinReset : false,
         lastUpdated: Date.now()
       },
@@ -516,10 +523,14 @@ exports.sendTemporaryPin = async (req, res) => {
 
     // Hash and save the temporary PIN
     const salt = await bcrypt.genSalt(10);
-    const hashedPin = await bcrypt.hash(tempPin, salt);
+    const hashedPin = await bcrypt.hash(tempPin.toString(), salt);
+
+    const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
+    const fastPinHash = crypto.createHmac('sha256', hmacSecret).update(tempPin.toString()).digest('hex');
 
     await Employee.findByIdAndUpdate(id, {
       pin: hashedPin,
+      fastPinHash: fastPinHash,
       requiresPinReset: true,
       lastUpdated: Date.now()
     });
@@ -638,12 +649,16 @@ exports.updatePin = async (req, res) => {
     }
 
     const salt = await bcrypt.genSalt(10);
-    const hashedPin = await bcrypt.hash(pinToSet, salt);
+    const hashedPin = await bcrypt.hash(pinToSet.toString(), salt);
+
+    const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
+    const fastPinHash = crypto.createHmac('sha256', hmacSecret).update(pinToSet.toString()).digest('hex');
 
     const employee = await Employee.findByIdAndUpdate(
       id,
       {
         pin: hashedPin,
+        fastPinHash: fastPinHash,
         requiresPinReset: requiresPinReset !== undefined ? requiresPinReset : false,
         lastUpdated: Date.now()
       },
