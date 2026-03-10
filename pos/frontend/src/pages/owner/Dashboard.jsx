@@ -280,7 +280,38 @@ const Dashboard = () => {
 
       <div className="px-6 pb-4 w-full space-y-6">
         {/* Controls Section (Filters) */}
-        <div className="flex flex-col md:flex-row justify-end items-start md:items-end gap-4 mt-2">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mt-2">
+          {/* Download App Button */}
+          <div className="flex items-center">
+            <style>{`
+              @keyframes downloadPulse {
+                0%, 100% { box-shadow: 0 0 0 0 rgba(173, 127, 101, 0.4); }
+                50% { box-shadow: 0 0 0 10px rgba(173, 127, 101, 0); }
+              }
+              @keyframes downloadShimmer {
+                0% { background-position: -200% center; }
+                100% { background-position: 200% center; }
+              }
+              .download-app-btn {
+                animation: downloadPulse 2s ease-in-out infinite;
+                background-image: linear-gradient(90deg, #AD7F65 0%, #c9a48e 50%, #AD7F65 100%);
+                background-size: 200% auto;
+              }
+              .download-app-btn:hover {
+                animation: downloadShimmer 1.5s linear infinite;
+                transform: scale(1.05);
+              }
+            `}</style>
+            <a
+              href="https://expo.dev/accounts/consolve_studio/projects/cysmob/builds/8d3dee4b-1027-4234-9594-5ce70c445df7"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="download-app-btn px-5 py-2.5 text-sm font-bold rounded-lg shadow-md transition-all flex items-center gap-2 text-white"
+            >
+              📱 Click here to download the app
+            </a>
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
             {/* Timeframe Tabs */}
             <div
