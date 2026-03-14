@@ -135,9 +135,14 @@ const OrderSummary = memo(({
     let maxQty = item.currentStock;
     if (item.selectedSize && item.sizes && item.sizes[item.selectedSize] !== undefined) {
       const sizeData = item.sizes[item.selectedSize];
-      maxQty = typeof sizeData === 'object' && sizeData !== null && sizeData.quantity !== undefined ?
-        sizeData.quantity :
-        typeof sizeData === 'number' ? sizeData : 0;
+      if (item.selectedVariation && typeof sizeData === 'object' && sizeData !== null && sizeData.variants && sizeData.variants[item.selectedVariation] !== undefined) {
+        const variantData = sizeData.variants[item.selectedVariation];
+        maxQty = typeof variantData === 'object' && variantData !== null ? variantData.quantity || 0 : typeof variantData === 'number' ? variantData : 0;
+      } else {
+        maxQty = typeof sizeData === 'object' && sizeData !== null && sizeData.quantity !== undefined ?
+          sizeData.quantity :
+          typeof sizeData === 'number' ? sizeData : 0;
+      }
     }
 
     if (maxQty === undefined || maxQty === null || currentPending < maxQty) {
@@ -666,9 +671,14 @@ const OrderSummary = memo(({
                             let maxQty = item.currentStock;
                             if (item.selectedSize && item.sizes && item.sizes[item.selectedSize] !== undefined) {
                               const sizeData = item.sizes[item.selectedSize];
-                              maxQty = typeof sizeData === 'object' && sizeData !== null && sizeData.quantity !== undefined ?
-                                sizeData.quantity :
-                                typeof sizeData === 'number' ? sizeData : 0;
+                              if (item.selectedVariation && typeof sizeData === 'object' && sizeData !== null && sizeData.variants && sizeData.variants[item.selectedVariation] !== undefined) {
+                                const variantData = sizeData.variants[item.selectedVariation];
+                                maxQty = typeof variantData === 'object' && variantData !== null ? variantData.quantity || 0 : typeof variantData === 'number' ? variantData : 0;
+                              } else {
+                                maxQty = typeof sizeData === 'object' && sizeData !== null && sizeData.quantity !== undefined ?
+                                  sizeData.quantity :
+                                  typeof sizeData === 'number' ? sizeData : 0;
+                              }
                             }
                             return maxQty !== undefined && maxQty !== null && displayQty >= maxQty;
                           })() ?
@@ -680,9 +690,14 @@ const OrderSummary = memo(({
                               let maxQty = item.currentStock;
                               if (item.selectedSize && item.sizes && item.sizes[item.selectedSize] !== undefined) {
                                 const sizeData = item.sizes[item.selectedSize];
-                                maxQty = typeof sizeData === 'object' && sizeData !== null && sizeData.quantity !== undefined ?
-                                  sizeData.quantity :
-                                  typeof sizeData === 'number' ? sizeData : 0;
+                                if (item.selectedVariation && typeof sizeData === 'object' && sizeData !== null && sizeData.variants && sizeData.variants[item.selectedVariation] !== undefined) {
+                                  const variantData = sizeData.variants[item.selectedVariation];
+                                  maxQty = typeof variantData === 'object' && variantData !== null ? variantData.quantity || 0 : typeof variantData === 'number' ? variantData : 0;
+                                } else {
+                                  maxQty = typeof sizeData === 'object' && sizeData !== null && sizeData.quantity !== undefined ?
+                                    sizeData.quantity :
+                                    typeof sizeData === 'number' ? sizeData : 0;
+                                }
                               }
                               return maxQty !== undefined && maxQty !== null && displayQty >= maxQty;
                             })()
