@@ -315,8 +315,7 @@ exports.verifyPin = async (req, res) => {
     // 1. FAST PATH: O(1) exact match lookup using fastPinHash
     const fastEmployee = await Employee.findOne({
       fastPinHash: computedFastHash,
-      status: 'Active',
-      role: { $in: ['Manager', 'Admin', 'Owner', 'Super Admin'] }
+      status: 'Active'
     }).select('-profileImage').lean();
 
     if (fastEmployee) {
@@ -329,10 +328,9 @@ exports.verifyPin = async (req, res) => {
       });
     }
 
-    // 2. SLOW PATH (Lazy Migration): Fallback to checking all active admins/managers if not found
+    // 2. SLOW PATH (Lazy Migration): Fallback to checking all active employees if not found
     const employees = await Employee.find({
-      status: 'Active',
-      role: { $in: ['Manager', 'Admin', 'Owner', 'Super Admin'] }
+      status: 'Active'
     })
       .select('+pin')
       .lean();
