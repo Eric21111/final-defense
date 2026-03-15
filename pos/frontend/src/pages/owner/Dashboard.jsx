@@ -405,304 +405,223 @@ const Dashboard = () => {
           </div>
         </div>
 
-        { }
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          { }
-          <div
-            className={`rounded-xl p-5 shadow-sm border relative overflow-hidden group hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-
-            <div className="absolute top-0 left-0 w-1 h-full bg-blue-400"></div>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-2xl font-bold text-blue-600">
-                  {formatCurrency(metrics.totalSalesToday)}
-                </p>
-                <p
-                  className={`text-xs font-bold mt-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-
-                  Total Sales
-                </p>
-                <p
-                  className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-
-                  Total revenue from all transactions
-                </p>
-                <p className="text-[10px] text-green-500 mt-1 flex items-center">
-                  +{metrics.growthRate}%{" "}
-                  <span
-                    className={`ml-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-
-                    vs last period
-                  </span>
-                </p>
-              </div>
-              <div className="bg-blue-50 p-2.5 rounded-full">
-                <FaShoppingBag className="text-blue-500 text-lg" />
-              </div>
-            </div>
-          </div>
-
-          { }
-          <div
-            className={`rounded-xl p-5 shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-
-            <div className="absolute top-0 left-0 w-1 h-full bg-purple-400"></div>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-2xl font-bold text-purple-600">
-                  {metrics.totalTransactions}
-                </p>
-                <p
-                  className={`text-xs font-bold mt-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-
-                  Total Transactions
-                </p>
-                <p
-                  className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-
-                  Number of sales made today
-                </p>
-                <p className="text-[10px] text-green-500 mt-1 flex items-center">
-                  +12%{" "}
-                  <span
-                    className={`ml-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-
-                    vs last period
-                  </span>
-                </p>
-              </div>
-              <div className="bg-purple-50 p-2.5 rounded-full">
-                <FaHandshake className="text-purple-500 text-lg" />
-              </div>
-            </div>
-          </div>
-
-          { }
-          <div
-            className={`rounded-xl p-5 shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-
-            <div className="absolute top-0 left-0 w-1 h-full bg-green-400"></div>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-2xl font-bold text-green-600">
-                  {metrics.growthRate}%
-                </p>
-                <p
-                  className={`text-xs font-bold mt-1 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-
-                  Average Growth Rate
-                </p>
-                <p
-                  className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-
-                  Average trend of sales
-                </p>
-                <p className="text-[10px] text-green-500 mt-1 flex items-center">
-                  <span
-                    className={`${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-
-                    Consistent growth
-                  </span>
-                </p>
-              </div>
-              <div className="bg-green-50 p-2.5 rounded-full">
-                <FaChartLine className="text-green-500 text-lg" />
-              </div>
-            </div>
-          </div>
-
-          { }
-          <div
-            className={`rounded-xl p-5 shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-
-            <div className="absolute top-0 left-0 w-1 h-full bg-red-400"></div>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-2xl font-bold text-red-500">
-                  {metrics.lowStockItems}
-                </p>
-                <p className="text-xs font-bold text-red-600 mt-1">
-                  Low Stock Items
-                </p>
-                <p
-                  className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-
-                  Number of products below stock threshold
-                </p>
-              </div>
-              <div className="bg-red-50 p-2.5 rounded-full">
-                <FaExclamationTriangle className="text-red-500 text-lg" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        { }
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          { }
-          <div
-            className={`lg:col-span-2 p-6 rounded-xl shadow-sm border ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h2
-                  className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
-
-                  Sales Over Time and Growth
-                </h2>
-                <p
-                  className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-
-                  Total sales and growth from all sales during a specific
-                  period.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <div className="relative">
-                  <button
-                    onClick={() => setShowSalesFilter(!showSalesFilter)}
-                    className="text-xs bg-white border border-gray-200 px-3 py-1 rounded-full text-gray-600 flex items-center gap-1 cursor-pointer">
-
-                    Filter by: {salesFilter}{" "}
-                    <span className="text-[10px]">▼</span>
-                  </button>
-                  {showSalesFilter &&
-                    <div
-                      className={`absolute right-0 mt-1 w-24 border rounded-lg shadow-lg z-10 py-1 ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-white border-gray-100"}`}>
-
-                      {["Sales", "Growth", "Both"].map((option) =>
-                        <button
-                          key={option}
-                          onClick={() => {
-                            setSalesFilter(option);
-                            setShowSalesFilter(false);
-                          }}
-                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-opacity-10 cursor-pointer ${theme === "dark" ? "text-gray-300 hover:bg-gray-500" : "text-gray-700 hover:bg-gray-50"}`}>
-
-                          {option}
-                        </button>
-                      )}
+          <div className="lg:col-span-2 flex flex-col gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Total Sales */}
+              <div className={`rounded-xl p-4 shadow-sm border relative overflow-hidden group hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-1 h-full bg-blue-400"></div>
+                <div className="flex flex-col h-full justify-between">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className={`text-sm font-bold text-blue-500`}>Total Sales</p>
+                      <p className="text-[10px] text-green-500 mt-0.5">+{metrics.growthRate}% vs last period</p>
                     </div>
-                  }
+                    <div className="bg-blue-50 p-2 rounded-full">
+                      <FaShoppingBag className="text-blue-400 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-2xl font-extrabold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                      {formatCurrency(metrics.totalSalesToday)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Total Transactions */}
+              <div className={`rounded-xl p-4 shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-1 h-full bg-purple-400"></div>
+                <div className="flex flex-col h-full justify-between">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className={`text-sm font-bold text-purple-600`}>Total Transactions</p>
+                      <p className="text-[10px] text-green-500 mt-0.5">+12% vs last period</p>
+                    </div>
+                    <div className="bg-purple-50 p-2 rounded-full">
+                      <FaHandshake className="text-purple-400 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-2xl font-extrabold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                      {metrics.totalTransactions}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Average Growth Rate */}
+              <div className={`rounded-xl p-4 shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-1 h-full bg-green-400"></div>
+                <div className="flex flex-col h-full justify-between">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className={`text-sm font-bold text-green-600`}>Average Growth Rate</p>
+                    </div>
+                    <div className="bg-green-50 p-2 rounded-full">
+                      <FaChartLine className="text-green-500 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <p className={`text-2xl font-extrabold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                      {metrics.growthRate}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Low Stock Items */}
+              <div className={`rounded-xl p-4 shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-1 h-full bg-red-400"></div>
+                <div className="flex flex-col h-full justify-between">
+                  <div className="flex justify-between items-start mb-2">
+                    <div>
+                      <p className={`text-sm font-bold text-red-500`}>Low Stock Items</p>
+                    </div>
+                    <div className="bg-red-50 p-2 rounded-full">
+                      <FaExclamationTriangle className="text-red-500 text-sm" />
+                    </div>
+                  </div>
+                  <div className="flex items-center">
+                    <p className={`text-2xl font-extrabold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                      {metrics.lowStockItems}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
-            <div className="h-[300px] w-full">
-              {salesOverTimeData && salesOverTimeData.length > 0 ?
-                <ResponsiveContainer width="100%" height="100%">
-                  <ComposedChart data={salesOverTimeData}>
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#f0f0f0" />
 
-                    <XAxis
-                      dataKey="period"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: "#6b7280" }}
-                      dy={10} />
+            {/* Sales Over Time and Growth */}
+            <div
+              className={`p-6 rounded-xl shadow-sm border ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
 
-                    { }
-                    <YAxis
-                      yAxisId="left"
-                      orientation="left"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: "#6b7280" }}
-                      domain={[0, "auto"]}
-                      tickFormatter={(val) =>
-                        `₱${val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`
-                      } />
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2
+                    className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
 
-                    { }
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: "#6b7280" }}
-                      tickFormatter={(val) => `${val}%`} />
+                    Sales Over Time and Growth
+                  </h2>
+                  <p
+                    className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
 
-                    <Tooltip
-                      contentStyle={{
-                        borderRadius: "12px",
-                        border: "none",
-                        boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)"
-                      }}
-                      formatter={(value, name) => {
-                        if (name === "Revenue")
-                          return [`₱${value.toLocaleString()}`, name];
-                        if (name === "Growth") return [`${value}%`, name];
-                        return [value, name];
-                      }} />
+                    Total sales and growth from all sales during a specific
+                    period.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSalesFilter(!showSalesFilter)}
+                      className="text-xs bg-white border border-gray-200 px-3 py-1 rounded-full text-gray-600 flex items-center gap-1 cursor-pointer">
 
-                    <Legend
-                      iconType="circle"
-                      wrapperStyle={{ paddingTop: "20px" }} />
+                      Filter by: {salesFilter}{" "}
+                      <span className="text-[10px]">▼</span>
+                    </button>
+                    {showSalesFilter &&
+                      <div
+                        className={`absolute right-0 mt-1 w-24 border rounded-lg shadow-lg z-10 py-1 ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-white border-gray-100"}`}>
 
+                        {["Sales", "Growth", "Both"].map((option) =>
+                          <button
+                            key={option}
+                            onClick={() => {
+                              setSalesFilter(option);
+                              setShowSalesFilter(false);
+                            }}
+                            className={`w-full text-left px-3 py-1.5 text-xs hover:bg-opacity-10 cursor-pointer ${theme === "dark" ? "text-gray-300 hover:bg-gray-500" : "text-gray-700 hover:bg-gray-50"}`}>
 
-                    { }
-
-                    { }
-                    {salesFilter === "Sales" &&
-                      <>
-                        <Bar
-                          yAxisId="left"
-                          dataKey="revenue"
-                          barSize={30}
-                          fill="#8884d8"
-                          radius={[4, 4, 0, 0]}
-                          name="Revenue" />
-
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="target"
-                          stroke="#FB923C"
-                          strokeDasharray="5 5"
-                          name="Target"
-                          dot={false}
-                          strokeWidth={2} />
-
-                      </>
+                            {option}
+                          </button>
+                        )}
+                      </div>
                     }
+                  </div>
+                </div>
+              </div>
+              <div className="h-[300px] w-full">
+                {salesOverTimeData && salesOverTimeData.length > 0 ?
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={salesOverTimeData}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        vertical={false}
+                        stroke="#f0f0f0" />
 
-                    { }
-                    {salesFilter === "Growth" &&
-                      <Area
+                      <XAxis
+                        dataKey="period"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "#6b7280" }}
+                        dy={10} />
+
+                      { }
+                      <YAxis
+                        yAxisId="left"
+                        orientation="left"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "#6b7280" }}
+                        domain={[0, "auto"]}
+                        tickFormatter={(val) =>
+                          `₱${val >= 1000 ? (val / 1000).toFixed(0) + "k" : val}`
+                        } />
+
+                      { }
+                      <YAxis
                         yAxisId="right"
-                        type="monotone"
-                        dataKey="growth"
-                        fill="#D7D7D7"
-                        stroke="#D7D7D7"
-                        name="Growth"
-                        strokeWidth={3}
-                        fillOpacity={0.6} />
+                        orientation="right"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 11, fill: "#6b7280" }}
+                        tickFormatter={(val) => `${val}%`} />
 
-                    }
+                      <Tooltip
+                        contentStyle={{
+                          borderRadius: "12px",
+                          border: "none",
+                          boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)"
+                        }}
+                        formatter={(value, name) => {
+                          if (name === "Revenue")
+                            return [`₱${value.toLocaleString()}`, name];
+                          if (name === "Growth") return [`${value}%`, name];
+                          return [value, name];
+                        }} />
 
-                    { }
-                    {salesFilter === "Both" &&
-                      <>
-                        <Bar
-                          yAxisId="left"
-                          dataKey="revenue"
-                          barSize={30}
-                          fill="#8884d8"
-                          radius={[4, 4, 0, 0]}
-                          name="Revenue" />
+                      <Legend
+                        iconType="circle"
+                        wrapperStyle={{ paddingTop: "20px" }} />
 
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="target"
-                          stroke="#FB923C"
-                          strokeDasharray="5 5"
-                          name="Target"
-                          dot={false}
-                          strokeWidth={2} />
 
+                      { }
+
+                      { }
+                      {salesFilter === "Sales" &&
+                        <>
+                          <Bar
+                            yAxisId="left"
+                            dataKey="revenue"
+                            barSize={30}
+                            fill="#8884d8"
+                            radius={[4, 4, 0, 0]}
+                            name="Revenue" />
+
+                          <Line
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="target"
+                            stroke="#FB923C"
+                            strokeDasharray="5 5"
+                            name="Target"
+                            dot={false}
+                            strokeWidth={2} />
+
+                        </>
+                      }
+
+                      { }
+                      {salesFilter === "Growth" &&
                         <Area
                           yAxisId="right"
                           type="monotone"
@@ -713,17 +632,51 @@ const Dashboard = () => {
                           strokeWidth={3}
                           fillOpacity={0.6} />
 
-                      </>
-                    }
-                  </ComposedChart>
-                </ResponsiveContainer> :
-                <div className="h-full w-full flex flex-col items-center justify-center text-gray-400">
-                  <FaChartLine className="text-4xl mb-3 opacity-20" />
-                  <p className="text-sm">
-                    No sales data available for this period
-                  </p>
-                </div>
-              }
+                      }
+
+                      { }
+                      {salesFilter === "Both" &&
+                        <>
+                          <Bar
+                            yAxisId="left"
+                            dataKey="revenue"
+                            barSize={30}
+                            fill="#8884d8"
+                            radius={[4, 4, 0, 0]}
+                            name="Revenue" />
+
+                          <Line
+                            yAxisId="left"
+                            type="monotone"
+                            dataKey="target"
+                            stroke="#FB923C"
+                            strokeDasharray="5 5"
+                            name="Target"
+                            dot={false}
+                            strokeWidth={2} />
+
+                          <Area
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="growth"
+                            fill="#D7D7D7"
+                            stroke="#D7D7D7"
+                            name="Growth"
+                            strokeWidth={3}
+                            fillOpacity={0.6} />
+
+                        </>
+                      }
+                    </ComposedChart>
+                  </ResponsiveContainer> :
+                  <div className="h-full w-full flex flex-col items-center justify-center text-gray-400">
+                    <FaChartLine className="text-4xl mb-3 opacity-20" />
+                    <p className="text-sm">
+                      No sales data available for this period
+                    </p>
+                  </div>
+                }
+              </div>
             </div>
           </div>
 
