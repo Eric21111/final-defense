@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaClipboardList, FaCoins, FaFileAlt, FaTimes } from "react-icons/fa";
 import { API_ENDPOINTS } from "../../config/api";
 import CashTurnOverSlipModal from "./CashTurnOverSlipModal";
 
