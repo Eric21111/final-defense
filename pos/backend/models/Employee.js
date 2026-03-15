@@ -32,7 +32,7 @@ const employeeSchema = new mongoose.Schema({
   role: {
     type: String,
     required: true,
-    enum: ['Sales Clerk', 'Manager', 'Cashier', 'Supervisor', 'Owner', 'Stock Manager', 'Subcashier'],
+    enum: ['Sales Clerk', 'Manager', 'Cashier', 'Supervisor', 'Owner', 'Stock Manager', 'Subcashier', 'Sub-Cashier'],
     default: 'Sales Clerk'
   },
   pin: {
