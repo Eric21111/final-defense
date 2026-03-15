@@ -11,9 +11,11 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [newVariantInputs, setNewVariantInputs] = useState({});
   const [addedVariants, setAddedVariants] = useState([]);
   const [newVariantPrices, setNewVariantPrices] = useState({});
+  const [showNewSizes, setShowNewSizes] = useState(false);
+  const [customNewSizeInput, setCustomNewSizeInput] = useState("");
+  const [addedNewSizes, setAddedNewSizes] = useState([]);
   const { theme } = useTheme();
 
-  const allSizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
   const reasons = ["Restock", "Returned Item", "Exchange", "Other"];
 
 
@@ -63,7 +65,31 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const allVariants = getAllVariants();
   const hasVariants = allVariants.length > 0;
 
-  const availableSizes = hasSizes ? Object.keys(product.sizes) : [];
+  const existingSizes = hasSizes ? Object.keys(product.sizes) : [];
+  const availableSizes = [...existingSizes, ...addedNewSizes];
+
+  // Build list of sizes that are NOT already on the product for the "New sizes?" picker
+  const allPossibleSizes = (() => {
+    const category = product.category || "";
+    let sizes = [];
+    if (["Tops", "Bottoms", "Dresses"].includes(category)) {
+      sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
+    } else if (category === "Shoes") {
+      sizes = ["5", "6", "7", "8", "9", "10", "11", "12"];
+    } else if (["Accessories", "Head Wear", "Makeup"].includes(category)) {
+      sizes = ["Free Size"];
+    } else if (category === "Foods") {
+      const subtype = product.foodSubtype || "";
+      if (["Beverages", "Drinks"].includes(subtype)) {
+        sizes = ["Small", "Medium", "Large", "Family Size", "Free Size"];
+      } else {
+        sizes = ["Small", "Medium", "Large", "Free Size"];
+      }
+    } else {
+      sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Small", "Medium", "Large", "Free Size"];
+    }
+    return sizes.filter(s => !existingSizes.includes(s) && !addedNewSizes.includes(s));
+  })();
 
   useEffect(() => {
     if (isOpen && product) {
@@ -76,6 +102,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setNewVariantInputs({});
       setAddedVariants([]);
       setNewVariantPrices({});
+      setShowNewSizes(false);
+      setCustomNewSizeInput("");
+      setAddedNewSizes([]);
     }
 
   }, [isOpen, product?._id]);
@@ -92,7 +121,23 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setNewVariantInputs({});
     setAddedVariants([]);
     setNewVariantPrices({});
+    setShowNewSizes(false);
+    setCustomNewSizeInput("");
+    setAddedNewSizes([]);
     onClose();
+  };
+
+  const handleAddNewSize = (size) => {
+    if (!size || addedNewSizes.includes(size) || existingSizes.includes(size)) return;
+    setAddedNewSizes(prev => [...prev, size]);
+  };
+
+  const handleRemoveNewSize = (size) => {
+    setAddedNewSizes(prev => prev.filter(s => s !== size));
+    // Also deselect it if it was selected
+    if (selectedSizes.includes(size)) {
+      handleSizeToggle(size);
+    }
   };
 
   const handleSizeToggle = (size) => {
@@ -402,6 +447,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                     </label>
                     <div className="grid grid-cols-4 gap-2 mb-3">
                       {availableSizes.map((size) => {
+                        const isNew = addedNewSizes.includes(size);
                         const currentQty =
                           hasSizes && product.sizes[size] ?
                             getSizeQuantity(product.sizes[size]) :
@@ -424,13 +470,105 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                               className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
 
                               {size}{" "}
-                              <span className="text-xs text-gray-500">
-                                ({currentQty})
-                              </span>
+                              {isNew ?
+                                <span className="text-xs text-green-500">(New)</span> :
+                                <span className="text-xs text-gray-500">
+                                  ({currentQty})
+                                </span>
+                              }
                             </span>
+                            {isNew &&
+                              <button
+                                type="button"
+                                title="Remove new size"
+                                className="text-red-500 hover:text-red-700 text-xs"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  handleRemoveNewSize(size);
+                                }}>
+                                ×
+                              </button>
+                            }
                           </label>);
 
                       })}
+                    </div>
+
+                    {/* New Sizes section */}
+                    <div className="mb-3">
+                      <label className="flex items-center gap-2 cursor-pointer mb-2">
+                        <input
+                          type="checkbox"
+                          checked={showNewSizes}
+                          onChange={(e) => {
+                            setShowNewSizes(e.target.checked);
+                            if (!e.target.checked) {
+                              setCustomNewSizeInput("");
+                            }
+                          }}
+                          className="w-4 h-4 border-gray-300 rounded focus:ring-[#AD7F65] cursor-pointer"
+                          style={{ accentColor: "#AD7F65" }} />
+                        <span className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
+                          New sizes? Add sizes not listed
+                        </span>
+                      </label>
+
+                      {showNewSizes &&
+                        <div className={`p-3 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}>
+                          {allPossibleSizes.length > 0 &&
+                            <>
+                              <label className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                Select new sizes to add
+                              </label>
+                              <div className="grid grid-cols-3 gap-2 mb-3">
+                                {allPossibleSizes.map((size) =>
+                                  <button
+                                    key={size}
+                                    type="button"
+                                    onClick={() => handleAddNewSize(size)}
+                                    className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${theme === "dark" ? "border-gray-600 text-gray-200 hover:bg-[#AD7F65] hover:text-white hover:border-[#AD7F65]" : "border-gray-300 text-gray-700 hover:bg-[#AD7F65] hover:text-white hover:border-[#AD7F65]"}`}>
+                                    + {size}
+                                  </button>
+                                )}
+                              </div>
+                            </>
+                          }
+                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                            Or type a custom size
+                          </label>
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={customNewSizeInput}
+                              onChange={(e) => setCustomNewSizeInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const trimmed = customNewSizeInput.trim();
+                                  if (trimmed) {
+                                    handleAddNewSize(trimmed);
+                                    setCustomNewSizeInput("");
+                                  }
+                                }
+                              }}
+                              placeholder="Type size and press Enter or Add"
+                              className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const trimmed = customNewSizeInput.trim();
+                                if (trimmed) {
+                                  handleAddNewSize(trimmed);
+                                  setCustomNewSizeInput("");
+                                }
+                              }}
+                              disabled={!customNewSizeInput.trim()}
+                              className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${!customNewSizeInput.trim() ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#AD7F65] text-white hover:bg-[#8B6553]"}`}>
+                              Add
+                            </button>
+                          </div>
+                        </div>
+                      }
                     </div>
 
                     <div
