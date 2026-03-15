@@ -18,17 +18,16 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
 
   const hasSizes =
-  product.sizes &&
-  typeof product.sizes === "object" &&
-  Object.keys(product.sizes).length > 0;
+    product.sizes &&
+    typeof product.sizes === "object" &&
+    Object.keys(product.sizes).length > 0;
 
 
   const getSizeQuantity = (sizeData) => {
     if (
-    typeof sizeData === "object" &&
-    sizeData !== null &&
-    sizeData.quantity !== undefined)
-    {
+      typeof sizeData === "object" &&
+      sizeData !== null &&
+      sizeData.quantity !== undefined) {
       return sizeData.quantity;
     }
     return typeof sizeData === "number" ? sizeData : 0;
@@ -37,11 +36,10 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
   const getSizeVariants = (size) => {
     if (
-    hasSizes &&
-    product.sizes[size] &&
-    typeof product.sizes[size] === "object" &&
-    product.sizes[size].variants)
-    {
+      hasSizes &&
+      product.sizes[size] &&
+      typeof product.sizes[size] === "object" &&
+      product.sizes[size].variants) {
       return product.sizes[size].variants;
     }
     return null;
@@ -65,7 +63,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const allVariants = getAllVariants();
   const hasVariants = allVariants.length > 0;
 
-  const availableSizes = allSizes;
+  const availableSizes = hasSizes ? Object.keys(product.sizes) : [];
 
   useEffect(() => {
     if (isOpen && product) {
@@ -215,7 +213,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     }
 
     const finalReason =
-    reason === "Other" ? `Other: ${otherReason.trim()}` : reason;
+      reason === "Other" ? `Other: ${otherReason.trim()}` : reason;
 
     if (!hasSizes) {
 
@@ -285,9 +283,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         className={`rounded-2xl w-full max-w-5xl relative pointer-events-auto overflow-hidden ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
         style={{
           boxShadow:
-          "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1)"
+            "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1)"
         }}>
-        
+
         <div className="flex justify-between items-center px-6 py-4">
           <div className="flex items-center gap-3">
             <div className="relative w-6 h-6 flex items-center justify-center">
@@ -296,13 +294,13 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24">
-                
+
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                
+
               </svg>
               <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center border-2 border-white">
                 <span className="text-white text-[8px] font-bold leading-none">
@@ -312,14 +310,14 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
             </div>
             <h2
               className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-              
+
               Stock In
             </h2>
           </div>
           <button
             onClick={handleClose}
             className={`text-2xl font-light ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-600"}`}>
-            
+
             ×
           </button>
         </div>
@@ -329,27 +327,27 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
             <div
               className={`w-1/2 p-6 flex items-center justify-center ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}
               style={{ minHeight: "500px", maxHeight: "calc(100vh - 150px)" }}>
-              
+
               {product.itemImage && product.itemImage.trim() !== "" ?
-              <img
-                src={product.itemImage}
-                alt={product.itemName}
-                className="max-w-full max-h-full object-contain rounded-lg" /> :
+                <img
+                  src={product.itemImage}
+                  alt={product.itemName}
+                  className="max-w-full max-h-full object-contain rounded-lg" /> :
 
 
-              <div className="text-center text-gray-400">
+                <div className="text-center text-gray-400">
                   <svg
-                  className="w-24 h-24 mx-auto mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24">
-                  
+                    className="w-24 h-24 mx-auto mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24">
+
                     <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+
                   </svg>
                   <p className="text-sm">No Image Available</p>
                 </div>
@@ -361,7 +359,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                 <div>
                   <h3
                     className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                    
+
                     {product.itemName}
                     {product.size && !product.sizes && ` (${product.size})`}
                   </h3>
@@ -371,60 +369,60 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                   <div>
                     <label
                       className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                      
+
                       SKU/Item Code
                     </label>
                     <p
                       className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      
+
                       {product.sku || "-"}
                     </p>
                   </div>
                   <div>
                     <label
                       className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                      
+
                       Brand Partner{" "}
                       <span className="text-gray-400">(optional)</span>
                     </label>
                     <p
                       className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      
+
                       {product.supplierName || "-"}
                     </p>
                   </div>
                 </div>
 
                 {hasSizes ?
-                <div>
+                  <div>
                     <label
-                    className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                    
+                      className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+
                       Select sizes to add stock to
                     </label>
                     <div className="grid grid-cols-4 gap-2 mb-3">
                       {availableSizes.map((size) => {
-                      const currentQty =
-                      hasSizes && product.sizes[size] ?
-                      getSizeQuantity(product.sizes[size]) :
-                      0;
-                      return (
-                        <label
-                          key={size}
-                          className="flex items-center gap-2 cursor-pointer">
-                          
+                        const currentQty =
+                          hasSizes && product.sizes[size] ?
+                            getSizeQuantity(product.sizes[size]) :
+                            0;
+                        return (
+                          <label
+                            key={size}
+                            className="flex items-center gap-2 cursor-pointer">
+
                             <input
-                            type="checkbox"
-                            checked={selectedSizes.includes(size)}
-                            onChange={() => handleSizeToggle(size)}
-                            className="w-4 h-4 border-gray-300 rounded focus:ring-[#AD7F65] cursor-pointer"
-                            style={{
-                              accentColor: "#AD7F65"
-                            }} />
-                          
+                              type="checkbox"
+                              checked={selectedSizes.includes(size)}
+                              onChange={() => handleSizeToggle(size)}
+                              className="w-4 h-4 border-gray-300 rounded focus:ring-[#AD7F65] cursor-pointer"
+                              style={{
+                                accentColor: "#AD7F65"
+                              }} />
+
                             <span
-                            className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-                            
+                              className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
+
                               {size}{" "}
                               <span className="text-xs text-gray-500">
                                 ({currentQty})
@@ -432,33 +430,33 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                             </span>
                           </label>);
 
-                    })}
+                      })}
                     </div>
 
                     <div
-                    className={`space-y-2 mt-3 p-3 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}>
-                    
+                      className={`space-y-2 mt-3 p-3 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}>
+
                       <label
-                      className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                      
+                        className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+
                         {hasVariants ? "Quantity per Variant:" : "Quantity per Size:"}
                       </label>
                       <div className={hasVariants ? "space-y-4" : "grid grid-cols-2 gap-3"}>
                         {selectedSizes.length > 0 ?
-                      selectedSizes.map((size) => {
-                        const currentQty =
-                        hasSizes && product.sizes[size] ?
-                        getSizeQuantity(product.sizes[size]) :
-                        0;
-                        const sizeVariants = getSizeVariants(size);
+                          selectedSizes.map((size) => {
+                            const currentQty =
+                              hasSizes && product.sizes[size] ?
+                                getSizeQuantity(product.sizes[size]) :
+                                0;
+                            const sizeVariants = getSizeVariants(size);
 
 
-                        if (hasVariants) {
-                          return (
-                            <div key={size} className={`p-3 rounded-lg ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
+                            if (hasVariants) {
+                              return (
+                                <div key={size} className={`p-3 rounded-lg ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
                                   <label
-                                className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
-                                
+                                    className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+
                                     {size}{" "}
                                     <span className="text-gray-500 font-normal">
                                       (Current Total: {currentQty})
@@ -466,85 +464,85 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                   </label>
                                   <div className="grid grid-cols-2 gap-2">
                                     {allVariants.map((variant) => {
-                                  const currentVariantQty = getVariantCurrentQty(size, variant);
-                                  const isNewVariant = addedVariants.includes(variant);
-                                  return (
-                                    <div key={`${size}-${variant}`}>
+                                      const currentVariantQty = getVariantCurrentQty(size, variant);
+                                      const isNewVariant = addedVariants.includes(variant);
+                                      return (
+                                        <div key={`${size}-${variant}`}>
                                           <label
-                                        className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                        
+                                            className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+
                                             {variant}{" "}
                                             {isNewVariant ?
-                                        <span className="text-green-500">(New)</span> :
+                                              <span className="text-green-500">(New)</span> :
 
-                                        <span className="text-gray-500">
+                                              <span className="text-gray-500">
                                                 ({currentVariantQty})
                                               </span>
-                                        }
+                                            }
                                           </label>
                                           <input
-                                        type="number"
-                                        min="0"
-                                        value={variantQuantities[size]?.[variant] || ""}
-                                        onChange={(e) =>
-                                        handleVariantQuantityChange(
-                                          size,
-                                          variant,
-                                          e.target.value
-                                        )
-                                        }
-                                        placeholder="0"
-                                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
-                                      
+                                            type="number"
+                                            min="0"
+                                            value={variantQuantities[size]?.[variant] || ""}
+                                            onChange={(e) =>
+                                              handleVariantQuantityChange(
+                                                size,
+                                                variant,
+                                                e.target.value
+                                              )
+                                            }
+                                            placeholder="0"
+                                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
+
                                         </div>);
 
-                                })}
+                                    })}
                                   </div>
-                                  
-                                  {}
+
+                                  { }
                                   <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                                     <label
-                                  className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                  
+                                      className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+
                                       Add New Variant
                                     </label>
                                     <div className="flex gap-2">
                                       <input
-                                    type="text"
-                                    value={newVariantInputs[size] || ""}
-                                    onChange={(e) =>
-                                    handleNewVariantInputChange(size, e.target.value)
-                                    }
-                                    placeholder="e.g. Red, Green..."
-                                    className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") {
-                                        e.preventDefault();
-                                        handleAddNewVariant(size);
-                                      }
-                                    }} />
-                                  
+                                        type="text"
+                                        value={newVariantInputs[size] || ""}
+                                        onChange={(e) =>
+                                          handleNewVariantInputChange(size, e.target.value)
+                                        }
+                                        placeholder="e.g. Red, Green..."
+                                        className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            handleAddNewVariant(size);
+                                          }
+                                        }} />
+
                                       <button
-                                    type="button"
-                                    onClick={() => handleAddNewVariant(size)}
-                                    className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                                    
+                                        type="button"
+                                        onClick={() => handleAddNewVariant(size)}
+                                        className="px-3 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+
                                         +
                                       </button>
                                     </div>
                                   </div>
-                                  
-                                  {}
+
+                                  { }
                                   {selectedSizes[0] === size && addedVariants.length > 0 &&
-                              <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                                    <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                                       <label
-                                  className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                                  
+                                        className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+
                                         New Variant Prices
                                       </label>
                                       <div className="space-y-3">
                                         {addedVariants.map((variant) =>
-                                  <div key={`price-${variant}`} className={`p-2 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
+                                          <div key={`price-${variant}`} className={`p-2 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
                                             <p className={`text-sm font-medium mb-2 ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
                                               {variant} <span className="text-xs font-normal">(New)</span>
                                             </p>
@@ -554,135 +552,135 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                                   Selling Price
                                                 </label>
                                                 <input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
-                                          value={newVariantPrices[variant]?.price || ""}
-                                          onChange={(e) => handleNewVariantPriceChange(variant, "price", e.target.value)}
-                                          placeholder="0.00"
-                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
-                                        
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={newVariantPrices[variant]?.price || ""}
+                                                  onChange={(e) => handleNewVariantPriceChange(variant, "price", e.target.value)}
+                                                  placeholder="0.00"
+                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+
                                               </div>
                                               <div>
                                                 <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                                                   Cost Price
                                                 </label>
                                                 <input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
-                                          value={newVariantPrices[variant]?.costPrice || ""}
-                                          onChange={(e) => handleNewVariantPriceChange(variant, "costPrice", e.target.value)}
-                                          placeholder="0.00"
-                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
-                                        
+                                                  type="number"
+                                                  min="0"
+                                                  step="0.01"
+                                                  value={newVariantPrices[variant]?.costPrice || ""}
+                                                  onChange={(e) => handleNewVariantPriceChange(variant, "costPrice", e.target.value)}
+                                                  placeholder="0.00"
+                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+
                                               </div>
                                             </div>
                                           </div>
-                                  )}
+                                        )}
                                       </div>
                                     </div>
-                              }
-                                  
+                                  }
+
                                   {Object.keys(variantQuantities[size] || {}).length > 0 &&
-                              <p className={`text-xs mt-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                    <p className={`text-xs mt-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
                                       Adding: {Object.values(variantQuantities[size] || {}).reduce((sum, q) => sum + (parseInt(q) || 0), 0)} units
                                     </p>
-                              }
+                                  }
                                 </div>);
 
-                        }
+                            }
 
 
-                        return (
-                          <div key={size} className={hasVariants ? "" : ""}>
+                            return (
+                              <div key={size} className={hasVariants ? "" : ""}>
                                 <label
-                              className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                              
+                                  className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+
                                   {size}{" "}
                                   <span className="text-gray-500">
                                     (Current: {currentQty})
                                   </span>
                                 </label>
                                 <input
-                              type="number"
-                              min="0"
-                              value={sizeQuantities[size] || ""}
-                              onChange={(e) =>
-                              handleSizeQuantityChange(
-                                size,
-                                e.target.value
-                              )
-                              }
-                              placeholder="Enter quantity"
-                              className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
-                            
-                                
-                                {}
+                                  type="number"
+                                  min="0"
+                                  value={sizeQuantities[size] || ""}
+                                  onChange={(e) =>
+                                    handleSizeQuantityChange(
+                                      size,
+                                      e.target.value
+                                    )
+                                  }
+                                  placeholder="Enter quantity"
+                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+
+
+                                { }
                                 <div className={`mt-2`}>
                                   <div className="flex gap-2">
                                     <input
-                                  type="text"
-                                  value={newVariantInputs[size] || ""}
-                                  onChange={(e) =>
-                                  handleNewVariantInputChange(size, e.target.value)
-                                  }
-                                  placeholder="Add variant (e.g. Blue)"
-                                  className={`flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
-                                  onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                      e.preventDefault();
-                                      handleAddNewVariant(size);
-                                    }
-                                  }} />
-                                
+                                      type="text"
+                                      value={newVariantInputs[size] || ""}
+                                      onChange={(e) =>
+                                        handleNewVariantInputChange(size, e.target.value)
+                                      }
+                                      placeholder="Add variant (e.g. Blue)"
+                                      className={`flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
+                                      onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                          e.preventDefault();
+                                          handleAddNewVariant(size);
+                                        }
+                                      }} />
+
                                     <button
-                                  type="button"
-                                  onClick={() => handleAddNewVariant(size)}
-                                  className="px-2 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                                  
+                                      type="button"
+                                      onClick={() => handleAddNewVariant(size)}
+                                      className="px-2 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+
                                       +
                                     </button>
                                   </div>
                                 </div>
                               </div>);
 
-                      }) :
+                          }) :
 
-                      <div className="col-span-2 text-xs text-gray-400 italic">
+                          <div className="col-span-2 text-xs text-gray-400 italic">
                             Select sizes above to add quantities
                           </div>
-                      }
+                        }
                       </div>
                     </div>
                   </div> :
 
-                <div>
+                  <div>
                     <label
-                    className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                    
+                      className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+
                       Quantity to Add
                     </label>
                     <p
-                    className={`text-xs mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-                    
+                      className={`text-xs mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+
                       Current Stock: {product.currentStock || 0}
                     </p>
                     <input
-                    type="number"
-                    min="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="Enter quantity to add"
-                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
-                  
+                      type="number"
+                      min="1"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      placeholder="Enter quantity to add"
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+
                   </div>
                 }
 
                 <div>
                   <label
                     className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                    
+
                     Reason
                   </label>
                   <div className="relative">
@@ -695,9 +693,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                         }
                       }}
                       className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}>
-                      
+
                       {reasons.map((r) =>
-                      <option key={r} value={r}>
+                        <option key={r} value={r}>
                           {r}
                         </option>
                       )}
@@ -708,23 +706,23 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24">
-                        
+
                         <path
                           strokeLinecap="round"
                           strokeLinejoin="round"
                           strokeWidth={2}
                           d="M19 9l-7 7-7-7" />
-                        
+
                       </svg>
                     </div>
                   </div>
                   {reason === "Other" &&
-                  <input
-                    type="text"
-                    value={otherReason}
-                    onChange={(e) => setOtherReason(e.target.value)}
-                    placeholder="Please specify the reason"
-                    className={`w-full mt-2 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                    <input
+                      type="text"
+                      value={otherReason}
+                      onChange={(e) => setOtherReason(e.target.value)}
+                      placeholder="Please specify the reason"
+                      className={`w-full mt-2 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
 
                   }
                 </div>
@@ -732,12 +730,12 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
               <div
                 className={`flex justify-end gap-3 mt-8 pt-6 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                
+
                 <button
                   type="button"
                   onClick={handleClose}
                   className={`px-6 py-3 border rounded-lg font-medium transition-colors ${theme === "dark" ? "border-gray-600 text-gray-300 hover:bg-gray-800" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
-                  
+
                   Cancel
                 </button>
                 <button
@@ -746,9 +744,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                   className="px-6 py-3 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-all"
                   style={{
                     background:
-                    "linear-gradient(135deg, #10B981 0%, #059669 100%)"
+                      "linear-gradient(135deg, #10B981 0%, #059669 100%)"
                   }}>
-                  
+
                   {loading ? "Adding..." : "Add Stocks"}
                 </button>
               </div>

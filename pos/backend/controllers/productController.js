@@ -143,7 +143,7 @@ exports.createProduct = async (req, res) => {
     const productData = { ...req.body };
 
     if (!productData.sizes && productData.selectedSizes) {
-      if (productData.selectedSizes.length > 0 && productData.sizeQuantities) {
+      if (productData.selectedSizes.length > 0) {
         // Construct sizes object
         productData.sizes = {};
         productData.selectedSizes.forEach((size) => {
@@ -230,13 +230,12 @@ exports.createProduct = async (req, res) => {
                 }
               });
 
-              const totalQty = Object.values(variants).reduce((sum, v) => sum + (v.quantity || 0), 0);
               productData.sizes[size] = {
                 quantity: totalQty,
                 variants: variants,
               };
             } else {
-              productData.sizes[size] = productData.sizeQuantities[size] || 0;
+              productData.sizes[size] = productData.sizeQuantities?.[size] || 0;
             }
           }
         });
@@ -404,19 +403,18 @@ exports.updateProduct = async (req, res) => {
     delete updateData.stockMovementSizeQuantities;
 
     if (!updateData.sizes && updateData.selectedSizes) {
-      if (updateData.selectedSizes.length > 0 && updateData.sizeQuantities) {
+      if (updateData.selectedSizes.length > 0) {
         // Construct sizes object
         updateData.sizes = {};
         updateData.selectedSizes.forEach((size) => {
-          let sizeData = updateData.sizeQuantities[size];
+          let sizeData = updateData.sizeQuantities?.[size] || 0;
 
-          // If we have specific prices or variants, use object structure
           if (
             updateData.differentPricesPerSize ||
             updateData.differentVariantsPerSize
           ) {
             sizeData = {
-              quantity: updateData.sizeQuantities[size],
+              quantity: updateData.sizeQuantities?.[size] || 0,
               price: updateData.differentPricesPerSize
                 ? updateData.sizePrices?.[size] || updateData.itemPrice
                 : updateData.itemPrice,
