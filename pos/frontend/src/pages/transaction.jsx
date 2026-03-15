@@ -5,26 +5,31 @@ import React, {
   useEffect,
   useMemo,
   useRef,
-  useState } from
-"react";
+  useState
+} from
+  "react";
 import {
   FaCheckCircle,
   FaChevronDown,
   FaChevronLeft,
   FaChevronRight,
+  FaClipboardList,
   FaExclamationTriangle,
   FaEye,
   FaPrint,
   FaSearch,
-  FaUndoAlt } from
-"react-icons/fa";
+  FaUndoAlt
+} from
+  "react-icons/fa";
 import CompletedIcon from "../assets/completed.svg";
 import TotalTransactionIcon from "../assets/total-transaction.svg";
 import Header from "../components/shared/header";
 import PrintReceiptModal from "../components/transaction/PrintReceiptModal";
+import RemittanceModal from "../components/transaction/RemittanceModal";
 import ReturnItemsModal from "../components/transaction/ReturnItemsModal";
 import ViewTransactionModal from "../components/transaction/ViewTransactionModal";
 import { API_BASE_URL } from "../config/api";
+import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { useTheme } from "../context/ThemeContext";
 
@@ -41,19 +46,19 @@ const userOptions = ["All"];
 const dateOptions = ["All", "Today", "Last 7 days", "Last 30 days"];
 
 const getInitials = (name = "") =>
-name.
-split(" ").
-filter(Boolean).
-map((n) => n[0]).
-slice(0, 2).
-join("").
-toUpperCase();
+  name.
+    split(" ").
+    filter(Boolean).
+    map((n) => n[0]).
+    slice(0, 2).
+    join("").
+    toUpperCase();
 
 const formatCurrency = (value = 0) =>
-new Intl.NumberFormat("en-PH", {
-  style: "currency",
-  currency: "PHP"
-}).format(value);
+  new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP"
+  }).format(value);
 
 
 
@@ -109,51 +114,51 @@ const Dropdown = ({
           setIsOpen((prev) => !prev);
         }}
         className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${isOpen ?
-        "border-[#AD7F65] shadow-lg " + (
-        theme === "dark" ?
-        "bg-[#2A2724] text-white" :
-        "bg-white text-gray-700") :
-        theme === "dark" ?
-        "border-gray-600 bg-[#2A2724] text-gray-300 hover:border-[#AD7F65]" :
-        "border-gray-200 bg-white hover:border-[#AD7F65] text-gray-700"}`
+          "border-[#AD7F65] shadow-lg " + (
+            theme === "dark" ?
+              "bg-[#2A2724] text-white" :
+              "bg-white text-gray-700") :
+          theme === "dark" ?
+            "border-gray-600 bg-[#2A2724] text-gray-300 hover:border-[#AD7F65]" :
+            "border-gray-200 bg-white hover:border-[#AD7F65] text-gray-700"}`
         }>
-        
+
         <span className="text-sm font-medium">
           {selected === "All" ? label : selected}
         </span>
         <FaChevronDown
           className={`text-xs text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`} />
-        
+
       </button>
       <AnimatePresence>
         {isOpen &&
-        <motion.ul
-          initial={{ opacity: 0, y: -8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          className={`absolute z-20 mt-2 w-44 rounded-xl border border-gray-100 shadow-2xl overflow-hidden ${theme === "dark" ?
-          "bg-[#2A2724] border-gray-600" :
-          "bg-white border-gray-100"}`
-          }
-          onClick={(e) => e.stopPropagation()}>
-          
+          <motion.ul
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className={`absolute z-20 mt-2 w-44 rounded-xl border border-gray-100 shadow-2xl overflow-hidden ${theme === "dark" ?
+              "bg-[#2A2724] border-gray-600" :
+              "bg-white border-gray-100"}`
+            }
+            onClick={(e) => e.stopPropagation()}>
+
             {options.map((option) =>
-          <li
-            key={option}
-            onClick={() => {
-              onSelect(option);
-              setIsOpen(false);
-            }}
-            className={`px-4 py-2 text-sm cursor-pointer transition-colors ${option === selected ?
-            "bg-[#F6EEE7] text-[#76462B] font-semibold" :
-            theme === "dark" ?
-            "text-gray-300 hover:bg-[#352F2A]" :
-            "text-gray-700 hover:bg-gray-50"}`
-            }>
-            
+              <li
+                key={option}
+                onClick={() => {
+                  onSelect(option);
+                  setIsOpen(false);
+                }}
+                className={`px-4 py-2 text-sm cursor-pointer transition-colors ${option === selected ?
+                  "bg-[#F6EEE7] text-[#76462B] font-semibold" :
+                  theme === "dark" ?
+                    "text-gray-300 hover:bg-[#352F2A]" :
+                    "text-gray-700 hover:bg-gray-50"}`
+                }>
+
                 {option}
               </li>
-          )}
+            )}
           </motion.ul>
         }
       </AnimatePresence>
@@ -163,8 +168,9 @@ const Dropdown = ({
 
 const Transaction = () => {
   const { theme } = useTheme();
+  const { currentUser } = useAuth();
   const { getCachedData, setCachedData, isCacheValid, invalidateCache } =
-  useDataCache();
+    useDataCache();
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -194,6 +200,7 @@ const Transaction = () => {
   const rowsPerPage = 8;
   const [selectedTransactionIds, setSelectedTransactionIds] = useState([]);
   const [isExportSelectionMode, setIsExportSelectionMode] = useState(false);
+  const [showRemittanceModal, setShowRemittanceModal] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
@@ -217,7 +224,7 @@ const Transaction = () => {
       const params = new URLSearchParams();
       if (debouncedSearch) params.append("search", debouncedSearch);
       if (filters.method !== "All")
-      params.append("paymentMethod", filters.method);
+        params.append("paymentMethod", filters.method);
       if (filters.status !== "All") params.append("status", filters.status);
       if (filters.user !== "All") params.append("userId", filters.user);
 
@@ -240,8 +247,8 @@ const Transaction = () => {
 
         const regularTransactions = allTransactions.filter(
           (t) =>
-          (t.paymentMethod !== "return" || !t.originalTransactionId) &&
-          t.status !== "Voided"
+            (t.paymentMethod !== "return" || !t.originalTransactionId) &&
+            t.status !== "Voided"
         );
 
 
@@ -260,7 +267,7 @@ const Transaction = () => {
         const transactionsWithReturns = regularTransactions.map((trx) => ({
           ...trx,
           returnTransactions:
-          returnTransactionsMap.get(trx._id?.toString()) || []
+            returnTransactionsMap.get(trx._id?.toString()) || []
         }));
 
 
@@ -276,8 +283,8 @@ const Transaction = () => {
         });
 
         const payload = transactionsWithReturns.length ?
-        transactionsWithReturns :
-        [];
+          transactionsWithReturns :
+          [];
         setTransactions(payload);
         setCachedDataRef.current("transactions", payload);
         if (payload.length > 0) {
@@ -306,10 +313,9 @@ const Transaction = () => {
       try {
         const cachedTransactions = getCachedData("transactions");
         if (
-        cachedTransactions &&
-        isCacheValid("transactions") &&
-        cachedTransactions.length > 0)
-        {
+          cachedTransactions &&
+          isCacheValid("transactions") &&
+          cachedTransactions.length > 0) {
 
           const sortedCached = [...cachedTransactions].sort((a, b) => {
             const dateA = new Date(
@@ -358,11 +364,11 @@ const Transaction = () => {
     }
     fetchTransactions();
   }, [
-  debouncedSearch,
-  filters.method,
-  filters.status,
-  filters.user,
-  fetchTransactions]
+    debouncedSearch,
+    filters.method,
+    filters.status,
+    filters.user,
+    fetchTransactions]
   );
 
   const generateSampleTransactions = () => [];
@@ -394,18 +400,18 @@ const Transaction = () => {
       }
 
       const matchesSearch =
-      !search ||
-      trx.receiptNo?.toLowerCase().includes(search.toLowerCase());
+        !search ||
+        trx.receiptNo?.toLowerCase().includes(search.toLowerCase());
 
       const matchesMethod =
-      filters.method === "All" ||
-      trx.paymentMethod?.toLowerCase() === filters.method.toLowerCase();
+        filters.method === "All" ||
+        trx.paymentMethod?.toLowerCase() === filters.method.toLowerCase();
 
       const matchesStatus =
-      filters.status === "All" || trx.status === filters.status;
+        filters.status === "All" || trx.status === filters.status;
 
       const matchesUser =
-      filters.user === "All" || trx.performedByName === filters.user;
+        filters.user === "All" || trx.performedByName === filters.user;
 
 
       let matchesDate = true;
@@ -463,10 +469,10 @@ const Transaction = () => {
     [paginatedTransactions]
   );
   const allVisibleTransactionsSelected =
-  paginatedTransactionIds.length > 0 &&
-  paginatedTransactionIds.every((id) => selectedTransactionIds.includes(id));
+    paginatedTransactionIds.length > 0 &&
+    paginatedTransactionIds.every((id) => selectedTransactionIds.includes(id));
   const someVisibleTransactionsSelected = paginatedTransactionIds.some((id) =>
-  selectedTransactionIds.includes(id)
+    selectedTransactionIds.includes(id)
   );
 
   const stats = useMemo(() => {
@@ -491,21 +497,21 @@ const Transaction = () => {
 
   useEffect(() => {
     setSelectedTransactionIds((prev) =>
-    prev.filter((id) => filteredTransactions.some((trx) => trx._id === id))
+      prev.filter((id) => filteredTransactions.some((trx) => trx._id === id))
     );
   }, [filteredTransactions]);
 
   useEffect(() => {
     if (selectAllTransactionsRef.current) {
       selectAllTransactionsRef.current.indeterminate =
-      isExportSelectionMode &&
-      !allVisibleTransactionsSelected &&
-      someVisibleTransactionsSelected;
+        isExportSelectionMode &&
+        !allVisibleTransactionsSelected &&
+        someVisibleTransactionsSelected;
     }
   }, [
-  isExportSelectionMode,
-  allVisibleTransactionsSelected,
-  someVisibleTransactionsSelected]
+    isExportSelectionMode,
+    allVisibleTransactionsSelected,
+    someVisibleTransactionsSelected]
   );
 
 
@@ -526,9 +532,9 @@ const Transaction = () => {
   const handleToggleTransactionSelection = (transactionId) => {
     if (!transactionId) return;
     setSelectedTransactionIds((prev) =>
-    prev.includes(transactionId) ?
-    prev.filter((id) => id !== transactionId) :
-    [...prev, transactionId]
+      prev.includes(transactionId) ?
+        prev.filter((id) => id !== transactionId) :
+        [...prev, transactionId]
     );
   };
 
@@ -558,9 +564,9 @@ const Transaction = () => {
   };
 
   const renderStatusPill = (status = "Completed") =>
-  <span
-    className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-transform ${STATUS_STYLES[status]}`}>
-    
+    <span
+      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-transform ${STATUS_STYLES[status]}`}>
+
       {statusIcon[status]}
       {status}
     </span>;
@@ -588,11 +594,11 @@ const Transaction = () => {
   const handleExportToCSV = () => {
     try {
       const transactionsToExport =
-      selectedTransactionIds.length > 0 ?
-      filteredTransactions.filter((trx) =>
-      selectedTransactionIds.includes(trx._id)
-      ) :
-      [];
+        selectedTransactionIds.length > 0 ?
+          filteredTransactions.filter((trx) =>
+            selectedTransactionIds.includes(trx._id)
+          ) :
+          [];
 
       if (transactionsToExport.length === 0) {
         alert("Please select at least one transaction to export.");
@@ -600,34 +606,34 @@ const Transaction = () => {
       }
 
       const headers = [
-      "Receipt No.",
-      "Transaction ID",
-      "Date",
-      "Time",
-      "User ID",
-      "Performed By ID",
-      "Performed By Name",
-      "Payment Method",
-      "Reference No.",
-      "Total Amount",
-      "Amount Received",
-      "Change Given",
-      "Status",
-      "Item Count",
-      "Items (Name)",
-      "Items (SKU)",
-      "Items (Variant)",
-      "Items (Size)",
-      "Items (Qty)",
-      "Items (Price)",
-      "Items (Subtotal)",
-      "Voided By",
-      "Voided By Name",
-      "Voided At",
-      "Void Reason",
-      "Original Transaction ID",
-      "Created At",
-      "Updated At"];
+        "Receipt No.",
+        "Transaction ID",
+        "Date",
+        "Time",
+        "User ID",
+        "Performed By ID",
+        "Performed By Name",
+        "Payment Method",
+        "Reference No.",
+        "Total Amount",
+        "Amount Received",
+        "Change Given",
+        "Status",
+        "Item Count",
+        "Items (Name)",
+        "Items (SKU)",
+        "Items (Variant)",
+        "Items (Size)",
+        "Items (Qty)",
+        "Items (Price)",
+        "Items (Subtotal)",
+        "Voided By",
+        "Voided By Name",
+        "Voided At",
+        "Void Reason",
+        "Original Transaction ID",
+        "Created At",
+        "Updated At"];
 
 
       const escapeCSV = (value) => {
@@ -641,60 +647,60 @@ const Transaction = () => {
 
       const csvRows = transactionsToExport.map((trx) => {
         const checkoutDate = trx.checkedOutAt ?
-        new Date(trx.checkedOutAt) :
-        new Date(trx.createdAt);
+          new Date(trx.checkedOutAt) :
+          new Date(trx.createdAt);
         const createdDate = trx.createdAt ? new Date(trx.createdAt) : null;
         const updatedDate = trx.updatedAt ? new Date(trx.updatedAt) : null;
         const voidedDate = trx.voidedAt ? new Date(trx.voidedAt) : null;
 
 
         const itemNames =
-        trx.items?.map((item) => item.itemName || "").join("; ") || "";
+          trx.items?.map((item) => item.itemName || "").join("; ") || "";
         const itemSkus =
-        trx.items?.map((item) => item.sku || "").join("; ") || "";
+          trx.items?.map((item) => item.sku || "").join("; ") || "";
         const itemVariants =
-        trx.items?.map((item) => item.variant || "").join("; ") || "";
+          trx.items?.map((item) => item.variant || "").join("; ") || "";
         const itemSizes =
-        trx.items?.map((item) => item.selectedSize || "").join("; ") || "";
+          trx.items?.map((item) => item.selectedSize || "").join("; ") || "";
         const itemQtys =
-        trx.items?.map((item) => item.quantity || 0).join("; ") || "";
+          trx.items?.map((item) => item.quantity || 0).join("; ") || "";
         const itemPrices =
-        trx.items?.map((item) => item.price || 0).join("; ") || "";
+          trx.items?.map((item) => item.price || 0).join("; ") || "";
         const itemSubtotals =
-        trx.items?.
-        map((item) => (item.quantity || 0) * (item.price || 0)).
-        join("; ") || "";
+          trx.items?.
+            map((item) => (item.quantity || 0) * (item.price || 0)).
+            join("; ") || "";
 
         return [
-        escapeCSV(trx.receiptNo || ""),
-        escapeCSV(trx._id || ""),
-        escapeCSV(checkoutDate.toLocaleDateString()),
-        escapeCSV(checkoutDate.toLocaleTimeString()),
-        escapeCSV(trx.userId || ""),
-        escapeCSV(trx.performedById || ""),
-        escapeCSV(trx.performedByName || ""),
-        escapeCSV(trx.paymentMethod || ""),
-        escapeCSV(trx.referenceNo || ""),
-        escapeCSV(trx.totalAmount || 0),
-        escapeCSV(trx.amountReceived || 0),
-        escapeCSV(trx.changeGiven || 0),
-        escapeCSV(trx.status || ""),
-        escapeCSV(trx.items?.length || 0),
-        escapeCSV(itemNames),
-        escapeCSV(itemSkus),
-        escapeCSV(itemVariants),
-        escapeCSV(itemSizes),
-        escapeCSV(itemQtys),
-        escapeCSV(itemPrices),
-        escapeCSV(itemSubtotals),
-        escapeCSV(trx.voidedBy || ""),
-        escapeCSV(trx.voidedByName || ""),
-        escapeCSV(voidedDate ? voidedDate.toLocaleString() : ""),
-        escapeCSV(trx.voidReason || ""),
-        escapeCSV(trx.originalTransactionId || ""),
-        escapeCSV(createdDate ? createdDate.toLocaleString() : ""),
-        escapeCSV(updatedDate ? updatedDate.toLocaleString() : "")].
-        join(",");
+          escapeCSV(trx.receiptNo || ""),
+          escapeCSV(trx._id || ""),
+          escapeCSV(checkoutDate.toLocaleDateString()),
+          escapeCSV(checkoutDate.toLocaleTimeString()),
+          escapeCSV(trx.userId || ""),
+          escapeCSV(trx.performedById || ""),
+          escapeCSV(trx.performedByName || ""),
+          escapeCSV(trx.paymentMethod || ""),
+          escapeCSV(trx.referenceNo || ""),
+          escapeCSV(trx.totalAmount || 0),
+          escapeCSV(trx.amountReceived || 0),
+          escapeCSV(trx.changeGiven || 0),
+          escapeCSV(trx.status || ""),
+          escapeCSV(trx.items?.length || 0),
+          escapeCSV(itemNames),
+          escapeCSV(itemSkus),
+          escapeCSV(itemVariants),
+          escapeCSV(itemSizes),
+          escapeCSV(itemQtys),
+          escapeCSV(itemPrices),
+          escapeCSV(itemSubtotals),
+          escapeCSV(trx.voidedBy || ""),
+          escapeCSV(trx.voidedByName || ""),
+          escapeCSV(voidedDate ? voidedDate.toLocaleString() : ""),
+          escapeCSV(trx.voidReason || ""),
+          escapeCSV(trx.originalTransactionId || ""),
+          escapeCSV(createdDate ? createdDate.toLocaleString() : ""),
+          escapeCSV(updatedDate ? updatedDate.toLocaleString() : "")].
+          join(",");
       });
 
       const csvContent = [headers.join(","), ...csvRows].join("\n");
@@ -759,15 +765,15 @@ const Transaction = () => {
 
       const damagedItems = itemsToReturn.filter(
         (item) =>
-        item.reason === "Damaged" ||
-        item.reason === "Defective" ||
-        item.reason === "Expired"
+          item.reason === "Damaged" ||
+          item.reason === "Defective" ||
+          item.reason === "Expired"
       );
       const returnableItems = itemsToReturn.filter(
         (item) =>
-        item.reason !== "Damaged" &&
-        item.reason !== "Defective" &&
-        item.reason !== "Expired"
+          item.reason !== "Damaged" &&
+          item.reason !== "Defective" &&
+          item.reason !== "Expired"
       );
 
       console.log("Damaged items (to archive):", damagedItems.length);
@@ -814,7 +820,7 @@ const Transaction = () => {
       ).length;
       const allItemsFullyReturned = fullyReturnedCount === updatedItems.length;
       const hasAnyReturns =
-      fullyReturnedCount > 0 || partiallyReturnedCount > 0;
+        fullyReturnedCount > 0 || partiallyReturnedCount > 0;
 
       let newStatus = "Completed";
       if (allItemsFullyReturned) {
@@ -825,12 +831,12 @@ const Transaction = () => {
 
 
       const newTotalAmount = updatedItems.
-      filter((item) => item.returnStatus !== "Returned").
-      reduce(
-        (sum, item) =>
-        sum + item.quantity * (item.price || item.itemPrice || 0),
-        0
-      );
+        filter((item) => item.returnStatus !== "Returned").
+        reduce(
+          (sum, item) =>
+            sum + item.quantity * (item.price || item.itemPrice || 0),
+          0
+        );
 
 
       const updatePayload = {
@@ -947,16 +953,16 @@ const Transaction = () => {
         const returnTransaction = {
           userId: transaction.userId,
           items: [
-          {
-            productId: item.productId,
-            itemName: item.itemName,
-            sku: item.sku,
-            variant: item.variant,
-            selectedSize: item.selectedSize,
-            quantity: item.quantity,
-            price: item.price,
-            returnReason: item.reason
-          }],
+            {
+              productId: item.productId,
+              itemName: item.itemName,
+              sku: item.sku,
+              variant: item.variant,
+              selectedSize: item.selectedSize,
+              quantity: item.quantity,
+              price: item.price,
+              returnReason: item.reason
+            }],
 
           paymentMethod: "return",
           amountReceived: 0,
@@ -1002,7 +1008,7 @@ const Transaction = () => {
       <div
         className="p-6 min-h-screen flex items-center justify-center"
         style={{ background: "#F5F5F5" }}>
-        
+
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B7355] mb-4"></div>
           <p className="text-gray-600">Loading transactions...</p>
@@ -1014,134 +1020,169 @@ const Transaction = () => {
   return (
     <div
       className={`p-6 min-h-screen ${theme === "dark" ? "bg-[#1E1B18]" : "bg-[#F5F5F5]"}`}>
-      
+
       <>
         <Header
           pageName="POS Transactions"
           showBorder={false}
           profileBackground="" />
-        
+
 
         <div className="flex gap-4 flex-wrap mb-6 mt-4 justify-between">
           <div className="flex gap-4 flex-wrap">
             {[
-            {
-              label: "Total Transactions",
-              count: stats.total,
-              borderColor: "#3B82F6",
-              textColor: "#3B82F6",
-              iconBg: "#DBEAFE",
-              icon:
-              <img
-                src={TotalTransactionIcon}
-                alt="Total Transactions"
-                className="w-10 h-10" />
+              {
+                label: "Total Transactions",
+                count: stats.total,
+                borderColor: "#3B82F6",
+                textColor: "#3B82F6",
+                iconBg: "#DBEAFE",
+                icon:
+                  <img
+                    src={TotalTransactionIcon}
+                    alt="Total Transactions"
+                    className="w-10 h-10" />
 
 
-            },
-            {
-              label: "Completed",
-              count: stats.Completed || 0,
-              borderColor: "#22C55E",
-              textColor: "#22C55E",
-              iconBg: "#DCFCE7",
-              icon:
-              <img
-                src={CompletedIcon}
-                alt="Completed"
-                className="w-10 h-10" />
+              },
+              {
+                label: "Completed",
+                count: stats.Completed || 0,
+                borderColor: "#22C55E",
+                textColor: "#22C55E",
+                iconBg: "#DCFCE7",
+                icon:
+                  <img
+                    src={CompletedIcon}
+                    alt="Completed"
+                    className="w-10 h-10" />
 
 
-            },
-            {
-              label: "Returned",
-              count: stats.Returned || 0,
-              borderColor: "#F97316",
-              textColor: "#F97316",
-              iconBg: "#FFEDD5",
-              icon: <FaUndoAlt />
-            }].
-            map((card) =>
+              },
+              {
+                label: "Returned",
+                count: stats.Returned || 0,
+                borderColor: "#F97316",
+                textColor: "#F97316",
+                iconBg: "#FFEDD5",
+                icon: <FaUndoAlt />
+              }].
+              map((card) =>
+                <motion.div
+                  key={card.label}
+                  whileHover={{ y: -4 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`rounded-2xl shadow-md flex items-center justify-between px-5 py-4 relative overflow-hidden text-left ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}`
+                  }
+                  style={{ minWidth: "200px" }}>
+
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-2"
+                    style={{ backgroundColor: card.borderColor }} />
+
+                  <div className="ml-2">
+                    <motion.p
+                      key={card.count}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-3xl font-bold"
+                      style={{ color: card.textColor }}>
+
+                      {card.count}
+                    </motion.p>
+                    <p
+                      className="text-xs mt-0.5"
+                      style={{ color: card.textColor }}>
+
+                      {card.label}
+                    </p>
+                  </div>
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
+                    style={{
+                      backgroundColor: card.iconBg,
+                      color: card.textColor
+                    }}>
+
+                    {card.icon}
+                  </div>
+                </motion.div>
+              )}
+
+            {/* Ready to Remit Card */}
             <motion.div
-              key={card.label}
               whileHover={{ y: -4 }}
               whileTap={{ scale: 0.98 }}
-              className={`rounded-2xl shadow-md flex items-center justify-between px-5 py-4 relative overflow-hidden text-left ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}`
-              }
-              style={{ minWidth: "200px" }}>
-              
-                <div
-                className="absolute left-0 top-0 bottom-0 w-2"
-                style={{ backgroundColor: card.borderColor }} />
-              
-                <div className="ml-2">
-                  <motion.p
-                  key={card.count}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-3xl font-bold"
-                  style={{ color: card.textColor }}>
-                  
-                    {card.count}
-                  </motion.p>
-                  <p
-                  className="text-xs mt-0.5"
-                  style={{ color: card.textColor }}>
-                  
-                    {card.label}
-                  </p>
-                </div>
-                <div
-                className="w-16 h-16 rounded-full flex items-center justify-center text-2xl"
-                style={{
-                  backgroundColor: card.iconBg,
-                  color: card.textColor
-                }}>
-                
-                  {card.icon}
-                </div>
-              </motion.div>
-            )}
+              className={`rounded-2xl shadow-md flex items-center justify-between px-5 py-4 relative overflow-hidden cursor-pointer ${theme === "dark" ? "bg-[#1a2332]" : "bg-[#E8F0FE]"
+                }`}
+              style={{ minWidth: "260px" }}
+              onClick={() => setShowRemittanceModal(true)}
+            >
+              <div>
+                <p className={`text-base font-bold ${theme === "dark" ? "text-blue-300" : "text-[#1a3a5c]"}`}>
+                  Ready to Remit?
+                </p>
+                <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-blue-400/70" : "text-[#5a7a9a]"}`}>
+                  You can submit your remittance anytime
+                </p>
+                <button
+                  className="mt-2 bg-[#1a3a5c] hover:bg-[#0f2a4a] text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRemittanceModal(true);
+                  }}
+                >
+                  <FaClipboardList className="text-xs" />
+                  Start Remittance
+                </button>
+              </div>
+              <div className={`w-14 h-14 rounded-full flex items-center justify-center ${theme === "dark" ? "bg-blue-900/40" : "bg-[#d0e0f0]"}`}>
+                <svg className={`w-7 h-7 ${theme === "dark" ? "text-blue-400" : "text-[#1a3a5c]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 7v4m0 0v4m0-4h4m-4 0H6" />
+                </svg>
+              </div>
+            </motion.div>
           </div>
 
           <div className="flex gap-4 items-start">
             <button
               onClick={handleExportButtonClick}
               className={`rounded-2xl shadow-md flex flex-col items-center justify-center px-5 py-4 transition-colors ${isExportSelectionMode ?
-              "border border-[#AD7F65] bg-[#AD7F65]/5" :
-              theme === "dark" ?
-              "bg-[#2A2724] hover:bg-[#352F2A]" :
-              "bg-white hover:bg-gray-50"}`
+                "border border-[#AD7F65] bg-[#AD7F65]/5" :
+                theme === "dark" ?
+                  "bg-[#2A2724] hover:bg-[#352F2A]" :
+                  "bg-white hover:bg-gray-50"}`
               }
               style={{ minWidth: "100px" }}>
-              
+
               <svg
                 className={`w-8 h-8 mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24">
-                
+
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                
+
               </svg>
               <div
                 className={`text-xs font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}>
-                
+
                 {isExportSelectionMode ? "Export Selected" : "Export"}
               </div>
             </button>
             {isExportSelectionMode &&
-            <button
-              onClick={handleCancelExportSelection}
-              className={`rounded-2xl shadow-md px-4 py-2 text-xs font-medium border transition-colors ${theme === "dark" ?
-              "bg-[#2A2724] border-gray-600 text-gray-400 hover:bg-[#352F2A]" :
-              "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`
-              }>
-              
+              <button
+                onClick={handleCancelExportSelection}
+                className={`rounded-2xl shadow-md px-4 py-2 text-xs font-medium border transition-colors ${theme === "dark" ?
+                  "bg-[#2A2724] border-gray-600 text-gray-400 hover:bg-[#352F2A]" :
+                  "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`
+                }>
+
                 Cancel
               </button>
             }
@@ -1153,10 +1194,10 @@ const Transaction = () => {
         <div className="flex flex-col lg:flex-row gap-6">
           <div
             className={`flex-1 rounded-2xl shadow-[0_12px_40px_rgba(0,0,0,0.06)] p-6 border ${theme === "dark" ?
-            "bg-[#2A2724] border-[#4A4037]" :
-            "bg-white border-white/80"}`
+              "bg-[#2A2724] border-[#4A4037]" :
+              "bg-white border-white/80"}`
             }>
-            
+
             <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-4">
               <div className="relative flex-1">
                 <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AD7F65]" />
@@ -1168,10 +1209,10 @@ const Transaction = () => {
                   }}
                   placeholder="Search by receipt number..."
                   className={`w-full border rounded-2xl h-12 pl-12 pr-4 shadow-inner focus:outline-none focus:border-[#AD7F65] focus:ring focus:ring-[#AD7F65]/20 transition-all ${theme === "dark" ?
-                  "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" :
-                  "bg-white border-gray-200 text-gray-900"}`
+                    "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" :
+                    "bg-white border-gray-200 text-gray-900"}`
                   } />
-                
+
               </div>
               <div className="flex flex-wrap gap-3">
                 <Dropdown
@@ -1179,49 +1220,49 @@ const Transaction = () => {
                   options={dateOptions}
                   selected={filters.date}
                   onSelect={(value) =>
-                  setFilters((prev) => ({ ...prev, date: value }))
+                    setFilters((prev) => ({ ...prev, date: value }))
                   }
                   isOpen={dropdownOpen.date}
                   setIsOpen={(value) =>
-                  setDropdownOpen((prev) => ({ ...prev, date: value }))
+                    setDropdownOpen((prev) => ({ ...prev, date: value }))
                   } />
-                
+
                 <Dropdown
                   label="Payment Method"
                   options={paymentOptions}
                   selected={filters.method}
                   onSelect={(value) =>
-                  setFilters((prev) => ({ ...prev, method: value }))
+                    setFilters((prev) => ({ ...prev, method: value }))
                   }
                   isOpen={dropdownOpen.method}
                   setIsOpen={(value) =>
-                  setDropdownOpen((prev) => ({ ...prev, method: value }))
+                    setDropdownOpen((prev) => ({ ...prev, method: value }))
                   } />
-                
+
                 <Dropdown
                   label="User"
                   options={userDropdownOptions}
                   selected={filters.user}
                   onSelect={(value) =>
-                  setFilters((prev) => ({ ...prev, user: value }))
+                    setFilters((prev) => ({ ...prev, user: value }))
                   }
                   isOpen={dropdownOpen.user}
                   setIsOpen={(value) =>
-                  setDropdownOpen((prev) => ({ ...prev, user: value }))
+                    setDropdownOpen((prev) => ({ ...prev, user: value }))
                   } />
-                
+
                 <Dropdown
                   label="Status"
                   options={statusOptions}
                   selected={filters.status}
                   onSelect={(value) =>
-                  setFilters((prev) => ({ ...prev, status: value }))
+                    setFilters((prev) => ({ ...prev, status: value }))
                   }
                   isOpen={dropdownOpen.status}
                   setIsOpen={(value) =>
-                  setDropdownOpen((prev) => ({ ...prev, status: value }))
+                    setDropdownOpen((prev) => ({ ...prev, status: value }))
                   } />
-                
+
               </div>
             </div>
 
@@ -1230,60 +1271,60 @@ const Transaction = () => {
                 <thead className="sticky top-0">
                   <tr
                     className={`${theme === "dark" ? "bg-[#352F2A] text-[#C2A68C]" : "bg-[#F6EEE7] text-[#4A3B2F]"} text-xs uppercase tracking-wider`}>
-                    
+
                     {isExportSelectionMode &&
-                    <th className="px-4 py-3 font-semibold">
+                      <th className="px-4 py-3 font-semibold">
                         <label
-                        className={`flex items-center gap-2 ${theme === "dark" ? "text-[#C2A68C]" : "text-[#4A3B2F]"}`}>
-                        
+                          className={`flex items-center gap-2 ${theme === "dark" ? "text-[#C2A68C]" : "text-[#4A3B2F]"}`}>
+
                           <input
-                          ref={selectAllTransactionsRef}
-                          type="checkbox"
-                          className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
-                          onChange={handleToggleSelectAllTransactions}
-                          checked={
-                          isExportSelectionMode ?
-                          allVisibleTransactionsSelected :
-                          false
-                          } />
-                        
+                            ref={selectAllTransactionsRef}
+                            type="checkbox"
+                            className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
+                            onChange={handleToggleSelectAllTransactions}
+                            checked={
+                              isExportSelectionMode ?
+                                allVisibleTransactionsSelected :
+                                false
+                            } />
+
                           <span className="text-[11px] tracking-wide">All</span>
                         </label>
                       </th>
                     }
                     {[
-                    "Receipt No.",
-                    "Transaction ID",
-                    "Date",
-                    "Performed By",
-                    "Payment Method",
-                    "Total",
-                    "Status",
-                    "Quick Action"].
-                    map((col) =>
-                    <th key={col} className="px-4 py-3 font-semibold">
-                        {col}
-                      </th>
-                    )}
+                      "Receipt No.",
+                      "Transaction ID",
+                      "Date",
+                      "Performed By",
+                      "Payment Method",
+                      "Total",
+                      "Status",
+                      "Quick Action"].
+                      map((col) =>
+                        <th key={col} className="px-4 py-3 font-semibold">
+                          {col}
+                        </th>
+                      )}
                   </tr>
                 </thead>
                 <tbody>
                   {loading && paginatedTransactions.length === 0 &&
-                  <tr>
+                    <tr>
                       <td
-                      colSpan={transactionTableColumnCount}
-                      className="py-10 text-center text-gray-500">
-                      
+                        colSpan={transactionTableColumnCount}
+                        className="py-10 text-center text-gray-500">
+
                         Loading transactions...
                       </td>
                     </tr>
                   }
                   {!loading && paginatedTransactions.length === 0 &&
-                  <tr>
+                    <tr>
                       <td
-                      colSpan={transactionTableColumnCount}
-                      className="py-10 text-center text-gray-400 italic">
-                      
+                        colSpan={transactionTableColumnCount}
+                        className="py-10 text-center text-gray-400 italic">
+
                         No transactions found
                       </td>
                     </tr>
@@ -1295,44 +1336,43 @@ const Transaction = () => {
                         key={trx._id}
                         onClick={() => handleRowClick(trx)}
                         className={`cursor-pointer border-b transition-all ${theme === "dark" ?
-                        "border-gray-700" :
-                        "border-gray-100"} ${
-                        isActive ?
-                        theme === "dark" ?
-                        "bg-[#352F2A]" :
-                        "bg-[#FDF7F1] shadow-inner" :
-                        theme === "dark" ?
-                        "hover:bg-[#2A2521] text-gray-300" :
-                        "hover:bg-[#F9F2EC]"}`
+                          "border-gray-700" :
+                          "border-gray-100"} ${isActive ?
+                            theme === "dark" ?
+                              "bg-[#352F2A]" :
+                              "bg-[#FDF7F1] shadow-inner" :
+                            theme === "dark" ?
+                              "hover:bg-[#2A2521] text-gray-300" :
+                              "hover:bg-[#F9F2EC]"}`
                         }>
-                        
+
                         {isExportSelectionMode &&
-                        <td
-                          className="px-4 py-3"
-                          onClick={(e) => e.stopPropagation()}>
-                          
+                          <td
+                            className="px-4 py-3"
+                            onClick={(e) => e.stopPropagation()}>
+
                             <input
-                            type="checkbox"
-                            className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
-                            checked={selectedTransactionIds.includes(trx._id)}
-                            onChange={() =>
-                            handleToggleTransactionSelection(trx._id)
-                            }
-                            disabled={!trx._id} />
-                          
+                              type="checkbox"
+                              className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
+                              checked={selectedTransactionIds.includes(trx._id)}
+                              onChange={() =>
+                                handleToggleTransactionSelection(trx._id)
+                              }
+                              disabled={!trx._id} />
+
                           </td>
                         }
                         <td
                           className={`px-4 py-3 font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
-                          
+
                           {trx.receiptNo ? `#${trx.receiptNo}` : "---"}
                         </td>
                         <td
                           className={`px-4 py-3 font-semibold text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}>
-                          
+
                           {trx.referenceNo ||
-                          trx._id?.substring(0, 12) ||
-                          "---"}
+                            trx._id?.substring(0, 12) ||
+                            "---"}
                         </td>
                         <td className="px-4 py-3 text-gray-500">
                           {new Date(trx.checkedOutAt).toLocaleDateString(
@@ -1346,7 +1386,7 @@ const Transaction = () => {
                         </td>
                         <td
                           className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                          
+
                           <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55]">
                             {getInitials(trx.performedByName || "Staff")}
                           </span>
@@ -1370,10 +1410,10 @@ const Transaction = () => {
                                 handleViewClick(trx);
                               }}
                               className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 whitespace-nowrap transition-all ${theme === "dark" ?
-                              "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-green-500 hover:text-green-500" :
-                              "bg-white border-gray-200 text-gray-500 hover:border-green-500 hover:text-green-600"}`
+                                "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-green-500 hover:text-green-500" :
+                                "bg-white border-gray-200 text-gray-500 hover:border-green-500 hover:text-green-600"}`
                               }>
-                              
+
                               <FaEye />
                             </button>
                             <button
@@ -1383,28 +1423,28 @@ const Transaction = () => {
                                 handlePrintClick(trx);
                               }}
                               className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all ${theme === "dark" ?
-                              "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-500" :
-                              "bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600"}`
+                                "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-500" :
+                                "bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600"}`
                               }>
-                              
+
                               <FaPrint />
                             </button>
                             {isTransactionReturnable(trx) &&
-                            trx.status !== "Returned" &&
-                            trx.status !== "Voided" &&
-                            <button
-                              title="Return"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleReturnClick(trx);
-                              }}
-                              className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all ${theme === "dark" ?
-                              "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-orange-500 hover:text-orange-500" :
-                              "bg-white border-gray-200 text-gray-500 hover:border-orange-500 hover:text-orange-600"}`
-                              }>
-                              
-                                  <FaUndoAlt />
-                                </button>
+                              trx.status !== "Returned" &&
+                              trx.status !== "Voided" &&
+                              <button
+                                title="Return"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReturnClick(trx);
+                                }}
+                                className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all ${theme === "dark" ?
+                                  "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-orange-500 hover:text-orange-500" :
+                                  "bg-white border-gray-200 text-gray-500 hover:border-orange-500 hover:text-orange-600"}`
+                                }>
+
+                                <FaUndoAlt />
+                              </button>
                             }
                           </div>
                         </td>
@@ -1418,7 +1458,7 @@ const Transaction = () => {
             <div className="flex items-center justify-between mt-5">
               <div
                 className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                
+
                 Showing {(currentPage - 1) * rowsPerPage + 1}-
                 {Math.min(
                   currentPage * rowsPerPage,
@@ -1428,67 +1468,67 @@ const Transaction = () => {
               </div>
               <div
                 className={`flex items-center gap-2 rounded-full border px-3 py-1 shadow-inner ${theme === "dark" ?
-                "bg-[#1E1B18] border-gray-600" :
-                "bg-white border-gray-200"}`
+                  "bg-[#1E1B18] border-gray-600" :
+                  "bg-white border-gray-200"}`
                 }>
-                
+
                 <button
                   onClick={() =>
-                  setCurrentPage((prev) => Math.max(1, prev - 1))
+                    setCurrentPage((prev) => Math.max(1, prev - 1))
                   }
                   disabled={currentPage === 1}
                   className={`p-2 rounded-full ${currentPage === 1 ?
-                  theme === "dark" ?
-                  "text-gray-600" :
-                  "text-gray-300" :
-                  theme === "dark" ?
-                  "hover:bg-[#2A2724] text-gray-400" :
-                  "hover:bg-gray-50 text-gray-600"}`
+                    theme === "dark" ?
+                      "text-gray-600" :
+                      "text-gray-300" :
+                    theme === "dark" ?
+                      "hover:bg-[#2A2724] text-gray-400" :
+                      "hover:bg-gray-50 text-gray-600"}`
                   }>
-                  
+
                   <FaChevronLeft />
                 </button>
                 {Array.from({ length: totalPages }).
-                slice(0, 5).
-                map((_, idx) => {
-                  const pageNumber = idx + 1;
-                  return (
-                    <button
-                      key={pageNumber}
-                      onClick={() => setCurrentPage(pageNumber)}
-                      className={`w-8 h-8 rounded-full text-sm font-semibold ${currentPage === pageNumber ?
-                      "bg-[#AD7F65] text-white shadow-md" :
-                      "text-gray-600 hover:bg-gray-50"}`
-                      }>
-                      
+                  slice(0, 5).
+                  map((_, idx) => {
+                    const pageNumber = idx + 1;
+                    return (
+                      <button
+                        key={pageNumber}
+                        onClick={() => setCurrentPage(pageNumber)}
+                        className={`w-8 h-8 rounded-full text-sm font-semibold ${currentPage === pageNumber ?
+                          "bg-[#AD7F65] text-white shadow-md" :
+                          "text-gray-600 hover:bg-gray-50"}`
+                        }>
+
                         {pageNumber}
                       </button>);
 
-                })}
+                  })}
                 <span className="text-gray-400 px-2">...</span>
                 <button
                   onClick={() => setCurrentPage(totalPages)}
                   className={`w-8 h-8 rounded-full text-sm font-semibold ${currentPage === totalPages ?
-                  "bg-[#AD7F65] text-white shadow-md" :
-                  "text-gray-600 hover:bg-gray-50"}`
+                    "bg-[#AD7F65] text-white shadow-md" :
+                    "text-gray-600 hover:bg-gray-50"}`
                   }>
-                  
+
                   {totalPages}
                 </button>
                 <button
                   onClick={() =>
-                  setCurrentPage((prev) => Math.min(totalPages, prev + 1))
+                    setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                   }
                   disabled={currentPage === totalPages}
                   className={`p-2 rounded-full ${currentPage === totalPages ?
-                  theme === "dark" ?
-                  "text-gray-600" :
-                  "text-gray-300" :
-                  theme === "dark" ?
-                  "hover:bg-[#2A2724] text-gray-400" :
-                  "hover:bg-gray-50 text-gray-600"}`
+                    theme === "dark" ?
+                      "text-gray-600" :
+                      "text-gray-300" :
+                    theme === "dark" ?
+                      "hover:bg-[#2A2724] text-gray-400" :
+                      "hover:bg-gray-50 text-gray-600"}`
                   }>
-                  
+
                   <FaChevronRight />
                 </button>
               </div>
@@ -1498,10 +1538,10 @@ const Transaction = () => {
           <div className="w-full lg:w-[380px] xl:w-[420px]">
             <div
               className={`rounded-2xl border shadow-[0_20px_45px_rgba(0,0,0,0.08)] p-6 sticky top-8 ${theme === "dark" ?
-              "bg-[#2A2724] border-[#4A4037]" :
-              "bg-white border-white"}`
+                "bg-[#2A2724] border-[#4A4037]" :
+                "bg-white border-white"}`
               }>
-              
+
               <div className="mb-4">
                 <p className="text-sm text-gray-400">Create Your Style</p>
                 <p className="text-xs text-gray-400">
@@ -1510,24 +1550,24 @@ const Transaction = () => {
               </div>
               <div
                 className={`font-mono text-xs space-y-2 ${theme === "dark" ? "text-gray-300" : ""}`}>
-                
+
                 <div className="flex justify-between text-gray-500">
                   <span>Receipt No:</span>
                   <span className="font-bold text-[#AD7F65]">
                     {selectedTransaction?.status === "Completed" &&
-                    selectedTransaction?.receiptNo ?
-                    `#${selectedTransaction.receiptNo}` :
-                    "---"}
+                      selectedTransaction?.receiptNo ?
+                      `#${selectedTransaction.receiptNo}` :
+                      "---"}
                   </span>
                 </div>
                 <div className="flex justify-between text-gray-500">
                   <span>Date:</span>
                   <span>
                     {selectedTransaction ?
-                    new Date(
-                      selectedTransaction.checkedOutAt
-                    ).toLocaleString() :
-                    "-"}
+                      new Date(
+                        selectedTransaction.checkedOutAt
+                      ).toLocaleString() :
+                      "-"}
                   </span>
                 </div>
                 <div className="flex justify-between text-gray-500">
@@ -1537,16 +1577,16 @@ const Transaction = () => {
               </div>
               <div
                 className={`border-t border-b my-4 py-3 font-mono text-sm ${theme === "dark" ? "border-gray-700 text-gray-300" : "border-gray-200"}`}>
-                
+
                 <div className="flex justify-between font-semibold">
                   <span>Item</span>
                   <span>Qty x Price</span>
                 </div>
                 <div
                   className={`mt-2 space-y-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                  
+
                   {selectedTransaction?.items?.map((item, idx) =>
-                  <div key={idx} className="flex justify-between">
+                    <div key={idx} className="flex justify-between">
                       <span>{item.itemName}</span>
                       <span>
                         {item.quantity} x {formatCurrency(item.price)}
@@ -1557,7 +1597,7 @@ const Transaction = () => {
               </div>
               <div
                 className={`font-mono text-xs space-y-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                
+
                 <div className="flex justify-between">
                   <span>Payment Method:</span>
                   <span className="uppercase">
@@ -1566,7 +1606,7 @@ const Transaction = () => {
                 </div>
                 <div
                   className={`flex justify-between font-semibold text-base pt-2 border-t ${theme === "dark" ? "text-white border-gray-700" : "text-gray-800 border-gray-100"}`}>
-                  
+
                   <span>Total</span>
                   <span>
                     {formatCurrency(selectedTransaction?.totalAmount || 0)}
@@ -1577,10 +1617,10 @@ const Transaction = () => {
                 className="w-full mt-6 py-3 rounded-xl text-white font-semibold shadow-lg transition-all hover:shadow-xl hover:brightness-105 active:scale-98"
                 style={{
                   backgroundImage:
-                  "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)",
+                    "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)",
                   boxShadow: "0 12px 20px rgba(118,70,43,0.25)"
                 }}>
-                
+
                 Print Receipt
               </button>
               <p className="text-center text-[11px] text-gray-400 mt-4 tracking-wide">
@@ -1607,7 +1647,7 @@ const Transaction = () => {
             setTransactionToView(null);
             handlePrintClick(trx);
           }} />
-        
+
 
         <PrintReceiptModal
           isOpen={showPrintModal}
@@ -1616,7 +1656,7 @@ const Transaction = () => {
             setTransactionToPrint(null);
           }}
           transaction={transactionToPrint} />
-        
+
 
         <ReturnItemsModal
           isOpen={showReturnModal}
@@ -1626,11 +1666,11 @@ const Transaction = () => {
           }}
           transaction={transactionToReturn}
           onConfirm={handleReturnConfirm} />
-        
 
-        {}
+
+        { }
         {showReturnSuccessModal &&
-        <div className="fixed inset-0 flex items-center justify-center z-[10002] bg-black/50 backdrop-blur-sm">
+          <div className="fixed inset-0 flex items-center justify-center z-[10002] bg-black/50 backdrop-blur-sm">
             <div className="bg-white rounded-2xl w-full max-w-md p-8 shadow-2xl text-center">
               <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
                 <FaCheckCircle className="w-10 h-10 text-green-500" />
@@ -1642,21 +1682,28 @@ const Transaction = () => {
                 The return has been processed successfully.
               </p>
               <button
-              onClick={() => {
-                setShowReturnSuccessModal(false);
-                window.location.reload();
-              }}
-              className="px-8 py-3 rounded-lg text-white font-semibold transition-all hover:opacity-90"
-              style={{
-                background:
-                "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)"
-              }}>
-              
+                onClick={() => {
+                  setShowReturnSuccessModal(false);
+                  window.location.reload();
+                }}
+                className="px-8 py-3 rounded-lg text-white font-semibold transition-all hover:opacity-90"
+                style={{
+                  background:
+                    "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)"
+                }}>
+
                 OK
               </button>
             </div>
           </div>
         }
+
+        <RemittanceModal
+          isOpen={showRemittanceModal}
+          onClose={() => setShowRemittanceModal(false)}
+          employeeId={currentUser?._id}
+          employeeName={currentUser?.name || currentUser?.firstName || ""}
+        />
       </>
     </div>);
 

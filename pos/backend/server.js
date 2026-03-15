@@ -103,17 +103,17 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, server-to-server, Postman)
     if (!origin) return callback(null, true);
-    
+
     // Check exact matches
     if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
       return callback(null, true);
     }
-    
+
     // Check pattern matches (for Vercel preview deployments, etc.)
     if (allowedOriginPatterns.some(pattern => pattern.test(origin))) {
       return callback(null, true);
     }
-    
+
     console.warn(`[CORS] Blocked request from origin: ${origin}`);
     return callback(new Error("Not allowed by CORS"));
   },
@@ -166,6 +166,7 @@ app.use("/api/data-management", require("./routes/dataManagementRoutes"));
 // GCash Payment Integration Routes
 app.use("/api/merchant-settings", require("./routes/merchantSettingsRoutes"));
 app.use("/api/payments", require("./routes/paymentRoutes"));
+app.use("/api/remittances", require("./routes/remittanceRoutes"));
 
 const PORT = process.env.PORT || 5000;
 const HOST = "0.0.0.0";

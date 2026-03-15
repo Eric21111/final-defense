@@ -111,7 +111,10 @@ export const API_ENDPOINTS = {
   merchantSettings: `${API_BASE_URL}/api/merchant-settings`,
 
 
-  dataManagement: `${API_BASE_URL}/api/data-management`
+  dataManagement: `${API_BASE_URL}/api/data-management`,
+
+  remittances: `${API_BASE_URL}/api/remittances`,
+  remittanceSummary: `${API_BASE_URL}/api/remittances/summary`
 };
 
 
