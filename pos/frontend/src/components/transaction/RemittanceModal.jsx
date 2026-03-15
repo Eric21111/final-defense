@@ -212,7 +212,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm pointer-events-auto"
-                        onClick={onClose}
+
                     />
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95, y: 20 }}
