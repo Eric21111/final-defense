@@ -14,6 +14,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [showNewSizes, setShowNewSizes] = useState(false);
   const [customNewSizeInput, setCustomNewSizeInput] = useState("");
   const [addedNewSizes, setAddedNewSizes] = useState([]);
+  const [newSizePrices, setNewSizePrices] = useState({});
   const { theme } = useTheme();
 
   const reasons = ["Restock", "Returned Item", "Exchange", "Other"];
@@ -105,6 +106,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setShowNewSizes(false);
       setCustomNewSizeInput("");
       setAddedNewSizes([]);
+      setNewSizePrices({});
     }
 
   }, [isOpen, product?._id]);
@@ -124,20 +126,44 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setShowNewSizes(false);
     setCustomNewSizeInput("");
     setAddedNewSizes([]);
+    setNewSizePrices({});
     onClose();
   };
 
   const handleAddNewSize = (size) => {
     if (!size || addedNewSizes.includes(size) || existingSizes.includes(size)) return;
     setAddedNewSizes(prev => [...prev, size]);
+    // Initialize price with product defaults
+    setNewSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        price: product.itemPrice || 0,
+        costPrice: product.costPrice || 0
+      }
+    }));
   };
 
   const handleRemoveNewSize = (size) => {
     setAddedNewSizes(prev => prev.filter(s => s !== size));
+    setNewSizePrices(prev => {
+      const updated = { ...prev };
+      delete updated[size];
+      return updated;
+    });
     // Also deselect it if it was selected
     if (selectedSizes.includes(size)) {
       handleSizeToggle(size);
     }
+  };
+
+  const handleNewSizePriceChange = (size, field, value) => {
+    setNewSizePrices(prev => ({
+      ...prev,
+      [size]: {
+        ...(prev[size] || { price: 0, costPrice: 0 }),
+        [field]: parseFloat(value) || 0
+      }
+    }));
   };
 
   const handleSizeToggle = (size) => {
@@ -299,7 +325,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         selectedSizes: selectedSizes,
         reason: finalReason,
         hasVariants: true,
-        newVariantPrices: addedVariants.length > 0 ? newVariantPrices : null
+        newVariantPrices: addedVariants.length > 0 ? newVariantPrices : null,
+        newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null
       });
       return;
     }
@@ -318,7 +345,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     onConfirm({
       sizes: sizeQuantities,
       selectedSizes: selectedSizes,
-      reason: finalReason
+      reason: finalReason,
+      newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null
     });
   };
 
@@ -590,16 +618,52 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
 
                             if (hasVariants) {
+                              const isNewSize = addedNewSizes.includes(size);
                               return (
                                 <div key={size} className={`p-3 rounded-lg ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
                                   <label
                                     className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
 
                                     {size}{" "}
-                                    <span className="text-gray-500 font-normal">
-                                      (Current Total: {currentQty})
-                                    </span>
+                                    {isNewSize ?
+                                      <span className="text-green-500 font-normal">(New)</span> :
+                                      <span className="text-gray-500 font-normal">
+                                        (Current Total: {currentQty})
+                                      </span>
+                                    }
                                   </label>
+
+                                  {/* Price inputs for new sizes */}
+                                  {isNewSize &&
+                                    <div className={`grid grid-cols-2 gap-2 mb-3 p-2 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
+                                      <div>
+                                        <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                          Selling Price
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={newSizePrices[size]?.price || ""}
+                                          onChange={(e) => handleNewSizePriceChange(size, "price", e.target.value)}
+                                          placeholder="0.00"
+                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                      </div>
+                                      <div>
+                                        <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                          Cost Price
+                                        </label>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          step="0.01"
+                                          value={newSizePrices[size]?.costPrice || ""}
+                                          onChange={(e) => handleNewSizePriceChange(size, "costPrice", e.target.value)}
+                                          placeholder="0.00"
+                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                      </div>
+                                    </div>
+                                  }
                                   <div className="grid grid-cols-2 gap-2">
                                     {allVariants.map((variant) => {
                                       const currentVariantQty = getVariantCurrentQty(size, variant);
@@ -730,16 +794,52 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                             }
 
 
+                            const isNewSize = addedNewSizes.includes(size);
                             return (
-                              <div key={size} className={hasVariants ? "" : ""}>
+                              <div key={size}>
                                 <label
                                   className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
 
                                   {size}{" "}
-                                  <span className="text-gray-500">
-                                    (Current: {currentQty})
-                                  </span>
+                                  {isNewSize ?
+                                    <span className="text-green-500">(New)</span> :
+                                    <span className="text-gray-500">
+                                      (Current: {currentQty})
+                                    </span>
+                                  }
                                 </label>
+
+                                {/* Price inputs for new sizes without variants */}
+                                {isNewSize &&
+                                  <div className={`grid grid-cols-2 gap-2 mb-2 p-2 rounded-lg ${theme === "dark" ? "bg-[#1E1B18]" : "bg-gray-100"}`}>
+                                    <div>
+                                      <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                        Selling Price
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={newSizePrices[size]?.price || ""}
+                                        onChange={(e) => handleNewSizePriceChange(size, "price", e.target.value)}
+                                        placeholder="0.00"
+                                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                    </div>
+                                    <div>
+                                      <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                        Cost Price
+                                      </label>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={newSizePrices[size]?.costPrice || ""}
+                                        onChange={(e) => handleNewSizePriceChange(size, "costPrice", e.target.value)}
+                                        placeholder="0.00"
+                                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                    </div>
+                                  </div>
+                                }
                                 <input
                                   type="number"
                                   min="0"

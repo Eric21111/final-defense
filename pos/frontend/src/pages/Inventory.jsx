@@ -26,31 +26,31 @@ import SuccessModal from "../components/inventory/SuccessModal";
 import ViewProductModal from "../components/inventory/ViewProductModal";
 
 const preferredExportFieldOrder = [
-"_id",
-"sku",
-"itemName",
-"category",
-"brandName",
-"variant",
-"itemPrice",
-"costPrice",
-"currentStock",
-"reorderNumber",
-"displayInTerminal",
-"terminalStatus",
-"selectedSizes",
-"sizeQuantities",
-"sizePrices",
-"sizes",
-"differentPricesPerSize",
-"foodSubtype",
-"supplierName",
-"supplierContact",
-"itemImage",
-"dateAdded",
-"lastUpdated",
-"createdAt",
-"updatedAt"];
+  "_id",
+  "sku",
+  "itemName",
+  "category",
+  "brandName",
+  "variant",
+  "itemPrice",
+  "costPrice",
+  "currentStock",
+  "reorderNumber",
+  "displayInTerminal",
+  "terminalStatus",
+  "selectedSizes",
+  "sizeQuantities",
+  "sizePrices",
+  "sizes",
+  "differentPricesPerSize",
+  "foodSubtype",
+  "supplierName",
+  "supplierContact",
+  "itemImage",
+  "dateAdded",
+  "lastUpdated",
+  "createdAt",
+  "updatedAt"];
 
 
 
@@ -88,7 +88,7 @@ const ADD_PRODUCT_STORAGE_KEY = "addProductFormDraft";
 const Inventory = () => {
   const { theme } = useTheme();
   const { getCachedData, setCachedData, isCacheValid, invalidateCache } =
-  useDataCache();
+    useDataCache();
   const [products, setProducts] = useState(
     () => getCachedData("products") || []
   );
@@ -165,7 +165,7 @@ const Inventory = () => {
   });
 
   const [categories, setCategories] = useState([
-  { name: "All", icon: allIcon }]
+    { name: "All", icon: allIcon }]
   );
   const [brandPartners, setBrandPartners] = useState([]);
 
@@ -175,13 +175,13 @@ const Inventory = () => {
       try {
 
         const hasData =
-        newProduct.itemName ||
-        newProduct.variant ||
-        newProduct.itemPrice ||
-        newProduct.costPrice ||
-        newProduct.currentStock ||
-        newProduct.itemImage ||
-        newProduct.selectedSizes && newProduct.selectedSizes.length > 0;
+          newProduct.itemName ||
+          newProduct.variant ||
+          newProduct.itemPrice ||
+          newProduct.costPrice ||
+          newProduct.currentStock ||
+          newProduct.itemImage ||
+          newProduct.selectedSizes && newProduct.selectedSizes.length > 0;
 
         if (hasData) {
           localStorage.setItem(
@@ -215,11 +215,11 @@ const Inventory = () => {
       if (data.success && Array.isArray(data.data)) {
 
         const activeCategories = data.data.
-        filter((cat) => cat.status === "active" && cat.name !== "Others").
-        map((cat) => ({
-          name: cat.name,
-          icon: categoryIconMap[cat.name] || allIcon
-        }));
+          filter((cat) => cat.status === "active" && cat.name !== "Others").
+          map((cat) => ({
+            name: cat.name,
+            icon: categoryIconMap[cat.name] || allIcon
+          }));
 
 
         setCategories([{ name: "All", icon: allIcon }, ...activeCategories]);
@@ -228,14 +228,14 @@ const Inventory = () => {
       console.error("Error fetching categories:", error);
 
       setCategories([
-      { name: "All", icon: allIcon },
-      { name: "Tops", icon: topIcon },
-      { name: "Bottoms", icon: bottomsIcon },
-      { name: "Dresses", icon: dressesIcon },
-      { name: "Makeup", icon: makeupIcon },
-      { name: "Accessories", icon: accessoriesIcon },
-      { name: "Shoes", icon: shoesIcon },
-      { name: "Head Wear", icon: headWearIcon }]
+        { name: "All", icon: allIcon },
+        { name: "Tops", icon: topIcon },
+        { name: "Bottoms", icon: bottomsIcon },
+        { name: "Dresses", icon: dressesIcon },
+        { name: "Makeup", icon: makeupIcon },
+        { name: "Accessories", icon: accessoriesIcon },
+        { name: "Shoes", icon: shoesIcon },
+        { name: "Head Wear", icon: headWearIcon }]
       );
     }
   };
@@ -266,11 +266,11 @@ const Inventory = () => {
   const getNextIncrementalCode = () => {
 
     const numericCodes = products.
-    map((p) => {
-      const match = p.sku?.match(/-(\d{5})-?/);
-      return match ? parseInt(match[1]) : 0;
-    }).
-    filter((num) => num > 0);
+      map((p) => {
+        const match = p.sku?.match(/-(\d{5})-?/);
+        return match ? parseInt(match[1]) : 0;
+      }).
+      filter((num) => num > 0);
 
 
     const maxCode = numericCodes.length > 0 ? Math.max(...numericCodes) : 0;
@@ -362,13 +362,13 @@ const Inventory = () => {
     if (searchQuery) {
       filtered = filtered.filter(
         (product) =>
-        product.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.brandName &&
-        product.brandName.
-        toLowerCase().
-        includes(searchQuery.toLowerCase())
+          product.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          product.brandName &&
+          product.brandName.
+            toLowerCase().
+            includes(searchQuery.toLowerCase())
       );
     }
 
@@ -400,17 +400,17 @@ const Inventory = () => {
 
     const uniqueProducts = filtered.filter(
       (product, index, self) =>
-      index === self.findIndex((p) => p._id === product._id)
+        index === self.findIndex((p) => p._id === product._id)
     );
 
     return uniqueProducts;
   }, [
-  products,
-  filterCategory,
-  filterBrand,
-  filterStatus,
-  searchQuery,
-  sortBy]
+    products,
+    filterCategory,
+    filterBrand,
+    filterStatus,
+    searchQuery,
+    sortBy]
   );
 
   const stockStats = useMemo(() => {
@@ -430,8 +430,8 @@ const Inventory = () => {
 
   const uniqueBrands = useMemo(() => {
     return [
-    ...new Set(products.map((p) => p.brandName).filter(Boolean))].
-    sort();
+      ...new Set(products.map((p) => p.brandName).filter(Boolean))].
+      sort();
   }, [products]);
 
   const paginatedProducts = useMemo(() => {
@@ -445,10 +445,10 @@ const Inventory = () => {
     [paginatedProducts]
   );
   const allVisibleSelected =
-  paginatedProductIds.length > 0 &&
-  paginatedProductIds.every((id) => selectedProductIds.includes(id));
+    paginatedProductIds.length > 0 &&
+    paginatedProductIds.every((id) => selectedProductIds.includes(id));
   const someVisibleSelected = paginatedProductIds.some((id) =>
-  selectedProductIds.includes(id)
+    selectedProductIds.includes(id)
   );
 
   useEffect(() => {
@@ -457,9 +457,9 @@ const Inventory = () => {
 
   useEffect(() => {
     setSelectedProductIds((prev) =>
-    prev.filter((id) =>
-    filteredProducts.some((product) => product._id === id)
-    )
+      prev.filter((id) =>
+        filteredProducts.some((product) => product._id === id)
+      )
     );
   }, [filteredProducts]);
 
@@ -516,8 +516,8 @@ const Inventory = () => {
     setNewProduct((prev) => {
       const isSelected = prev.selectedSizes.includes(size);
       const newSelectedSizes = isSelected ?
-      prev.selectedSizes.filter((s) => s !== size) :
-      [...prev.selectedSizes, size];
+        prev.selectedSizes.filter((s) => s !== size) :
+        [...prev.selectedSizes, size];
 
       const newSizeQuantities = { ...prev.sizeQuantities };
       const newSizePrices = { ...prev.sizePrices };
@@ -603,8 +603,8 @@ const Inventory = () => {
 
     if (!editingProduct) {
       const hasSizeQuantities =
-      newProduct.selectedSizes?.length > 0 &&
-      Object.values(newProduct.sizeQuantities || {}).some((qty) => qty > 0);
+        newProduct.selectedSizes?.length > 0 &&
+        Object.values(newProduct.sizeQuantities || {}).some((qty) => qty > 0);
       const hasStock = parseInt(newProduct.currentStock) > 0;
 
       if (!hasSizeQuantities && !hasStock) {
@@ -621,17 +621,17 @@ const Inventory = () => {
 
 
       const hasVariantPrices = newProduct.variantPrices &&
-      Object.keys(newProduct.variantPrices).length > 0 &&
-      Object.values(newProduct.variantPrices).some((sizeVariants) =>
-      sizeVariants && Object.values(sizeVariants).some((price) => parseFloat(price) > 0)
-      );
+        Object.keys(newProduct.variantPrices).length > 0 &&
+        Object.values(newProduct.variantPrices).some((sizeVariants) =>
+          sizeVariants && Object.values(sizeVariants).some((price) => parseFloat(price) > 0)
+        );
 
 
       const hasVariantQuantities = newProduct.variantQuantities &&
-      Object.keys(newProduct.variantQuantities).length > 0 &&
-      Object.values(newProduct.variantQuantities).some((sizeVariants) =>
-      sizeVariants && Object.values(sizeVariants).some((qty) => parseInt(qty) > 0)
-      );
+        Object.keys(newProduct.variantQuantities).length > 0 &&
+        Object.values(newProduct.variantQuantities).some((sizeVariants) =>
+          sizeVariants && Object.values(sizeVariants).some((qty) => parseInt(qty) > 0)
+        );
 
 
       if (hasAnyVariantPricing || hasVariantPrices || hasVariantQuantities) {
@@ -643,9 +643,8 @@ const Inventory = () => {
 
 
       if (
-      newProduct.differentPricesPerSize &&
-      newProduct.selectedSizes?.length > 0)
-      {
+        newProduct.differentPricesPerSize &&
+        newProduct.selectedSizes?.length > 0) {
         const invalidSizes = newProduct.selectedSizes.filter((size) => {
           const price = newProduct.sizePrices?.[size];
           return !price || price === "" || parseFloat(price) <= 0;
@@ -676,18 +675,18 @@ const Inventory = () => {
     setShowConfirmModal(false);
 
     const totalStock =
-    newProduct.selectedSizes?.length > 0 ?
-    Object.values(newProduct.sizeQuantities || {}).reduce(
-      (sum, qty) => sum + (parseInt(qty) || 0),
-      0
-    ) :
-    parseInt(newProduct.currentStock) || 0;
+      newProduct.selectedSizes?.length > 0 ?
+        Object.values(newProduct.sizeQuantities || {}).reduce(
+          (sum, qty) => sum + (parseInt(qty) || 0),
+          0
+        ) :
+        parseInt(newProduct.currentStock) || 0;
 
     try {
       setLoading(true);
       const url = editingProduct ?
-      `${API_BASE_URL}/api/products/${editingProduct._id}` :
-      `${API_BASE_URL}/api/products`;
+        `${API_BASE_URL}/api/products/${editingProduct._id}` :
+        `${API_BASE_URL}/api/products`;
 
       const method = editingProduct ? "PUT" : "POST";
 
@@ -728,17 +727,16 @@ const Inventory = () => {
         if (newProduct.selectedSizes.length > 0) {
 
           const hasVariantQuantities = newProduct.variantQuantities &&
-          Object.keys(newProduct.variantQuantities).length > 0;
+            Object.keys(newProduct.variantQuantities).length > 0;
 
 
           const hasVariantPrices = newProduct.variantPrices &&
-          Object.keys(newProduct.variantPrices).length > 0;
+            Object.keys(newProduct.variantPrices).length > 0;
 
 
           if (
-          newProduct.differentPricesPerSize &&
-          Object.keys(newProduct.sizePrices).length > 0)
-          {
+            newProduct.differentPricesPerSize &&
+            Object.keys(newProduct.sizePrices).length > 0) {
             const sizesWithPrices = {};
             newProduct.selectedSizes.forEach((size) => {
               const sizePrice = parseFloat(newProduct.sizePrices[size]);
@@ -786,7 +784,7 @@ const Inventory = () => {
 
 
             const hasVariantCostPrices = newProduct.variantCostPrices &&
-            Object.keys(newProduct.variantCostPrices).length > 0;
+              Object.keys(newProduct.variantCostPrices).length > 0;
 
             newProduct.selectedSizes.forEach((size) => {
 
@@ -916,9 +914,8 @@ const Inventory = () => {
     if (product.sizes) {
       existingSizes.forEach((size) => {
         if (
-        typeof product.sizes[size] === "object" &&
-        product.sizes[size] !== null)
-        {
+          typeof product.sizes[size] === "object" &&
+          product.sizes[size] !== null) {
           existingSizeQuantities[size] = product.sizes[size].quantity || 0;
           if (product.sizes[size].price !== undefined) {
             existingSizePrices[size] = product.sizes[size].price;
@@ -950,9 +947,9 @@ const Inventory = () => {
       differentPricesPerSize: hasDifferentPrices,
       foodSubtype: product.foodSubtype || "",
       displayInTerminal:
-      product.displayInTerminal !== undefined ?
-      product.displayInTerminal :
-      true
+        product.displayInTerminal !== undefined ?
+          product.displayInTerminal :
+          true
     });
 
     setShowAddModal(true);
@@ -971,7 +968,7 @@ const Inventory = () => {
 
 
       const displayInTerminalValue =
-      newProduct.displayInTerminal === false ? false : true;
+        newProduct.displayInTerminal === false ? false : true;
 
       const payload = {
         ...newProduct,
@@ -1159,7 +1156,7 @@ const Inventory = () => {
       if (data.success) {
 
         setProducts((prev) =>
-        prev.filter((p) => (p._id || p.id) !== productToArchive)
+          prev.filter((p) => (p._id || p.id) !== productToArchive)
         );
         setShowSuccessModal(true);
         setSuccessMessage("The item was archived successfully!");
@@ -1229,9 +1226,9 @@ const Inventory = () => {
       setLoading(true);
       const amount = parseInt(stockAmount);
       const newStock =
-      stockModalType === "in" ?
-      editingProduct.currentStock + amount :
-      Math.max(0, editingProduct.currentStock - amount);
+        stockModalType === "in" ?
+          editingProduct.currentStock + amount :
+          Math.max(0, editingProduct.currentStock - amount);
 
 
 
@@ -1281,9 +1278,9 @@ const Inventory = () => {
         localStorage.getItem("currentUser") || "{}"
       );
       const handledBy =
-      currentUser.name ||
-      `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() ||
-      "System";
+        currentUser.name ||
+        `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() ||
+        "System";
       const handledById = currentUser._id || currentUser.id || "";
 
       let response;
@@ -1291,7 +1288,7 @@ const Inventory = () => {
       if (stockData.noSizes) {
 
         const newStock =
-        (editingProduct.currentStock || 0) + stockData.quantity;
+          (editingProduct.currentStock || 0) + stockData.quantity;
 
         response = await fetch(
           `${API_BASE_URL}/api/products/${editingProduct._id}`,
@@ -1316,10 +1313,9 @@ const Inventory = () => {
 
         const getSizeQty = (sizeData) => {
           if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.quantity !== undefined)
-          {
+            typeof sizeData === "object" &&
+            sizeData !== null &&
+            sizeData.quantity !== undefined) {
             return sizeData.quantity;
           }
           return typeof sizeData === "number" ? sizeData : 0;
@@ -1328,10 +1324,9 @@ const Inventory = () => {
 
         const getSizePrice = (sizeData) => {
           if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.price !== undefined)
-          {
+            typeof sizeData === "object" &&
+            sizeData !== null &&
+            sizeData.price !== undefined) {
             return sizeData.price;
           }
           return null;
@@ -1383,6 +1378,12 @@ const Inventory = () => {
               variants: newVariants,
               variantPrices: Object.keys(newVariantPrices).length > 0 ? newVariantPrices : currentSizeData.variantPrices
             };
+
+            // Apply price/costPrice for new sizes
+            if (stockData.newSizePrices && stockData.newSizePrices[size]) {
+              updatedSizes[size].price = stockData.newSizePrices[size].price || editingProduct.itemPrice || 0;
+              updatedSizes[size].costPrice = stockData.newSizePrices[size].costPrice || editingProduct.costPrice || 0;
+            }
           });
         } else {
 
@@ -1393,18 +1394,24 @@ const Inventory = () => {
             const addQty = stockData.sizes[size] || 0;
             const newQty = currentQty + addQty;
 
-
-            if (
-            currentPrice !== null ||
-            typeof currentSizeData === "object" && currentSizeData !== null)
-            {
+            // Check if this is a new size with prices from the modal
+            if (stockData.newSizePrices && stockData.newSizePrices[size]) {
+              updatedSizes[size] = {
+                ...(typeof currentSizeData === 'object' && currentSizeData !== null ? currentSizeData : {}),
+                quantity: newQty,
+                price: stockData.newSizePrices[size].price || editingProduct.itemPrice || 0,
+                costPrice: stockData.newSizePrices[size].costPrice || editingProduct.costPrice || 0
+              };
+            } else if (
+              currentPrice !== null ||
+              typeof currentSizeData === "object" && currentSizeData !== null) {
               updatedSizes[size] = {
                 ...currentSizeData,
                 quantity: newQty,
                 price:
-                currentPrice !== null ?
-                currentPrice :
-                editingProduct.itemPrice || 0
+                  currentPrice !== null ?
+                    currentPrice :
+                    editingProduct.itemPrice || 0
               };
             } else {
               updatedSizes[size] = newQty;
@@ -1451,9 +1458,9 @@ const Inventory = () => {
               handledBy: handledBy,
               handledById: handledById,
               stockMovementSizeQuantities:
-              Object.keys(sizeQuantitiesAdded).length > 0 ?
-              sizeQuantitiesAdded :
-              null
+                Object.keys(sizeQuantitiesAdded).length > 0 ?
+                  sizeQuantitiesAdded :
+                  null
             })
           }
         );
@@ -1491,18 +1498,18 @@ const Inventory = () => {
         localStorage.getItem("currentUser") || "{}"
       );
       const handledBy =
-      currentUser.name ||
-      `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() ||
-      "System";
+        currentUser.name ||
+        `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() ||
+        "System";
       const handledById = currentUser._id || currentUser.id || "";
 
 
       const movementType =
-      stockData.reason === "Damaged" ||
-      stockData.reason === "Lost" ||
-      stockData.reason === "Expired" ?
-      "Pull-Out" :
-      "Stock-Out";
+        stockData.reason === "Damaged" ||
+          stockData.reason === "Lost" ||
+          stockData.reason === "Expired" ?
+          "Pull-Out" :
+          "Stock-Out";
 
       let response;
       let sizeQuantitiesRemoved = {};
@@ -1539,10 +1546,9 @@ const Inventory = () => {
 
         const getSizeQty = (sizeData) => {
           if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.quantity !== undefined)
-          {
+            typeof sizeData === "object" &&
+            sizeData !== null &&
+            sizeData.quantity !== undefined) {
             return sizeData.quantity;
           }
           return typeof sizeData === "number" ? sizeData : 0;
@@ -1551,10 +1557,9 @@ const Inventory = () => {
 
         const getSizePrice = (sizeData) => {
           if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.price !== undefined)
-          {
+            typeof sizeData === "object" &&
+            sizeData !== null &&
+            sizeData.price !== undefined) {
             return sizeData.price;
           }
           return null;
@@ -1619,16 +1624,15 @@ const Inventory = () => {
 
 
             if (
-            currentPrice !== null ||
-            typeof currentSizeData === "object" && currentSizeData !== null)
-            {
+              currentPrice !== null ||
+              typeof currentSizeData === "object" && currentSizeData !== null) {
               updatedSizes[size] = {
                 ...currentSizeData,
                 quantity: newQty,
                 price:
-                currentPrice !== null ?
-                currentPrice :
-                editingProduct.itemPrice || 0
+                  currentPrice !== null ?
+                    currentPrice :
+                    editingProduct.itemPrice || 0
               };
             } else {
               updatedSizes[size] = newQty;
@@ -1665,9 +1669,9 @@ const Inventory = () => {
               handledBy: handledBy,
               handledById: handledById,
               stockMovementSizeQuantities:
-              Object.keys(sizeQuantitiesRemoved).length > 0 ?
-              sizeQuantitiesRemoved :
-              null
+                Object.keys(sizeQuantitiesRemoved).length > 0 ?
+                  sizeQuantitiesRemoved :
+                  null
             })
           }
         );
@@ -1681,8 +1685,8 @@ const Inventory = () => {
         if (archiveReasons.includes(stockData.reason)) {
 
           const sizesString = stockData.selectedSizes ?
-          stockData.selectedSizes.join(", ") :
-          "";
+            stockData.selectedSizes.join(", ") :
+            "";
 
           try {
             await fetch(`${API_BASE_URL}/api/archive`, {
@@ -1703,9 +1707,9 @@ const Inventory = () => {
                 quantity: totalQuantityRemoved,
                 itemImage: editingProduct.itemImage || "",
                 reason:
-                stockData.reason === "Defective" ?
-                "Defective" :
-                stockData.reason,
+                  stockData.reason === "Defective" ?
+                    "Defective" :
+                    stockData.reason,
                 archivedBy: handledBy,
                 archivedById: handledById,
                 source: "stock-out",
@@ -1770,9 +1774,9 @@ const Inventory = () => {
 
   const handleToggleProductSelection = (productId) => {
     setSelectedProductIds((prev) =>
-    prev.includes(productId) ?
-    prev.filter((id) => id !== productId) :
-    [...prev, productId]
+      prev.includes(productId) ?
+        prev.filter((id) => id !== productId) :
+        [...prev, productId]
     );
   };
 
@@ -1802,11 +1806,11 @@ const Inventory = () => {
 
 
       const productsToExport =
-      selectedProductIds.length > 0 ?
-      filteredProducts.filter((product) =>
-      selectedProductIds.includes(product._id)
-      ) :
-      filteredProducts;
+        selectedProductIds.length > 0 ?
+          filteredProducts.filter((product) =>
+            selectedProductIds.includes(product._id)
+          ) :
+          filteredProducts;
 
       if (productsToExport.length === 0) {
         alert("No products to export.");
@@ -1832,11 +1836,11 @@ const Inventory = () => {
       );
 
       const orderedFields = filteredPreferredOrder.filter((field) =>
-      dynamicFields.has(field)
+        dynamicFields.has(field)
       );
       const remainingFields = Array.from(dynamicFields).
-      filter((field) => !orderedFields.includes(field)).
-      sort();
+        filter((field) => !orderedFields.includes(field)).
+        sort();
       const headers = [...orderedFields, ...remainingFields, "stockStatus"];
 
       const rows = productsToExport.map((product) => {
@@ -1849,9 +1853,9 @@ const Inventory = () => {
             return status.label;
           }
           const value =
-          field === "dateAdded" || field === "lastUpdated" ?
-          formatDate(product[field]) :
-          product[field];
+            field === "dateAdded" || field === "lastUpdated" ?
+              formatDate(product[field]) :
+              product[field];
           return formatCsvValue(value);
         });
       });
@@ -1863,24 +1867,23 @@ const Inventory = () => {
 
 
       const csvContent = [
-      humanReadableHeaders.join(","),
-      ...rows.map((row) =>
-      row.
-      map((cell) => {
+        humanReadableHeaders.join(","),
+        ...rows.map((row) =>
+          row.
+            map((cell) => {
 
-        const cellStr = String(cell ?? "");
-        if (
-        cellStr.includes(",") ||
-        cellStr.includes('"') ||
-        cellStr.includes("\n"))
-        {
-          return `"${cellStr.replace(/"/g, '""')}"`;
-        }
-        return cellStr;
-      }).
-      join(",")
-      )].
-      join("\n");
+              const cellStr = String(cell ?? "");
+              if (
+                cellStr.includes(",") ||
+                cellStr.includes('"') ||
+                cellStr.includes("\n")) {
+                return `"${cellStr.replace(/"/g, '""')}"`;
+              }
+              return cellStr;
+            }).
+            join(",")
+        )].
+        join("\n");
 
 
       const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -1923,8 +1926,8 @@ const Inventory = () => {
 
 
       const headers = lines[0].
-      split(",").
-      map((h) => h.trim().replace(/^"|"$/g, ""));
+        split(",").
+        map((h) => h.trim().replace(/^"|"$/g, ""));
       const rows = lines.slice(1);
 
       let successCount = 0;
@@ -1974,9 +1977,9 @@ const Inventory = () => {
             itemPrice: parseFloat(values[headers.indexOf("Item Price")]) || 0,
             costPrice: parseFloat(values[headers.indexOf("Cost Price")]) || 0,
             currentStock:
-            parseInt(values[headers.indexOf("Current Stock")]) || 0,
+              parseInt(values[headers.indexOf("Current Stock")]) || 0,
             reorderNumber:
-            parseInt(values[headers.indexOf("Reorder Level")]) || 10,
+              parseInt(values[headers.indexOf("Reorder Level")]) || 10,
             supplierName: values[headers.indexOf("Supplier Name")] || "",
             supplierContact: values[headers.indexOf("Supplier Contact")] || "",
             itemImage: values[headers.indexOf("Image URL")] || "",
@@ -2046,7 +2049,7 @@ const Inventory = () => {
   return (
     <div
       className={`p-8 min-h-screen ${theme === "dark" ? "bg-[#1E1B18]" : "bg-[#F5F5F5]"}`}>
-      
+
       <Header pageName="Product & Stocks" showBorder={false} />
 
       <div className="mb-6 mt-8 flex flex-col md:flex-row justify-between items-start gap-4">
@@ -2054,7 +2057,7 @@ const Inventory = () => {
           <div
             className={`rounded-2xl shadow-md flex items-center justify-between px-5 py-4 relative overflow-hidden ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}`}
             style={{ minWidth: "200px" }}>
-            
+
             <div className="absolute left-0 top-0 bottom-0 w-2 bg-blue-500"></div>
             <div className="ml-2">
               <div className="text-3xl font-bold text-blue-500">
@@ -2067,7 +2070,7 @@ const Inventory = () => {
                 className="w-8 h-8 text-blue-400"
                 fill="currentColor"
                 viewBox="0 0 20 20">
-                
+
                 <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
               </svg>
             </div>
@@ -2076,7 +2079,7 @@ const Inventory = () => {
           <div
             className={`rounded-2xl shadow-md flex items-center justify-between px-5 py-4 relative overflow-hidden ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}`}
             style={{ minWidth: "200px" }}>
-            
+
             <div className="absolute left-0 top-0 bottom-0 w-2 bg-green-500"></div>
             <div className="ml-2">
               <div className="text-3xl font-bold text-green-500">
@@ -2089,7 +2092,7 @@ const Inventory = () => {
                 className="w-8 h-8 text-green-400"
                 fill="currentColor"
                 viewBox="0 0 20 20">
-                
+
                 <path d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                 <path d="M3 4a1 1 0 00-1 1v10a1 1 0 001 1h1.05a2.5 2.5 0 014.9 0H10a1 1 0 001-1V5a1 1 0 00-1-1H3zM14 7a1 1 0 00-1 1v6.05A2.5 2.5 0 0115.95 16H17a1 1 0 001-1v-5a1 1 0 00-.293-.707l-2-2A1 1 0 0015 7h-1z" />
               </svg>
@@ -2099,7 +2102,7 @@ const Inventory = () => {
           <div
             className={`rounded-2xl shadow-md flex items-center justify-between px-5 py-4 relative overflow-hidden ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}`}
             style={{ minWidth: "200px" }}>
-            
+
             <div className="absolute left-0 top-0 bottom-0 w-2 bg-orange-500"></div>
             <div className="ml-2">
               <div className="text-3xl font-bold text-orange-500">
@@ -2112,12 +2115,12 @@ const Inventory = () => {
                 className="w-8 h-8 text-orange-400"
                 fill="currentColor"
                 viewBox="0 0 20 20">
-                
+
                 <path
                   fillRule="evenodd"
                   d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
                   clipRule="evenodd" />
-                
+
               </svg>
             </div>
           </div>
@@ -2125,7 +2128,7 @@ const Inventory = () => {
           <div
             className={`rounded-2xl shadow-md flex items-center justify-between px-5 py-4 relative overflow-hidden ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}`}
             style={{ minWidth: "200px" }}>
-            
+
             <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-500"></div>
             <div className="ml-2">
               <div className="text-3xl font-bold text-red-500">
@@ -2138,12 +2141,12 @@ const Inventory = () => {
                 className="w-8 h-8 text-red-400"
                 fill="currentColor"
                 viewBox="0 0 20 20">
-                
+
                 <path
                   fillRule="evenodd"
                   d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
                   clipRule="evenodd" />
-                
+
               </svg>
             </div>
           </div>
@@ -2153,40 +2156,40 @@ const Inventory = () => {
           <button
             onClick={handleExportButtonClick}
             className={`rounded-2xl shadow-md flex flex-col items-center justify-center px-5 py-4 transition-colors ${isExportSelectionMode ?
-            "border border-[#AD7F65] bg-[#AD7F65]/5" :
-            theme === "dark" ?
-            "bg-[#2A2724] hover:bg-[#352F2A]" :
-            "bg-white hover:bg-gray-50"}`
+              "border border-[#AD7F65] bg-[#AD7F65]/5" :
+              theme === "dark" ?
+                "bg-[#2A2724] hover:bg-[#352F2A]" :
+                "bg-white hover:bg-gray-50"}`
             }
             style={{ minWidth: "100px" }}>
-            
+
             <svg
               className={`w-8 h-8 mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24">
-              
+
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              
+
             </svg>
             <div
               className={`text-xs font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}>
-              
+
               {isExportSelectionMode ? "Export Selected" : "Export"}
             </div>
           </button>
           {isExportSelectionMode &&
-          <button
-            onClick={handleCancelExportSelection}
-            className={`rounded-2xl shadow-md px-4 py-2 text-xs font-medium border transition-colors ${theme === "dark" ?
-            "bg-[#2A2724] border-gray-600 text-gray-400 hover:bg-[#352F2A]" :
-            "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`
-            }>
-            
+            <button
+              onClick={handleCancelExportSelection}
+              className={`rounded-2xl shadow-md px-4 py-2 text-xs font-medium border transition-colors ${theme === "dark" ?
+                "bg-[#2A2724] border-gray-600 text-gray-400 hover:bg-[#352F2A]" :
+                "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`
+              }>
+
               Cancel
             </button>
           }
@@ -2194,27 +2197,27 @@ const Inventory = () => {
           <button
             onClick={() => document.getElementById("csv-file-input").click()}
             className={`rounded-2xl shadow-md flex flex-col items-center justify-center px-5 py-4 transition-colors ${theme === "dark" ?
-            "bg-[#2A2724] hover:bg-[#352F2A]" :
-            "bg-white hover:bg-gray-50"}`
+              "bg-[#2A2724] hover:bg-[#352F2A]" :
+              "bg-white hover:bg-gray-50"}`
             }
             style={{ minWidth: "100px" }}>
-            
+
             <svg
               className={`w-8 h-8 mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24">
-              
+
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              
+
             </svg>
             <div
               className={`text-xs font-medium ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}>
-              
+
               Import
             </div>
           </button>
@@ -2224,7 +2227,7 @@ const Inventory = () => {
             accept=".csv"
             onChange={handleImportFromCSV}
             style={{ display: "none" }} />
-          
+
         </div>
       </div>
 
@@ -2240,41 +2243,41 @@ const Inventory = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className={`w-full h-10 pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ?
-              "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" :
-              "bg-white border-gray-300"}`
+                "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" :
+                "bg-white border-gray-300"}`
               } />
-            
+
           </div>
 
           <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
             className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === "dark" ?
-            "bg-[#2A2724] border-gray-600 text-white" :
-            "bg-white border-gray-300"}`
+              "bg-[#2A2724] border-gray-600 text-white" :
+              "bg-white border-gray-300"}`
             }>
-            
+
             <option value="All">By Category</option>
             {categories.
-            filter((c) => c.name !== "All").
-            map((cat) =>
-            <option key={cat.name} value={cat.name}>
+              filter((c) => c.name !== "All").
+              map((cat) =>
+                <option key={cat.name} value={cat.name}>
                   {cat.name}
                 </option>
-            )}
+              )}
           </select>
 
           <select
             value={filterBrand}
             onChange={(e) => setFilterBrand(e.target.value)}
             className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === "dark" ?
-            "bg-[#2A2724] border-gray-600 text-white" :
-            "bg-white border-gray-300"}`
+              "bg-[#2A2724] border-gray-600 text-white" :
+              "bg-white border-gray-300"}`
             }>
-            
+
             <option value="All">By Brand</option>
             {uniqueBrands.map((brand) =>
-            <option key={brand} value={brand}>
+              <option key={brand} value={brand}>
                 {brand}
               </option>
             )}
@@ -2284,10 +2287,10 @@ const Inventory = () => {
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
             className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === "dark" ?
-            "bg-[#2A2724] border-gray-600 text-white" :
-            "bg-white border-gray-300"}`
+              "bg-[#2A2724] border-gray-600 text-white" :
+              "bg-white border-gray-300"}`
             }>
-            
+
             <option value="All">By Status</option>
             <option value="In Stock">In Stock</option>
             <option value="Low Stock">Low Stock</option>
@@ -2298,10 +2301,10 @@ const Inventory = () => {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === "dark" ?
-            "bg-[#2A2724] border-gray-600 text-white" :
-            "bg-white border-gray-300"}`
+              "bg-[#2A2724] border-gray-600 text-white" :
+              "bg-white border-gray-300"}`
             }>
-            
+
             <option value="sku-new">SKU: Newest First</option>
             <option value="sku-old">SKU: Oldest First</option>
             <option value="name">Sort By Name</option>
@@ -2323,7 +2326,7 @@ const Inventory = () => {
             style={{
               background: "linear-gradient(135deg, #10B981 0%, #059669 100%)"
             }}>
-            
+
             <FaPlus /> Add New Item
           </button>
         </div>
@@ -2343,13 +2346,13 @@ const Inventory = () => {
         showSelection={isExportSelectionMode}
         allVisibleSelected={allVisibleSelected}
         someVisibleSelected={someVisibleSelected} />
-      
+
 
       {filteredProducts.length >= itemsPerPage &&
-      <Pagination
-        currentPage={currentPage}
-        totalPages={Math.ceil(filteredProducts.length / itemsPerPage)}
-        onPageChange={setCurrentPage} />
+        <Pagination
+          currentPage={currentPage}
+          totalPages={Math.ceil(filteredProducts.length / itemsPerPage)}
+          onPageChange={setCurrentPage} />
 
       }
 
@@ -2369,7 +2372,7 @@ const Inventory = () => {
         loading={loading}
         categories={categories}
         brandPartners={brandPartners} />
-      
+
 
       <ConfirmAddProductModal
         isOpen={showConfirmModal}
@@ -2378,13 +2381,13 @@ const Inventory = () => {
         productName={newProduct.itemName}
         onCategoryAdd={fetchCategories}
         onBrandAdd={fetchBrandPartners} />
-      
+
 
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={() => setShowSuccessModal(false)}
         message={successMessage || "The item was added successfully!"} />
-      
+
 
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
@@ -2394,11 +2397,11 @@ const Inventory = () => {
         }}
         onConfirm={confirmDeleteProduct}
         itemName={
-        productToDelete ?
-        filteredProducts.find((p) => p._id === productToDelete)?.itemName :
-        ""
+          productToDelete ?
+            filteredProducts.find((p) => p._id === productToDelete)?.itemName :
+            ""
         } />
-      
+
 
       <ArchiveConfirmationModal
         isOpen={showArchiveModal}
@@ -2408,11 +2411,11 @@ const Inventory = () => {
         }}
         onConfirm={confirmArchiveProduct}
         itemName={
-        productToArchive ?
-        filteredProducts.find((p) => p._id === productToArchive)?.itemName :
-        ""
+          productToArchive ?
+            filteredProducts.find((p) => p._id === productToArchive)?.itemName :
+            ""
         } />
-      
+
 
       <EditConfirmationModal
         isOpen={showEditModal}
@@ -2422,45 +2425,45 @@ const Inventory = () => {
         }}
         onConfirm={confirmEditProduct}
         itemName={productToEdit?.itemName || editingProduct?.itemName || ""} />
-      
+
 
       <ViewProductModal
         showViewModal={showViewModal}
         setShowViewModal={setShowViewModal}
         viewingProduct={viewingProduct}
         formatDate={formatDate} />
-      
+
 
       {showStockModal && stockModalType === "in" &&
-      <StockInModal
-        isOpen={showStockModal}
-        onClose={() => {
-          setShowStockModal(false);
-          setEditingProduct(null);
-          setStockAmount("");
-        }}
-        product={editingProduct}
-        onConfirm={handleStockInConfirm}
-        loading={loading} />
+        <StockInModal
+          isOpen={showStockModal}
+          onClose={() => {
+            setShowStockModal(false);
+            setEditingProduct(null);
+            setStockAmount("");
+          }}
+          product={editingProduct}
+          onConfirm={handleStockInConfirm}
+          loading={loading} />
 
       }
 
       {showStockModal && stockModalType === "out" &&
-      <StockOutModal
-        isOpen={showStockModal}
-        onClose={() => {
-          setShowStockModal(false);
-          setEditingProduct(null);
-          setStockAmount("");
-        }}
-        product={editingProduct}
-        onConfirm={handleStockOutConfirm}
-        loading={loading} />
+        <StockOutModal
+          isOpen={showStockModal}
+          onClose={() => {
+            setShowStockModal(false);
+            setEditingProduct(null);
+            setStockAmount("");
+          }}
+          product={editingProduct}
+          onConfirm={handleStockOutConfirm}
+          loading={loading} />
 
       }
 
       {showImportResultModal &&
-      <div className="fixed inset-0 flex items-center justify-center z-9999 p-4 bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 flex items-center justify-center z-9999 p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-[#2D2D2D] rounded-2xl w-full max-w-2xl p-8 text-white shadow-2xl">
             <h2 className="text-2xl font-bold mb-4">localhost:5173 says</h2>
             <div className="space-y-4 mb-6">
@@ -2470,23 +2473,23 @@ const Inventory = () => {
                 <p>Failed: {importResult.errorCount}</p>
               </div>
               {importResult.errors.length > 0 &&
-            <div className="mt-4">
+                <div className="mt-4">
                   <p className="mb-2">Showing first 5 errors:</p>
                   <div className="bg-black/30 rounded-lg p-4 max-h-60 overflow-y-auto">
                     {importResult.errors.slice(0, 5).map((error, idx) =>
-                <p key={idx} className="text-sm mb-1">
+                      <p key={idx} className="text-sm mb-1">
                         {error}
                       </p>
-                )}
+                    )}
                   </div>
                 </div>
-            }
+              }
             </div>
             <div className="flex justify-end">
               <button
-              onClick={() => setShowImportResultModal(false)}
-              className="px-8 py-2 bg-green-500 hover:bg-green-600 text-white rounded-full font-medium transition-colors">
-              
+                onClick={() => setShowImportResultModal(false)}
+                className="px-8 py-2 bg-green-500 hover:bg-green-600 text-white rounded-full font-medium transition-colors">
+
                 OK
               </button>
             </div>
