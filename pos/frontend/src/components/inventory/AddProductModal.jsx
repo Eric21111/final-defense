@@ -85,6 +85,35 @@ const AddProductModal = ({
     { id: 4, label: "Review" },
   ];
 
+  const isStepValid = (step) => {
+    if (editingProduct) return true; // Wizard is only for adding new products
+
+    switch (step) {
+      case 1:
+        if (!newProduct.itemName || !newProduct.itemName.trim()) return false;
+        if (!newProduct.category || newProduct.category === "__add_new__") return false;
+        if (newProduct.category === "Foods" && (!newProduct.foodSubtype || !newProduct.foodSubtype.trim())) return false;
+        return true;
+      case 2:
+        if (!newProduct.selectedSizes || newProduct.selectedSizes.length === 0) return false;
+        return true;
+      case 3:
+        if (!newProduct.differentPricesPerSize && !Object.values(differentPricesPerVariant).some(v => v)) {
+          // Global pricing
+          if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) return false;
+          if (!newProduct.costPrice || parseFloat(newProduct.costPrice) <= 0) return false;
+        } else if (newProduct.differentPricesPerSize && selectedVariants.length === 0) {
+          // Size pricing
+          for (const size of newProduct.selectedSizes || []) {
+            if (!newProduct.sizePrices?.[size] || parseFloat(newProduct.sizePrices[size]) <= 0) return false;
+            if (!newProduct.sizeCostPrices?.[size] || parseFloat(newProduct.sizeCostPrices[size]) <= 0) return false;
+          }
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
 
   const [editableSizePrices, setEditableSizePrices] = useState({});
 
@@ -991,8 +1020,9 @@ const AddProductModal = ({
                               className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
 
                               Sizes{" "}
-                              <span className="text-gray-400">
-                                Optional - Select multiple sizes
+                              <span className="text-red-500">* Required</span>
+                              <span className="text-gray-400 ml-2">
+                                - Select multiple sizes
                               </span>
                             </label>
                             <div className="grid grid-cols-4 gap-2 mb-3">
@@ -2176,7 +2206,7 @@ const AddProductModal = ({
                       <h3 className={`text-base font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Sizes</h3>
                       <div>
                         <label className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                          Sizes <span className="text-gray-400">Optional - Select multiple sizes</span>
+                          Sizes <span className="text-red-500">* Required</span> <span className="text-gray-400 ml-2">- Select multiple sizes</span>
                         </label>
                         <div className="grid grid-cols-4 gap-2 mb-3">
                           {(() => {
@@ -2228,7 +2258,7 @@ const AddProductModal = ({
                         </div>
                       </div>
                       {(!newProduct.selectedSizes || newProduct.selectedSizes.length === 0) && (
-                        <p className={`text-sm text-center py-4 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>No sizes selected. You can skip this step if not needed.</p>
+                        <p className={`text-sm text-center py-4 text-red-500`}>Please select at least one size to continue.</p>
                       )}
                     </div>
                   </div>
@@ -2528,7 +2558,8 @@ const AddProductModal = ({
               {currentStep < 4 ? (
                 <button type="button"
                   onClick={() => setCurrentStep((prev) => prev + 1)}
-                  className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90"
+                  disabled={!isStepValid(currentStep)}
+                  className={`px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 ${!isStepValid(currentStep) ? 'opacity-50 cursor-not-allowed' : ''}`}
                   style={{ background: "linear-gradient(135deg, #AD7F65 0%, #8B6553 100%)" }}>
                   Continue →
                 </button>
