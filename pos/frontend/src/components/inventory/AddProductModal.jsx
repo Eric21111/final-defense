@@ -2192,7 +2192,7 @@ const AddProductModal = ({
                                 case "Meals": sizes = ["Regular", "Large", "Family Size", "Free Size"]; break;
                                 case "Desserts": sizes = ["Small", "Medium", "Large", "Free Size"]; break;
                                 case "Ingredients": sizes = ["100g", "250g", "500g", "1kg", "Free Size"]; break;
-                                case "Other": sizes = ["Small", "Medium", "Large", "Free Size"]; break;
+
                                 default: sizes = ["Small", "Medium", "Large", "Free Size"];
                               }
                             } else if (["Tops", "Bottoms", "Dresses"].includes(category)) { sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"]; }
