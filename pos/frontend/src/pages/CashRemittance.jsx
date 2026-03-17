@@ -46,7 +46,36 @@ const KpiCard = ({ icon: Icon, label, value, color, subtext }) => (
 
 // ─── Receipt Side Panel ──────────────────────────────────────
 const ReceiptPanel = ({ remit, onClose }) => {
-    if (!remit) return null;
+    if (!remit) {
+        return (
+            <div className="w-full lg:w-[380px] flex-shrink-0">
+                {/* Opening Float placeholder */}
+                <div className="bg-gradient-to-r from-[#1A3A5C] to-[#2A5A8C] rounded-2xl p-4 mb-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-[10px] text-blue-200 uppercase tracking-wider font-bold">Global Opening Float</p>
+                            <p className="text-2xl font-extrabold text-white mt-1">{formatCurrency(2000)}</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                            <FaMoneyBillWave className="text-white text-lg" />
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                        <h3 className="text-sm font-bold text-gray-800">Cash Turn-Over Slip</h3>
+                    </div>
+                    <div className="p-10 flex flex-col items-center justify-center text-center min-h-[400px]">
+                        <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center mb-4 border border-gray-100">
+                            <FaFileInvoiceDollar className="text-gray-300 text-2xl" />
+                        </div>
+                        <h4 className="text-sm font-bold text-gray-400 mb-1">No Slip Selected</h4>
+                        <p className="text-xs text-gray-400">Click a remittance row to view its receipt here.</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const denoms = remit.denominations || {};
     const denomEntries = DENOMINATIONS
@@ -200,12 +229,12 @@ const ReceiptPanel = ({ remit, onClose }) => {
 
                     {/* Variance Badge */}
                     <div className={`rounded-xl p-3 text-center ${remit.variance === 0 ? 'bg-green-50 border border-green-200' :
-                            remit.variance > 0 ? 'bg-blue-50 border border-blue-200' :
-                                'bg-red-50 border border-red-200'
+                        remit.variance > 0 ? 'bg-blue-50 border border-blue-200' :
+                            'bg-red-50 border border-red-200'
                         }`}>
                         <p className="text-[9px] uppercase tracking-wider font-bold mb-1 text-gray-400">Variance</p>
                         <p className={`text-xl font-extrabold ${remit.variance === 0 ? 'text-green-600' :
-                                remit.variance > 0 ? 'text-blue-600' : 'text-red-600'
+                            remit.variance > 0 ? 'text-blue-600' : 'text-red-600'
                             }`}>
                             {remit.variance > 0 ? '+' : ''}{formatCurrency(remit.variance)}
                             <span className="text-xs ml-2 font-bold">
@@ -257,6 +286,13 @@ const CashRemittance = () => {
     };
 
     useEffect(() => { fetchRemittances(); }, []);
+
+    // Auto-select first remittance when data loads
+    useEffect(() => {
+        if (remittances.length > 0 && !selectedRemittance) {
+            setSelectedRemittance(remittances[0]);
+        }
+    }, [remittances]);
 
     // ─── Compute KPIs from today's remittances ──────────────
     const kpis = useMemo(() => {
@@ -451,8 +487,8 @@ const CashRemittance = () => {
                                             key={remit._id}
                                             onClick={() => setSelectedRemittance(remit)}
                                             className={`transition-colors group cursor-pointer ${selectedRemittance?._id === remit._id
-                                                    ? 'bg-green-50/50 border-l-[3px] border-l-[#22C55E]'
-                                                    : 'hover:bg-gray-50/50'
+                                                ? 'bg-green-50/50 border-l-[3px] border-l-[#22C55E]'
+                                                : 'hover:bg-gray-50/50'
                                                 }`}
                                         >
                                             <td className="py-4 px-5">
@@ -502,13 +538,11 @@ const CashRemittance = () => {
                     </div>
                 </div>
 
-                {/* Receipt Side Panel */}
-                {selectedRemittance && (
-                    <ReceiptPanel
-                        remit={selectedRemittance}
-                        onClose={() => setSelectedRemittance(null)}
-                    />
-                )}
+                {/* Receipt Side Panel — always visible */}
+                <ReceiptPanel
+                    remit={selectedRemittance}
+                    onClose={() => setSelectedRemittance(null)}
+                />
             </div>
 
             <div className="mt-4 text-center">
