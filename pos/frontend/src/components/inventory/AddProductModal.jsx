@@ -357,7 +357,7 @@ const AddProductModal = ({
       <div
         className={`rounded-2xl w-full max-w-2xl relative pointer-events-auto shadow-2xl flex flex-col ${theme === "dark" ? "bg-[#2A2724] text-white" : "bg-white text-gray-900"}`}
         style={{
-          maxHeight: "95vh",
+          height: "90vh",
           boxShadow:
             theme === "dark" ?
               "0 25px 50px -12px rgba(0, 0, 0, 0.7)" :
