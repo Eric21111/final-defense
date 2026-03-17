@@ -80,8 +80,8 @@ const AddProductModal = ({
   const [currentStep, setCurrentStep] = useState(1);
   const STEPS = [
     { id: 1, label: "Basic Info" },
-    { id: 2, label: "Variants & Set" },
-    { id: 3, label: "Batch & Stock" },
+    { id: 2, label: "Variants & Sizes" },
+    { id: 3, label: "Stock" },
     { id: 4, label: "Review" },
   ];
 
@@ -2188,7 +2188,7 @@ const AddProductModal = ({
                             else if (category === "Foods") {
                               switch (foodSubtype) {
                                 case "Beverages": sizes = ["Small", "Medium", "Large", "Extra Large", "Free Size"]; break;
-                                case "Snacks": sizes = ["Small", "Medium", "Large", "Family Size", "Free Size"]; break;
+                                case "Snacks": sizes = ["Small Pack", "Medium Pack", "Large Pack", "Family Pack", "Free Size"]; break;
                                 case "Meals": sizes = ["Regular", "Large", "Family Size", "Free Size"]; break;
                                 case "Desserts": sizes = ["Small", "Medium", "Large", "Free Size"]; break;
                                 case "Ingredients": sizes = ["100g", "250g", "500g", "1kg", "Free Size"]; break;
