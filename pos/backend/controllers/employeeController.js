@@ -320,7 +320,11 @@ exports.verifyPin = async (req, res) => {
 
     if (fastEmployee) {
       // Mark employee as online
-      await Employee.findByIdAndUpdate(fastEmployee._id, { isOnline: true, lastLogin: new Date() });
+      await Employee.findByIdAndUpdate(fastEmployee._id, {
+        isOnline: true,
+        lastLogin: new Date(),
+        lastActive: new Date()
+      });
       const { pin: unusedPin, fastPinHash: unusedFastHash, ...employeeWithoutPin } = fastEmployee;
       return res.json({
         success: true,
@@ -361,7 +365,12 @@ exports.verifyPin = async (req, res) => {
 
     if (found) {
       // Lazy migration: Save the fastPinHash and mark as online
-      await Employee.findByIdAndUpdate(found._id, { fastPinHash: computedFastHash, isOnline: true, lastLogin: new Date() });
+      await Employee.findByIdAndUpdate(found._id, {
+        fastPinHash: computedFastHash,
+        isOnline: true,
+        lastLogin: new Date(),
+        lastActive: new Date()
+      });
 
       const { pin: unusedPin, profileImage: unusedImage, fastPinHash: unusedFastHash, ...employeeWithoutPin } = found;
 
@@ -705,12 +714,50 @@ exports.logoutEmployee = async (req, res) => {
   }
 };
 
-// Get online employees
+// Heartbeat to keep employee online
+exports.employeeHeartbeat = async (req, res) => {
+  try {
+    const { employeeId } = req.body;
+    if (!employeeId) {
+      return res.status(400).json({ success: false, message: 'Employee ID is required' });
+    }
+
+    await Employee.findByIdAndUpdate(employeeId, {
+      isOnline: true,
+      lastActive: new Date()
+    });
+
+    res.json({ success: true, message: 'Heartbeat received' });
+  } catch (error) {
+    console.error('Error processing heartbeat:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// Get online employees (with cleanup of stale sessions)
 exports.getOnlineEmployees = async (req, res) => {
   try {
+    // 1. Cleanup stale sessions (no heartbeat in last 2 minutes)
+    const twoMinsAgo = new Date(Date.now() - 2 * 60 * 1000);
+
+    await Employee.updateMany(
+      {
+        isOnline: true,
+        role: { $ne: 'Owner' },
+        $or: [
+          { lastActive: { $lt: twoMinsAgo } },
+          // For legacy sessions that logged in before we added lastActive
+          { lastActive: null, lastLogin: { $lt: twoMinsAgo } }
+        ]
+      },
+      { $set: { isOnline: false } }
+    );
+
+    // 2. Fetch the newly accurate list
     const onlineEmployees = await Employee.find({ isOnline: true, role: { $ne: 'Owner' } })
       .select('-pin -fastPinHash -profileImage')
       .lean();
+
     res.json({ success: true, data: onlineEmployees });
   } catch (error) {
     console.error('Error fetching online employees:', error);

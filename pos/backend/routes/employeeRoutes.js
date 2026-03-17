@@ -12,7 +12,8 @@ const {
   updatePin,
   sendTemporaryPin,
   logoutEmployee,
-  getOnlineEmployees
+  getOnlineEmployees,
+  employeeHeartbeat
 } = require('../controllers/employeeController');
 
 router.route('/')
@@ -24,6 +25,8 @@ router.get('/search/:query', searchEmployees);
 router.post('/verify-pin', verifyPin);
 
 router.post('/logout', logoutEmployee);
+
+router.post('/heartbeat', employeeHeartbeat);
 
 router.get('/online', getOnlineEmployees);
 

@@ -66,6 +66,7 @@ export const API_ENDPOINTS = {
   employeeVerifyPin: `${API_BASE_URL}/api/employees/verify-pin`,
   employeeLogout: `${API_BASE_URL}/api/employees/logout`,
   employeesOnline: `${API_BASE_URL}/api/employees/online`,
+  employeeHeartbeat: `${API_BASE_URL}/api/employees/heartbeat`,
   employeeSearch: (firstName) => `${API_BASE_URL}/api/employees/search/${encodeURIComponent(firstName)}`,
 
 

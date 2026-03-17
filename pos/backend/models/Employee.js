@@ -90,6 +90,10 @@ const employeeSchema = new mongoose.Schema({
   lastLogin: {
     type: Date,
     default: null
+  },
+  lastActive: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

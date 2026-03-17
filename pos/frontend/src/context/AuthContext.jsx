@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
+import { API_ENDPOINTS } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -9,6 +10,46 @@ export const AuthProvider = ({ children }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
+  // Heartbeat: ping backend every 30s to keep employee marked as online
+  useEffect(() => {
+    let heartbeatInterval;
+
+    const sendHeartbeat = async () => {
+      if (currentUser?._id && currentUser?.role !== 'Owner') {
+        try {
+          await fetch(API_ENDPOINTS.employeeHeartbeat, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employeeId: currentUser._id })
+          });
+        } catch (err) {
+          // Silently fail - heartbeat is best-effort
+        }
+      }
+    };
+
+    // Handle tab/browser close: send logout request
+    const handleBeforeUnload = () => {
+      if (currentUser?._id) {
+        navigator.sendBeacon(
+          API_ENDPOINTS.employeeLogout,
+          new Blob([JSON.stringify({ employeeId: currentUser._id })], { type: 'application/json' })
+        );
+      }
+    };
+
+    if (currentUser) {
+      sendHeartbeat(); // Send immediately on login
+      heartbeatInterval = setInterval(sendHeartbeat, 30000); // Then every 30s
+      window.addEventListener('beforeunload', handleBeforeUnload);
+    }
+
+    return () => {
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentUser]);
+
   const login = (user) => {
     setCurrentUser(user);
     localStorage.setItem('currentUser', JSON.stringify(user));
@@ -18,7 +59,7 @@ export const AuthProvider = ({ children }) => {
     // Notify backend to mark employee as offline
     if (currentUser?._id) {
       try {
-        await fetch('http://localhost:5000/api/employees/logout', {
+        await fetch(API_ENDPOINTS.employeeLogout, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ employeeId: currentUser._id })
