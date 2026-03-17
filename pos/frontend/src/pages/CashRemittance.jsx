@@ -4,7 +4,8 @@ import { API_ENDPOINTS } from "../config/api";
 import {
     FaMoneyBillWave, FaSearch, FaFileInvoiceDollar, FaCheckCircle,
     FaExclamationTriangle, FaChartLine, FaHandHoldingUsd,
-    FaBalanceScale, FaClock, FaTimes, FaPrint, FaPlus
+    FaBalanceScale, FaClock, FaTimes, FaPrint, FaPlus,
+    FaCalendarAlt, FaUser
 } from "react-icons/fa";
 
 const DENOMINATIONS = [
@@ -420,36 +421,58 @@ const CashRemittance = () => {
                 {/* ─── LEFT COLUMN ─── */}
                 <div className="flex-1 min-w-0 space-y-4">
                     {/* Search & Filters */}
-                    <div className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-3">
-                        <div className="flex-1 relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <FaSearch className="text-gray-400" />
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Search by Cashier Name or Ref ID..."
-                                className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#22C55E]/20 focus:border-[#22C55E] transition-all text-sm"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
+                    <div className="bg-white p-2.5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-2">
+                        {/* Brown circular search icon */}
+                        <div className="w-10 h-10 rounded-full bg-[#8B6914] flex items-center justify-center flex-shrink-0">
+                            <FaSearch className="text-white text-sm" />
                         </div>
-                        <div className="flex bg-gray-50 border border-gray-200 rounded-xl p-1 gap-1">
-                            {['ALL', 'BALANCED', 'OVER', 'SHORT'].map((status) => (
-                                <button
-                                    key={status}
-                                    onClick={() => setStatusFilter(status)}
-                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${statusFilter === status
-                                        ? status === 'BALANCED' ? 'bg-green-100 text-green-700 shadow-sm'
-                                            : status === 'OVER' ? 'bg-blue-100 text-blue-700 shadow-sm'
-                                                : status === 'SHORT' ? 'bg-red-100 text-red-700 shadow-sm'
-                                                    : 'bg-white text-gray-800 shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200/50'
-                                        }`}
-                                >
-                                    {status}
-                                </button>
-                            ))}
-                        </div>
+                        {/* Search input */}
+                        <input
+                            type="text"
+                            placeholder="Search For..."
+                            className="flex-1 px-3 py-2 bg-transparent border-none focus:outline-none text-sm text-gray-700 placeholder-gray-400 min-w-0"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                        {/* Filter dropdowns */}
+                        <select
+                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
+                            defaultValue=""
+                        >
+                            <option value="">By Sales</option>
+                            <option value="highest">Highest First</option>
+                            <option value="lowest">Lowest First</option>
+                        </select>
+                        <select
+                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
+                            defaultValue=""
+                        >
+                            <option value="">By User</option>
+                        </select>
+                        <select
+                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        >
+                            <option value="ALL">By Status</option>
+                            <option value="BALANCED">Balanced</option>
+                            <option value="OVER">Over</option>
+                            <option value="SHORT">Short</option>
+                        </select>
+                        <select
+                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
+                            defaultValue=""
+                        >
+                            <option value="">By Date</option>
+                            <option value="today">Today</option>
+                            <option value="yesterday">Yesterday</option>
+                            <option value="week">This Week</option>
+                            <option value="month">This Month</option>
+                        </select>
+                        {/* Calendar icon */}
+                        <button className="w-10 h-10 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 hover:bg-gray-100 transition-colors cursor-pointer">
+                            <FaCalendarAlt className="text-gray-500 text-sm" />
+                        </button>
                     </div>
 
                     {/* Logs Table */}
