@@ -541,6 +541,7 @@ const ViewProductModal = ({
             </div>
           </div>
         </div>
+      </div>
     </div>
   );
 };
