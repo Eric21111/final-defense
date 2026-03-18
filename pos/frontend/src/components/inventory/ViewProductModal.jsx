@@ -399,6 +399,12 @@ const ViewProductModal = ({
                                               </span>
                                               <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
                                                 Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
+                                                {(b1.batchCode || b1.expirationDate) && (
+                                                  <span className="ml-2">
+                                                    {b1.batchCode ? `· Lot: ${b1.batchCode}` : ""}
+                                                    {b1.expirationDate ? ` · Exp: ${String(b1.expirationDate).slice(0, 10)}` : ""}
+                                                  </span>
+                                                )}
                                               </div>
                                             </div>
                                           ) : (
@@ -413,6 +419,12 @@ const ViewProductModal = ({
                                               </span>
                                               <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
                                                 Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
+                                                {(b2.batchCode || b2.expirationDate) && (
+                                                  <span className="ml-2">
+                                                    {b2.batchCode ? `· Lot: ${b2.batchCode}` : ""}
+                                                    {b2.expirationDate ? ` · Exp: ${String(b2.expirationDate).slice(0, 10)}` : ""}
+                                                  </span>
+                                                )}
                                               </div>
                                             </div>
                                           ) : (
@@ -468,6 +480,12 @@ const ViewProductModal = ({
                                             </span>
                                             <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
                                               Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
+                                              {(b1.batchCode || b1.expirationDate) && (
+                                                <span className="ml-2">
+                                                  {b1.batchCode ? `· Lot: ${b1.batchCode}` : ""}
+                                                  {b1.expirationDate ? ` · Exp: ${String(b1.expirationDate).slice(0, 10)}` : ""}
+                                                </span>
+                                              )}
                                             </div>
                                           </div>
                                         ) : (
@@ -482,6 +500,12 @@ const ViewProductModal = ({
                                             </span>
                                             <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
                                               Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
+                                              {(b2.batchCode || b2.expirationDate) && (
+                                                <span className="ml-2">
+                                                  {b2.batchCode ? `· Lot: ${b2.batchCode}` : ""}
+                                                  {b2.expirationDate ? ` · Exp: ${String(b2.expirationDate).slice(0, 10)}` : ""}
+                                                </span>
+                                              )}
                                             </div>
                                           </div>
                                         ) : (

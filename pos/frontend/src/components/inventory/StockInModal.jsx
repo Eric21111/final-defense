@@ -6,6 +6,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [sizeQuantities, setSizeQuantities] = useState({});
   const [variantQuantities, setVariantQuantities] = useState({});
   const [quantity, setQuantity] = useState("");
+  const [batchCode, setBatchCode] = useState("");
+  const [batchExpirationDate, setBatchExpirationDate] = useState("");
   const [reason, setReason] = useState("Restock");
   const [otherReason, setOtherReason] = useState("");
   const [newVariantInputs, setNewVariantInputs] = useState({});
@@ -100,6 +102,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setSizeQuantities({});
       setVariantQuantities({});
       setQuantity("");
+      setBatchCode("");
+      setBatchExpirationDate("");
       setReason("Restock");
       setOtherReason("");
       setNewVariantInputs({});
@@ -122,6 +126,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setSizeQuantities({});
     setVariantQuantities({});
     setQuantity("");
+    setBatchCode("");
+    setBatchExpirationDate("");
     setReason("Restock");
     setOtherReason("");
     setNewVariantInputs({});
@@ -322,7 +328,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       onConfirm({
         quantity: qty,
         noSizes: true,
-        reason: finalReason
+        reason: finalReason,
+        ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
+        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {})
       });
       return;
     }
@@ -354,7 +362,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         newVariantPrices: addedVariants.length > 0 ? newVariantPrices : null,
         newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null,
         diffPricesPerVariant: Object.keys(diffPricesPerVariant).some(k => diffPricesPerVariant[k]) ? diffPricesPerVariant : null,
-        stockVariantPrices: Object.keys(stockVariantPrices).length > 0 ? stockVariantPrices : null
+        stockVariantPrices: Object.keys(stockVariantPrices).length > 0 ? stockVariantPrices : null,
+        ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
+        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {})
       });
       return;
     }
@@ -374,7 +384,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       sizes: sizeQuantities,
       selectedSizes: selectedSizes,
       reason: finalReason,
-      newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null
+      newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null,
+      ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
+      ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {})
     });
   };
 
@@ -983,6 +995,41 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
                   </div>
                 }
+
+                {/* Batch / Lot Tracking (optional) */}
+                <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-gray-50"}`}>
+                  <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                    Batch / Lot (optional)
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                        Batch Code
+                      </label>
+                      <input
+                        type="text"
+                        value={batchCode}
+                        onChange={(e) => setBatchCode(e.target.value)}
+                        placeholder="e.g. LOT-2026-001"
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
+                      />
+                    </div>
+                    <div>
+                      <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                        Expiration Date
+                      </label>
+                      <input
+                        type="date"
+                        value={batchExpirationDate}
+                        onChange={(e) => setBatchExpirationDate(e.target.value)}
+                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                      />
+                    </div>
+                  </div>
+                  <p className={`text-xs mt-2 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                    These will be saved on the newly added stock batch only (Batch 2).
+                  </p>
+                </div>
 
                 <div>
                   <label

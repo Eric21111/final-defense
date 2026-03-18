@@ -423,11 +423,18 @@ const ensureBatches = (obj, fallbackPrice, fallbackCostPrice) => {
   return next;
 };
 
-const addBatch = (batches, addQty, price, costPrice) => {
+const addBatch = (batches, addQty, price, costPrice, meta = {}) => {
   const qty = safeNum(addQty, 0);
   const next = Array.isArray(batches) ? [...batches] : [];
   if (qty > 0) {
-    next.push({ qty, price: safeNum(price, 0), costPrice: safeNum(costPrice, 0), createdAt: nowIso() });
+    next.push({
+      qty,
+      price: safeNum(price, 0),
+      costPrice: safeNum(costPrice, 0),
+      createdAt: nowIso(),
+      ...(meta.batchCode ? { batchCode: String(meta.batchCode) } : {}),
+      ...(meta.expirationDate ? { expirationDate: String(meta.expirationDate) } : {}),
+    });
   }
   return next;
 };
@@ -460,6 +467,10 @@ exports.stockInProduct = async (req, res) => {
     const handledBy = stockData.handledBy || "System";
     const handledById = stockData.handledById || "";
     const reason = stockData.reason || "Restock";
+    const batchMeta = {
+      batchCode: stockData.batchCode ? String(stockData.batchCode).trim() : "",
+      expirationDate: stockData.expirationDate ? String(stockData.expirationDate) : "",
+    };
 
     if (!product.sizes || typeof product.sizes !== "object" || Object.keys(product.sizes).length === 0) {
       // No sizes case: keep behavior same as before
@@ -526,7 +537,7 @@ exports.stockInProduct = async (req, res) => {
             incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
           }
 
-          const nextBatches = addBatch(normalizedVariant.batches, qty, incomingPrice, incomingCost);
+          const nextBatches = addBatch(normalizedVariant.batches, qty, incomingPrice, incomingCost, batchMeta);
           newVariants[variant] = {
             ...normalizedVariant,
             batches: nextBatches,
@@ -576,7 +587,7 @@ exports.stockInProduct = async (req, res) => {
           incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
         }
 
-        const nextBatches = addBatch(currentSizeData.batches, addQty, incomingPrice, incomingCost);
+        const nextBatches = addBatch(currentSizeData.batches, addQty, incomingPrice, incomingCost, batchMeta);
         const nextQty = sumBatchesQty(nextBatches);
         updatedSizes[size] = {
           ...currentSizeData,
@@ -1065,11 +1076,18 @@ exports.updateStockAfterTransaction = async (req, res) => {
       }
       return next;
     };
-    const addBatch = (batches, addQty, price, costPrice) => {
+    const addBatch = (batches, addQty, price, costPrice, meta = {}) => {
       const qty = safeNum(addQty, 0);
       const next = Array.isArray(batches) ? [...batches] : [];
       if (qty > 0) {
-        next.push({ qty, price: safeNum(price, 0), costPrice: safeNum(costPrice, 0), createdAt: nowIso() });
+        next.push({
+          qty,
+          price: safeNum(price, 0),
+          costPrice: safeNum(costPrice, 0),
+          createdAt: nowIso(),
+          ...(meta.batchCode ? { batchCode: String(meta.batchCode) } : {}),
+          ...(meta.expirationDate ? { expirationDate: String(meta.expirationDate) } : {}),
+        });
       }
       return next;
     };
@@ -1172,6 +1190,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
                 item.quantity,
                 safeNum(item.price, safeNum(fallbackVariantPrice, safeNum(product.itemPrice, 0))),
                 safeNum(item.costPrice, safeNum(fallbackVariantCostPrice, safeNum(product.costPrice, 0))),
+                { batchCode: item.batchCode, expirationDate: item.expirationDate },
               )
               : consumeBatches(normalizedVariant.batches, item.quantity);
 
@@ -1220,6 +1239,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
                 item.quantity,
                 safeNum(item.price, safeNum(normalizedSize.price, safeNum(product.itemPrice, 0))),
                 safeNum(item.costPrice, safeNum(normalizedSize.costPrice, safeNum(product.costPrice, 0))),
+                { batchCode: item.batchCode, expirationDate: item.expirationDate },
               )
               : consumeBatches(normalizedSize.batches, item.quantity);
 
