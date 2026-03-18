@@ -690,6 +690,7 @@ const AddProductModal = ({
                             <option value="g" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Grams (g)</option>
                             <option value="L" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Liters (L)</option>
                             <option value="ml" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milliliters (ml)</option>
+                            <option value="mg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milligrams (mg)</option>
                             <option value="packs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Packs</option>
                             <option value="boxes" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Boxes</option>
                           </select>
@@ -1038,6 +1039,7 @@ const AddProductModal = ({
                               <option value="g" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Grams (g)</option>
                               <option value="L" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Liters (L)</option>
                               <option value="ml" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milliliters (ml)</option>
+                              <option value="mg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milligrams (mg)</option>
                               <option value="packs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Packs</option>
                               <option value="boxes" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Boxes</option>
                             </select>
