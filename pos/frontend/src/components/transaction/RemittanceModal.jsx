@@ -19,8 +19,6 @@ const DENOMINATIONS = [
     { key: "c5", label: "5¢", value: 0.05, color: "#9CA3AF" },
 ];
 
-const OPENING_FLOAT = 2000;
-
 const formatCurrency = (val) => {
     const abs = Math.abs(val).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return val < 0 ? `-₱${abs}` : `₱${abs}`;
@@ -87,13 +85,26 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
     const [receivedBy, setReceivedBy] = useState("");
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [showSlip, setShowSlip] = useState(false);
+    const [openingFloat, setOpeningFloat] = useState(2000);
 
     const totalCashOnHand = DENOMINATIONS.reduce(
         (sum, d) => sum + (denominations[d.key] || 0) * d.value,
         0
     );
-    const cashToRemit = totalCashOnHand - OPENING_FLOAT;
+    const cashToRemit = totalCashOnHand - openingFloat;
     const variance = cashToRemit - summary.netSales;
+
+    const fetchGlobalFloat = useCallback(async () => {
+        try {
+            const res = await fetch(API_ENDPOINTS.globalSettings);
+            const data = await res.json();
+            if (data.success && data.data) {
+                setOpeningFloat(data.data.openingFloat || 2000);
+            }
+        } catch (err) {
+            console.error("Error fetching global settings:", err);
+        }
+    }, []);
 
     const fetchSummary = useCallback(async () => {
         if (!employeeId) return;
@@ -124,8 +135,9 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
             setSubmitSuccess(false);
             setShowSlip(false);
             fetchSummary();
+            fetchGlobalFloat();
         }
-    }, [isOpen, fetchSummary]);
+    }, [isOpen, fetchSummary, fetchGlobalFloat]);
 
     const handleDenominationChange = (key, value) => {
         const num = parseInt(value) || 0;
@@ -148,7 +160,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                     noOfSales: summary.noOfSales,
                     denominations,
                     totalCashOnHand,
-                    openingFloat: OPENING_FLOAT,
+                    openingFloat,
                     cashToRemit,
                     expectedCash: summary.netSales,
                     variance,
@@ -197,7 +209,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                     summary={summary}
                     denominations={denominations}
                     totalCashOnHand={totalCashOnHand}
-                    openingFloat={OPENING_FLOAT}
+                    openingFloat={openingFloat}
                     cashToRemit={cashToRemit}
                     variance={variance}
                     employeeName={employeeName}
@@ -319,7 +331,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                                 <p className="text-xs text-blue-700">
                                                     💡 This is your machine reading. You will now count the physical cash in your
                                                     drawer and remit the difference after deducting your opening float of{" "}
-                                                    {formatCurrency(OPENING_FLOAT)}.
+                                                    {formatCurrency(openingFloat)}.
                                                 </p>
                                             </div>
 
@@ -381,7 +393,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                         <div className="flex justify-between text-sm">
                                             <span className="text-gray-600">Less: Opening Float</span>
                                             <span className="font-semibold text-red-500">
-                                                ({formatAbs(OPENING_FLOAT)})
+                                                ({formatAbs(openingFloat)})
                                             </span>
                                         </div>
 
@@ -438,7 +450,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Less Opening Float</span>
                                                 <span className="font-semibold text-red-500">
-                                                    ({formatAbs(OPENING_FLOAT)})
+                                                    ({formatAbs(openingFloat)})
                                                 </span>
                                             </div>
 
