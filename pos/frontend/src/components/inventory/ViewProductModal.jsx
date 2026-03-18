@@ -69,278 +69,253 @@ const ViewProductModal = ({
 
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm bg-opacity-30"
+      className="fixed inset-0 flex items-center justify-center z-9999 p-4 bg-black/40 backdrop-blur-sm"
       onClick={() => setShowViewModal(false)}>
 
       <div
-        className={`rounded-2xl w-full max-w-5xl max-h-[90vh] relative overflow-hidden flex flex-col ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
+        className={`rounded-2xl w-full max-w-6xl max-h-[90vh] relative overflow-hidden flex flex-col ${theme === "dark" ? "bg-[#1E1B18] text-white" : "bg-white text-gray-900"}`}
         style={{
           boxShadow:
             "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1)"
         }}
         onClick={(e) => e.stopPropagation()}>
 
-        { }
-        <div
-          className={`flex justify-between items-center px-6 py-4 border-b flex-shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center ${theme === "dark" ? "bg-[#AD7F65]" : "bg-[#AD7F65]"}`}>
-
-              <svg
-                className="w-6 h-6 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24">
-
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-
-              </svg>
-            </div>
-            <h2
-              className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-
-              Product Details
-            </h2>
-          </div>
-          <div className="flex items-center gap-2">
-            {hasBatch2 && (
-              <button
-                type="button"
-                onClick={() => setShowBatchView((v) => !v)}
-                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 active:scale-[0.98] ${showBatchView
-                  ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-md"
-                  : theme === "dark"
-                    ? "bg-[#2A2724] text-gray-200 border-gray-700 hover:border-[#AD7F65] hover:text-white"
-                    : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65] hover:text-[#76462B]"
-                  }`}
-              >
-                <span
-                  className={`inline-flex items-center justify-center w-5 h-5 rounded-md transition-transform duration-200 ${showBatchView ? "bg-white/15 rotate-180" : theme === "dark" ? "bg-white/5" : "bg-gray-100"}`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h10" />
+        {/* Header */}
+        <div className={`px-6 py-4 border-b shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#AD7F65] flex items-center justify-center shadow-sm">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
-                </span>
-                {showBatchView ? "Hide batches" : "Show batches"}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold truncate">{viewingProduct.itemName}</h2>
+                  <div className={`mt-0.5 text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                    SKU: <span className={`font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>{viewingProduct.sku || "—"}</span>
+                    {viewingProduct.category ? <span className="ml-2">· {viewingProduct.category}</span> : null}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {hasBatch2 && (
+                <button
+                  type="button"
+                  onClick={() => setShowBatchView((v) => !v)}
+                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 active:scale-[0.98] ${showBatchView
+                    ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-md"
+                    : theme === "dark"
+                      ? "bg-[#2A2724] text-gray-200 border-gray-700 hover:border-[#AD7F65] hover:text-white"
+                      : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65] hover:text-[#76462B]"
+                    }`}
+                >
+                  <span
+                    className={`inline-flex items-center justify-center w-6 h-6 rounded-lg transition-transform duration-200 ${showBatchView ? "bg-white/15 rotate-180" : theme === "dark" ? "bg-white/5" : "bg-gray-100"}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                  </span>
+                  {showBatchView ? "Batches: ON" : "Batches: OFF"}
+                </button>
+              )}
+              <button
+                onClick={() => setShowViewModal(false)}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors ${theme === "dark"
+                  ? "border-gray-700 text-gray-300 hover:bg-gray-800"
+                  : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                  }`}
+                aria-label="Close modal"
+              >
+                <span className="text-2xl leading-none">×</span>
               </button>
-            )}
-            <button
-              onClick={() => setShowViewModal(false)}
-              className={`text-2xl ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-600"}`}>
-              ×
-            </button>
+            </div>
           </div>
         </div>
 
-        { }
+        {/* Body */}
         <div className="p-6 overflow-y-auto flex-1">
-          <div className="grid grid-cols-2 gap-6">
-            { }
-            <div
-              className={`flex items-center justify-center rounded-xl p-6 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}>
-
-              {viewingProduct.itemImage &&
-                viewingProduct.itemImage.trim() !== "" ?
-                <img
-                  src={viewingProduct.itemImage}
-                  alt={viewingProduct.itemName}
-                  className="max-w-full max-h-[400px] object-contain rounded-lg" /> :
-
-
-                <div className="text-center text-gray-400">
-                  <svg
-                    className="w-24 h-24 mx-auto mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-
-                  </svg>
-                  <p className="text-sm">No Image Available</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left: Image + quick stats */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className={`rounded-2xl border overflow-hidden ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-gray-50"}`}>
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Preview</div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${theme === "dark" ? "border-gray-700 text-gray-200" : "border-gray-200 text-gray-700"}`}>
+                        {viewingProduct.category || "—"}
+                      </span>
+                      {viewingProduct.genderCategory && (
+                        <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${theme === "dark" ? "border-gray-700 text-gray-200" : "border-gray-200 text-gray-700"}`}>
+                          {viewingProduct.genderCategory}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              }
+                <div className={`p-6 flex items-center justify-center ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
+                  {viewingProduct.itemImage && viewingProduct.itemImage.trim() !== "" ? (
+                    <img
+                      src={viewingProduct.itemImage}
+                      alt={viewingProduct.itemName}
+                      className="w-full max-h-[420px] object-contain rounded-xl"
+                    />
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <svg className="w-24 h-24 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p className="text-sm">No Image Available</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick stat cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`rounded-2xl border p-4 ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
+                  <div className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Total Stock</div>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <div className="text-2xl font-bold">{totalStock}</div>
+                    <div className={`text-xs font-semibold px-2.5 py-1 rounded-full ${totalStock === 0 ? "bg-red-100 text-red-700" : totalStock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" : "bg-green-100 text-green-700"}`}>
+                      {totalStock === 0 ? "Out" : totalStock <= (viewingProduct.reorderNumber || 10) ? "Low" : "In Stock"}
+                    </div>
+                  </div>
+                </div>
+                <div className={`rounded-2xl border p-4 ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
+                  <div className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Reorder Level</div>
+                  <div className="mt-2 text-2xl font-bold">{viewingProduct.reorderNumber || 0}</div>
+                  <div className={`mt-1 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Threshold for low-stock</div>
+                </div>
+              </div>
             </div>
 
-            { }
-            <div className="space-y-4">
-              { }
-              <div>
-                <h3
-                  className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+            {/* Right: Details + Stock table */}
+            <div className="lg:col-span-7 space-y-4">
+              {/* Overview */}
+              <div className={`rounded-2xl border p-5 ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Overview</div>
+                    <div className="mt-2 text-lg font-bold truncate">{viewingProduct.itemName}</div>
+                    <div className={`mt-1 text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                      {viewingProduct.category} {viewingProduct.subCategory ? `> ${viewingProduct.subCategory}` : ""}
+                      {viewingProduct.foodSubtype ? ` · ${viewingProduct.foodSubtype}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className={`text-xs font-semibold ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>SKU</div>
+                    <div className={`px-3 py-1.5 rounded-xl border text-sm font-semibold ${theme === "dark" ? "border-gray-700 bg-[#1E1B18] text-gray-200" : "border-gray-200 bg-gray-50 text-gray-800"}`}>
+                      {viewingProduct.sku || "—"}
+                    </div>
+                  </div>
+                </div>
 
-                  Product Name
-                </h3>
-                <p
-                  className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-
-                  {viewingProduct.itemName}
-                </p>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className={`rounded-xl border p-3 ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-gray-50"}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Brand</div>
+                    <div className={`mt-1 text-sm font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>{viewingProduct.brandName || "N/A"}</div>
+                  </div>
+                  <div className={`rounded-xl border p-3 ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-gray-50"}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Variant</div>
+                    <div className={`mt-1 text-sm font-semibold ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>{viewingProduct.variant || "N/A"}</div>
+                  </div>
+                </div>
               </div>
 
-              { }
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3
-                    className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                    Category
-                  </h3>
-                  <p
-                    className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-
-                    {viewingProduct.category} {viewingProduct.subCategory ? `> ${viewingProduct.subCategory}` : ""}
-                  </p>
-                </div>
-                <div>
-                  <h3
-                    className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                    Selling Price
-                  </h3>
-                  <p
-                    className={`text-sm font-semibold ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
-
-                    {(() => {
-                      const prices = [];
-
-                      if (viewingProduct.sizes && typeof viewingProduct.sizes === "object") {
-                        Object.values(viewingProduct.sizes).forEach((sizeData) => {
-                          if (typeof sizeData === "object" && sizeData !== null) {
-                            if (sizeData.variants && typeof sizeData.variants === "object") {
-                              Object.entries(sizeData.variants).forEach(([vName, v]) => {
-                                const vPrice = v?.price ?? sizeData.variantPrices?.[vName] ?? sizeData.price;
-                                if (vPrice !== undefined && vPrice !== null) prices.push(Number(vPrice));
-                              });
-                            } else if (sizeData.variantPrices && typeof sizeData.variantPrices === "object") {
-                              Object.values(sizeData.variantPrices).forEach((p) => {
-                                if (p !== undefined && p !== null) prices.push(Number(p));
-                              });
-                            } else if (sizeData.price !== undefined && sizeData.price !== null) {
-                              prices.push(Number(sizeData.price));
+              {/* Pricing */}
+              <div className={`rounded-2xl border p-5 ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
+                <div className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Pricing</div>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className={`rounded-xl border p-4 ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-gray-50"}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Selling Price</div>
+                    <div className={`mt-1 text-lg font-bold ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
+                      {(() => {
+                        const prices = [];
+                        if (viewingProduct.sizes && typeof viewingProduct.sizes === "object") {
+                          Object.values(viewingProduct.sizes).forEach((sizeData) => {
+                            if (typeof sizeData === "object" && sizeData !== null) {
+                              if (sizeData.variants && typeof sizeData.variants === "object") {
+                                Object.entries(sizeData.variants).forEach(([vName, v]) => {
+                                  const vPrice = v?.price ?? sizeData.variantPrices?.[vName] ?? sizeData.price;
+                                  if (vPrice !== undefined && vPrice !== null) prices.push(Number(vPrice));
+                                });
+                              } else if (sizeData.variantPrices && typeof sizeData.variantPrices === "object") {
+                                Object.values(sizeData.variantPrices).forEach((p) => {
+                                  if (p !== undefined && p !== null) prices.push(Number(p));
+                                });
+                              } else if (sizeData.price !== undefined && sizeData.price !== null) {
+                                prices.push(Number(sizeData.price));
+                              }
                             }
-                          }
-                        });
-                      }
-
-                      if (prices.length > 0) {
-                        const minP = Math.min(...prices);
-                        const maxP = Math.max(...prices);
-                        return minP !== maxP
-                          ? `₱${minP.toFixed(2)} - ₱${maxP.toFixed(2)}`
-                          : `₱${minP.toFixed(2)}`;
-                      }
-                      return `₱${viewingProduct.itemPrice?.toFixed(2) || "0.00"}`;
-                    })()}
-                  </p>
-                </div>
-              </div>
-
-              { }
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3
-                    className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                    SKU/Item Code
-                  </h3>
-                  <p
-                    className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-
-                    {viewingProduct.sku}
-                  </p>
-                </div>
-                <div>
-                  <h3
-                    className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                    Cost Price
-                  </h3>
-                  <p
-                    className={`text-sm font-semibold ${theme === "dark" ? "text-red-400" : "text-red-600"}`}>
-
-                    {(() => {
-                      const costs = [];
-
-                      if (viewingProduct.sizes && typeof viewingProduct.sizes === "object") {
-                        Object.values(viewingProduct.sizes).forEach((sizeData) => {
-                          if (typeof sizeData === "object" && sizeData !== null) {
-                            if (sizeData.variants && typeof sizeData.variants === "object") {
-                              Object.entries(sizeData.variants).forEach(([vName, v]) => {
-                                const vCost = v?.costPrice ?? sizeData.variantCostPrices?.[vName] ?? sizeData.costPrice;
-                                if (vCost !== undefined && vCost !== null) costs.push(Number(vCost));
-                              });
-                            } else if (sizeData.costPrice !== undefined && sizeData.costPrice !== null) {
-                              costs.push(Number(sizeData.costPrice));
+                          });
+                        }
+                        if (prices.length > 0) {
+                          const minP = Math.min(...prices);
+                          const maxP = Math.max(...prices);
+                          return minP !== maxP ? `₱${minP.toFixed(2)} - ₱${maxP.toFixed(2)}` : `₱${minP.toFixed(2)}`;
+                        }
+                        return `₱${viewingProduct.itemPrice?.toFixed(2) || "0.00"}`;
+                      })()}
+                    </div>
+                  </div>
+                  <div className={`rounded-xl border p-4 ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-gray-50"}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Purchase Price</div>
+                    <div className={`mt-1 text-lg font-bold ${theme === "dark" ? "text-red-400" : "text-red-600"}`}>
+                      {(() => {
+                        const costs = [];
+                        if (viewingProduct.sizes && typeof viewingProduct.sizes === "object") {
+                          Object.values(viewingProduct.sizes).forEach((sizeData) => {
+                            if (typeof sizeData === "object" && sizeData !== null) {
+                              if (sizeData.variants && typeof sizeData.variants === "object") {
+                                Object.entries(sizeData.variants).forEach(([vName, v]) => {
+                                  const vCost = v?.costPrice ?? sizeData.variantCostPrices?.[vName] ?? sizeData.costPrice;
+                                  if (vCost !== undefined && vCost !== null) costs.push(Number(vCost));
+                                });
+                              } else if (sizeData.costPrice !== undefined && sizeData.costPrice !== null) {
+                                costs.push(Number(sizeData.costPrice));
+                              }
                             }
-                          }
-                        });
-                      }
-
-                      if (costs.length > 0) {
-                        const minC = Math.min(...costs);
-                        const maxC = Math.max(...costs);
-                        return minC !== maxC
-                          ? `₱${minC.toFixed(2)} - ₱${maxC.toFixed(2)}`
-                          : `₱${minC.toFixed(2)}`;
-                      }
-                      return `₱${viewingProduct.costPrice?.toFixed(2) || "0.00"}`;
-                    })()}
-                  </p>
+                          });
+                        }
+                        if (costs.length > 0) {
+                          const minC = Math.min(...costs);
+                          const maxC = Math.max(...costs);
+                          return minC !== maxC ? `₱${minC.toFixed(2)} - ₱${maxC.toFixed(2)}` : `₱${minC.toFixed(2)}`;
+                        }
+                        return `₱${viewingProduct.costPrice?.toFixed(2) || "0.00"}`;
+                      })()}
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              { }
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3
-                    className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                    Variant
-                  </h3>
-                  <p
-                    className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-
-                    {viewingProduct.variant || "N/A"}
-                  </p>
+              {/* Stock */}
+              <div className={`rounded-2xl border ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
+                <div className="px-5 py-4 border-b flex items-center justify-between gap-3" style={{ borderColor: theme === "dark" ? "#374151" : "#E5E7EB" }}>
+                  <div>
+                    <div className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Stock</div>
+                    <div className={`mt-0.5 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                      Showing {showBatchView ? "by batches" : "total + price"} per option
+                    </div>
+                  </div>
+                  {!hasBatch2 && (
+                    <div className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                      No batch 2 found
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <h3
-                    className={`text-xs font-semibold mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
 
-                    Brand Partner
-                  </h3>
-                  <p
-                    className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>
-
-                    {viewingProduct.brandName || "N/A"}
-                  </p>
-                </div>
-              </div>
-
-              { }
-              <div>
-                <h3
-                  className={`text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-
-                  Stock
-                </h3>
-                {viewingProduct.sizes &&
-                  typeof viewingProduct.sizes === "object" &&
-                  Object.keys(viewingProduct.sizes).length > 0 ?
-                  <div className={`overflow-x-auto rounded-xl border ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
-                    <table className="w-full text-left text-sm whitespace-nowrap">
+                <div className="p-4">
+                  {viewingProduct.sizes &&
+                    typeof viewingProduct.sizes === "object" &&
+                    Object.keys(viewingProduct.sizes).length > 0 ? (
+                    <div className={`overflow-x-auto rounded-xl border ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-white"}`}>
+                      <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead className={`text-xs uppercase bg-opacity-50 ${theme === "dark" ? "bg-gray-800 text-gray-400" : "bg-gray-50 text-gray-600"}`}>
                         <tr>
                           <th className="px-4 py-3 font-semibold">SKU</th>
@@ -549,23 +524,23 @@ const ViewProductModal = ({
                       <span className={`text-xs uppercase tracking-wider font-semibold ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Total Options Stock:</span>
                       <span className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{totalStock}</span>
                     </div>
-                  </div> :
-
-                  <span className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#2A2724] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                    <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{viewingProduct.sku || "N/A"}</span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${totalStock === 0 ? "bg-red-100 text-red-700" :
-                      totalStock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
-                        "bg-green-100 text-green-700"
-                      }`}>
-                      {totalStock} {viewingProduct.unitOfMeasure || 'pcs'}
-                    </span>
-                  </span>
-                }
+                    </div>
+                  ) : (
+                    <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <span className={`text-sm font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{viewingProduct.sku || "N/A"}</span>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${totalStock === 0 ? "bg-red-100 text-red-700" :
+                        totalStock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
+                          "bg-green-100 text-green-700"
+                        }`}>
+                        {totalStock} {viewingProduct.unitOfMeasure || "pcs"}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };
