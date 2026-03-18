@@ -316,53 +316,156 @@ const ViewProductModal = ({
                     Object.keys(viewingProduct.sizes).length > 0 ? (
                     <div className={`overflow-x-auto rounded-xl border ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-white"}`}>
                       <table className="w-full text-left text-sm whitespace-nowrap">
-                      <thead className={`text-xs uppercase bg-opacity-50 ${theme === "dark" ? "bg-gray-800 text-gray-400" : "bg-gray-50 text-gray-600"}`}>
-                        <tr>
-                          <th className="px-4 py-3 font-semibold">SKU</th>
-                          <th className="px-4 py-3 font-semibold">Variant / Size</th>
-                          {showBatchView ? (
-                            <>
-                              <th className="px-4 py-3 font-semibold">Batch 1</th>
-                              <th className="px-4 py-3 font-semibold">Batch 2</th>
-                            </>
-                          ) : (
-                            <>
-                              <th className="px-4 py-3 font-semibold">Stock</th>
-                              <th className="px-4 py-3 font-semibold">Price</th>
-                            </>
-                          )}
-                        </tr>
-                      </thead>
-                      <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-100"}`}>
-                        {(() => {
-                          const rows = [];
-                          const baseSku = viewingProduct.sku || "";
+                        <thead className={`text-xs uppercase bg-opacity-50 ${theme === "dark" ? "bg-gray-800 text-gray-400" : "bg-gray-50 text-gray-600"}`}>
+                          <tr>
+                            <th className="px-4 py-3 font-semibold">SKU</th>
+                            <th className="px-4 py-3 font-semibold">Variant / Size</th>
+                            {showBatchView ? (
+                              <>
+                                <th className="px-4 py-3 font-semibold">Batch 1</th>
+                                <th className="px-4 py-3 font-semibold">Batch 2</th>
+                              </>
+                            ) : (
+                              <>
+                                <th className="px-4 py-3 font-semibold">Stock</th>
+                                <th className="px-4 py-3 font-semibold">Price</th>
+                                <th className="px-4 py-3 font-semibold">Expiration</th>
+                              </>
+                            )}
+                          </tr>
+                        </thead>
+                        <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-100"}`}>
+                          {(() => {
+                            const rows = [];
+                            const baseSku = viewingProduct.sku || "";
 
-                          Object.entries(viewingProduct.sizes).forEach(([size, sizeData]) => {
-                            const variants = sizeData && typeof sizeData === 'object' && sizeData.variants ? sizeData.variants : null;
-                            const variantPrices = sizeData && typeof sizeData === 'object' && sizeData.variantPrices ? sizeData.variantPrices : null;
+                            Object.entries(viewingProduct.sizes).forEach(([size, sizeData]) => {
+                              const variants = sizeData && typeof sizeData === 'object' && sizeData.variants ? sizeData.variants : null;
+                              const variantPrices = sizeData && typeof sizeData === 'object' && sizeData.variantPrices ? sizeData.variantPrices : null;
 
-                            // Format Size for SKU
-                            const sizeInitial = size === "Free Size" ? "FS" : size.substring(0, 2).toUpperCase();
+                              // Format Size for SKU
+                              const sizeInitial = size === "Free Size" ? "FS" : size.substring(0, 2).toUpperCase();
 
-                            if ((variants && Object.keys(variants).length > 0) || (variantPrices && Object.keys(variantPrices).length > 0)) {
-                              const variantKeys = variants && Object.keys(variants).length > 0 ? Object.keys(variants) : (variantPrices ? Object.keys(variantPrices) : []);
+                              if ((variants && Object.keys(variants).length > 0) || (variantPrices && Object.keys(variantPrices).length > 0)) {
+                                const variantKeys = variants && Object.keys(variants).length > 0 ? Object.keys(variants) : (variantPrices ? Object.keys(variantPrices) : []);
 
-                              variantKeys.forEach((variantName) => {
-                                const variantData = variants?.[variantName];
-                                const variantQty = typeof variantData === 'number' ? variantData : (variantData && typeof variantData === 'object' ? variantData.quantity || 0 : 0);
-                                const batches = getBatchList(typeof variantData === "object" && variantData !== null ? variantData : null);
+                                variantKeys.forEach((variantName) => {
+                                  const variantData = variants?.[variantName];
+                                  const variantQty = typeof variantData === 'number' ? variantData : (variantData && typeof variantData === 'object' ? variantData.quantity || 0 : 0);
+                                  const batches = getBatchList(typeof variantData === "object" && variantData !== null ? variantData : null);
+                                  const b1 = batches[0] || null;
+                                  const b2 = batches[1] || null;
+
+                                  // Format Variant for SKU
+                                  const dynamicSku = generateDynamicSku(baseSku, variantName, size);
+
+                                  rows.push(
+                                    <tr key={`${size}-${variantName}`} className={`transition-colors ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
+                                      <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
+                                      <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                        {variantName} / {size}
+                                      </td>
+                                      {showBatchView ? (
+                                        <>
+                                          <td className="px-4 py-3">
+                                            {b1 ? (
+                                              <div className="space-y-0.5">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b1.qty) === 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                                                  {toNum(b1.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
+                                                </span>
+                                                <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                                                  Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
+                                                  {(b1.batchCode || b1.expirationDate) && (
+                                                    <span className="ml-2">
+                                                      {b1.batchCode ? `· Lot: ${b1.batchCode}` : ""}
+                                                      {b1.expirationDate ? ` · Exp: ${String(b1.expirationDate).slice(0, 10)}` : ""}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
+                                            )}
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            {b2 ? (
+                                              <div className="space-y-0.5">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b2.qty) === 0 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                                                  {toNum(b2.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
+                                                </span>
+                                                <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                                                  Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
+                                                  {(b2.batchCode || b2.expirationDate) && (
+                                                    <span className="ml-2">
+                                                      {b2.batchCode ? `· Lot: ${b2.batchCode}` : ""}
+                                                      {b2.expirationDate ? ` · Exp: ${String(b2.expirationDate).slice(0, 10)}` : ""}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            ) : (
+                                              <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
+                                            )}
+                                          </td>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <td className="px-4 py-3">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${variantQty === 0 ? "bg-red-100 text-red-700" :
+                                              variantQty <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
+                                                "bg-green-100 text-green-700"
+                                              }`}>
+                                              {variantQty} {viewingProduct.unitOfMeasure || 'pcs'}
+                                            </span>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            <div className="space-y-0.5">
+                                              <div className={`text-xs font-medium ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
+                                                Sell: ₱{Number(variantData?.price ?? variantPrices?.[variantName] ?? sizeData?.price ?? viewingProduct.itemPrice ?? 0).toFixed(2)}
+                                              </div>
+                                              <div className={`text-xs ${theme === "dark" ? "text-red-400" : "text-red-500"}`}>
+                                                Cost: ₱{Number(variantData?.costPrice ?? sizeData?.variantCostPrices?.[variantName] ?? sizeData?.costPrice ?? viewingProduct.costPrice ?? 0).toFixed(2)}
+                                              </div>
+                                            </div>
+                                          </td>
+                                          <td className="px-4 py-3">
+                                            {(() => {
+                                              const expDates = batches
+                                                .filter(b => b.expirationDate)
+                                                .map(b => String(b.expirationDate).slice(0, 10))
+                                                .sort();
+                                              if (expDates.length === 0) return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+                                              const nearest = expDates[0];
+                                              const now = new Date();
+                                              const expDate = new Date(nearest);
+                                              const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+                                              const colorClass = daysUntil < 0 ? "text-red-500 font-semibold" : daysUntil <= 30 ? "text-yellow-500 font-semibold" : (theme === "dark" ? "text-gray-300" : "text-gray-600");
+                                              return (
+                                                <div className="space-y-0.5">
+                                                  <div className={`text-xs ${colorClass}`}>{nearest}</div>
+                                                  {daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
+                                                  {daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
+                                                </div>
+                                              );
+                                            })()}
+                                          </td>
+                                        </>
+                                      )}
+                                    </tr>
+                                  );
+                                });
+                              } else {
+                                const stock = typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined ? sizeData.quantity : (typeof sizeData === "number" ? sizeData : 0);
+                                const batches = getBatchList(typeof sizeData === "object" && sizeData !== null ? sizeData : null);
                                 const b1 = batches[0] || null;
                                 const b2 = batches[1] || null;
-
-                                // Format Variant for SKU
-                                const dynamicSku = generateDynamicSku(baseSku, variantName, size);
+                                const dynamicSku = generateDynamicSku(baseSku, null, size);
 
                                 rows.push(
-                                  <tr key={`${size}-${variantName}`} className={`transition-colors ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
+                                  <tr key={size} className={`transition-colors ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
                                     <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
                                     <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                      {variantName} / {size}
+                                      {size}
                                     </td>
                                     {showBatchView ? (
                                       <>
@@ -410,120 +513,60 @@ const ViewProductModal = ({
                                     ) : (
                                       <>
                                         <td className="px-4 py-3">
-                                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${variantQty === 0 ? "bg-red-100 text-red-700" :
-                                            variantQty <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
+                                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stock === 0 ? "bg-red-100 text-red-700" :
+                                            stock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
                                               "bg-green-100 text-green-700"
                                             }`}>
-                                            {variantQty} {viewingProduct.unitOfMeasure || 'pcs'}
+                                            {stock} {viewingProduct.unitOfMeasure || 'pcs'}
                                           </span>
                                         </td>
                                         <td className="px-4 py-3">
                                           <div className="space-y-0.5">
                                             <div className={`text-xs font-medium ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
-                                              Sell: ₱{Number(variantData?.price ?? variantPrices?.[variantName] ?? sizeData?.price ?? viewingProduct.itemPrice ?? 0).toFixed(2)}
+                                              Sell: ₱{Number(typeof sizeData === "object" && sizeData !== null ? (sizeData.price ?? viewingProduct.itemPrice ?? 0) : (viewingProduct.itemPrice ?? 0)).toFixed(2)}
                                             </div>
                                             <div className={`text-xs ${theme === "dark" ? "text-red-400" : "text-red-500"}`}>
-                                              Cost: ₱{Number(variantData?.costPrice ?? sizeData?.variantCostPrices?.[variantName] ?? sizeData?.costPrice ?? viewingProduct.costPrice ?? 0).toFixed(2)}
+                                              Cost: ₱{Number(typeof sizeData === "object" && sizeData !== null ? (sizeData.costPrice ?? viewingProduct.costPrice ?? 0) : (viewingProduct.costPrice ?? 0)).toFixed(2)}
                                             </div>
                                           </div>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {(() => {
+                                            const expDates = batches
+                                              .filter(b => b.expirationDate)
+                                              .map(b => String(b.expirationDate).slice(0, 10))
+                                              .sort();
+                                            if (expDates.length === 0) return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+                                            const nearest = expDates[0];
+                                            const now = new Date();
+                                            const expDate = new Date(nearest);
+                                            const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+                                            const colorClass = daysUntil < 0 ? "text-red-500 font-semibold" : daysUntil <= 30 ? "text-yellow-500 font-semibold" : (theme === "dark" ? "text-gray-300" : "text-gray-600");
+                                            return (
+                                              <div className="space-y-0.5">
+                                                <div className={`text-xs ${colorClass}`}>{nearest}</div>
+                                                {daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
+                                                {daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
+                                              </div>
+                                            );
+                                          })()}
                                         </td>
                                       </>
                                     )}
                                   </tr>
                                 );
-                              });
-                            } else {
-                              const stock = typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined ? sizeData.quantity : (typeof sizeData === "number" ? sizeData : 0);
-                              const batches = getBatchList(typeof sizeData === "object" && sizeData !== null ? sizeData : null);
-                              const b1 = batches[0] || null;
-                              const b2 = batches[1] || null;
-                              const dynamicSku = generateDynamicSku(baseSku, null, size);
+                              }
+                            });
 
-                              rows.push(
-                                <tr key={size} className={`transition-colors ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
-                                  <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
-                                  <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                    {size}
-                                  </td>
-                                  {showBatchView ? (
-                                    <>
-                                      <td className="px-4 py-3">
-                                        {b1 ? (
-                                          <div className="space-y-0.5">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b1.qty) === 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                                              {toNum(b1.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
-                                            </span>
-                                            <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                                              Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
-                                              {(b1.batchCode || b1.expirationDate) && (
-                                                <span className="ml-2">
-                                                  {b1.batchCode ? `· Lot: ${b1.batchCode}` : ""}
-                                                  {b1.expirationDate ? ` · Exp: ${String(b1.expirationDate).slice(0, 10)}` : ""}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        {b2 ? (
-                                          <div className="space-y-0.5">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b2.qty) === 0 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
-                                              {toNum(b2.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
-                                            </span>
-                                            <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                                              Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
-                                              {(b2.batchCode || b2.expirationDate) && (
-                                                <span className="ml-2">
-                                                  {b2.batchCode ? `· Lot: ${b2.batchCode}` : ""}
-                                                  {b2.expirationDate ? ` · Exp: ${String(b2.expirationDate).slice(0, 10)}` : ""}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
-                                        )}
-                                      </td>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <td className="px-4 py-3">
-                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stock === 0 ? "bg-red-100 text-red-700" :
-                                          stock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
-                                            "bg-green-100 text-green-700"
-                                          }`}>
-                                          {stock} {viewingProduct.unitOfMeasure || 'pcs'}
-                                        </span>
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        <div className="space-y-0.5">
-                                          <div className={`text-xs font-medium ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
-                                            Sell: ₱{Number(typeof sizeData === "object" && sizeData !== null ? (sizeData.price ?? viewingProduct.itemPrice ?? 0) : (viewingProduct.itemPrice ?? 0)).toFixed(2)}
-                                          </div>
-                                          <div className={`text-xs ${theme === "dark" ? "text-red-400" : "text-red-500"}`}>
-                                            Cost: ₱{Number(typeof sizeData === "object" && sizeData !== null ? (sizeData.costPrice ?? viewingProduct.costPrice ?? 0) : (viewingProduct.costPrice ?? 0)).toFixed(2)}
-                                          </div>
-                                        </div>
-                                      </td>
-                                    </>
-                                  )}
-                                </tr>
-                              );
-                            }
-                          });
+                            return rows;
+                          })()}
+                        </tbody>
+                      </table>
 
-                          return rows;
-                        })()}
-                      </tbody>
-                    </table>
-
-                    <div className={`px-4 py-3 border-t text-right flex justify-end items-center gap-2 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                      <span className={`text-xs uppercase tracking-wider font-semibold ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Total Options Stock:</span>
-                      <span className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{totalStock}</span>
-                    </div>
+                      <div className={`px-4 py-3 border-t text-right flex justify-end items-center gap-2 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <span className={`text-xs uppercase tracking-wider font-semibold ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Total Options Stock:</span>
+                        <span className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{totalStock}</span>
+                      </div>
                     </div>
                   ) : (
                     <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
