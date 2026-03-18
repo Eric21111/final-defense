@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import { FaPlus, FaSearch } from "react-icons/fa";
 import Header from "../components/shared/header";
 import { API_BASE_URL } from "../config/api";
@@ -320,7 +320,7 @@ const Inventory = () => {
     }
     fetchCategories();
     fetchBrandPartners();
-  }, []);
+  }, [getCachedData, isCacheValid]);
 
   const getSkuNumber = (sku = "") => {
     const matches = sku.match(/\d+/g);
@@ -1127,7 +1127,7 @@ const Inventory = () => {
     }
   };
 
-  const handleViewProduct = async (product) => {
+  const handleViewProduct = useCallback(async (product) => {
     setViewingProduct(product);
     setShowViewModal(true);
 
@@ -1143,7 +1143,7 @@ const Inventory = () => {
     } catch (error) {
       console.error("Error fetching product details:", error);
     }
-  };
+  }, []);
 
   const handleDeleteClick = (product) => {
     setProductToDelete(product._id);
