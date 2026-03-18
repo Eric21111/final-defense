@@ -1456,6 +1456,27 @@ const AddProductModal = ({
                       </div>
                     )}
 
+                    {/* Expiration Date (Optional) */}
+                    <div>
+                      <h3 className="text-base font-semibold mb-3">Expiration</h3>
+                      <div className="grid grid-cols-2 gap-3 max-w-md">
+                        <div>
+                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                            Expiration Date <span className="text-gray-400">(optional)</span>
+                          </label>
+                          <input
+                            type="date"
+                            name="expirationDate"
+                            value={newProduct.expirationDate || ""}
+                            onChange={handleInputChange}
+                            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark"
+                              ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-400"
+                              : "bg-white border-gray-300 placeholder-gray-400"}`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Display Settings */}
                     <div>
                       <h3 className="text-base font-semibold mb-3">Display Settings</h3>

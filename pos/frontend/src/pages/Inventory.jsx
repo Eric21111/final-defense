@@ -146,7 +146,8 @@ const Inventory = () => {
     sizeCostPrices: {},
     differentPricesPerSize: false,
     foodSubtype: "",
-    displayInTerminal: true
+    displayInTerminal: true,
+    expirationDate: ""
   };
 
 
@@ -583,7 +584,8 @@ const Inventory = () => {
       sizePrices: {},
       differentPricesPerSize: false,
       foodSubtype: "",
-      displayInTerminal: true
+      displayInTerminal: true,
+      expirationDate: ""
     });
     setEditingProduct(null);
 
@@ -718,6 +720,7 @@ const Inventory = () => {
         itemPrice: defaultItemPrice,
         costPrice: parseFloat(newProduct.costPrice) || 0,
         reorderNumber: parseInt(newProduct.reorderNumber) || 0,
+        expirationDate: newProduct.expirationDate || null,
         displayInTerminal: newProduct.displayInTerminal !== false
       };
 
@@ -946,6 +949,9 @@ const Inventory = () => {
       sizePrices: existingSizePrices,
       differentPricesPerSize: hasDifferentPrices,
       foodSubtype: product.foodSubtype || "",
+      expirationDate: product.expirationDate ?
+        new Date(product.expirationDate).toISOString().slice(0, 10) :
+        "",
       displayInTerminal:
         product.displayInTerminal !== undefined ?
           product.displayInTerminal :
@@ -975,6 +981,7 @@ const Inventory = () => {
         itemPrice: parseFloat(newProduct.itemPrice) || 0,
         costPrice: parseFloat(newProduct.costPrice) || 0,
         reorderNumber: parseInt(newProduct.reorderNumber) || 0,
+        expirationDate: newProduct.expirationDate || null,
         displayInTerminal: displayInTerminalValue
       };
 
