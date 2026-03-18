@@ -103,6 +103,7 @@ const AddProductModal = ({
   const [selectedVariants, setSelectedVariants] = useState([]);
   const [showVariantDropdown, setShowVariantDropdown] = useState(false);
   const [customColorInput, setCustomColorInput] = useState("");
+  const [hasVariants, setHasVariants] = useState(false);
 
   const [variantQuantities, setVariantQuantities] = useState({});
   const [differentPricesPerVariant, setDifferentPricesPerVariant] = useState({});
@@ -132,6 +133,9 @@ const AddProductModal = ({
   };
 
   const getTotalStockFromInputs = () => {
+    if (!hasVariants || !newProduct.selectedSizes || newProduct.selectedSizes.length === 0) {
+      return parseInt(newProduct.currentStock) || 0;
+    }
     const sizeTotal = Object.values(newProduct.sizeQuantities || {}).reduce(
       (sum, q) => sum + (parseInt(q) || 0),
       0
@@ -157,13 +161,13 @@ const AddProductModal = ({
         if (!newProduct.subCategory || newProduct.subCategory === "__add_new__") return false;
         return true;
       case 2:
-        if (!newProduct.selectedSizes || newProduct.selectedSizes.length === 0) return false;
-        return true;
+        return true; // sizes and variants are always optional now, or completely hidden if hasVariants=false
       case 3:
-
-        if (newProduct.selectedSizes?.length > 0) {
+        if (hasVariants && newProduct.selectedSizes?.length > 0) {
           const totalStock = getTotalStockFromInputs();
           if (totalStock <= 0) return false;
+        } else {
+          if (!newProduct.currentStock || parseInt(newProduct.currentStock) <= 0) return false;
         }
 
         if (!newProduct.differentPricesPerSize && !Object.values(differentPricesPerVariant).some(v => v)) {
@@ -404,10 +408,25 @@ const AddProductModal = ({
       setCurrentStep(1);
       setProductImages([]);
       setImageUrlInput("");
+      setHasVariants(false);
     } else {
       setShowDraftNotice(false);
     }
   }, [showAddModal, editingProduct]);
+
+  useEffect(() => {
+    if (showAddModal && editingProduct) {
+      if (editingProduct.variant || (editingProduct.sizes && Object.keys(editingProduct.sizes).length > 0)) {
+        setHasVariants(true);
+      } else {
+        setHasVariants(false);
+      }
+    } else if (showAddModal && !editingProduct && !showDraftNotice) {
+      if (newProduct.variant || (newProduct.selectedSizes && newProduct.selectedSizes.length > 0)) {
+        setHasVariants(true);
+      }
+    }
+  }, [showAddModal, editingProduct, showDraftNotice]);
 
   if (!showAddModal) return null;
 
@@ -1160,148 +1179,170 @@ const AddProductModal = ({
                 {/* ── Step 2: Variants & Set ── */}
                 {currentStep === 2 && (
                   <div className="space-y-6">
-                    <div>
-                      <h3 className={`text-base font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Variants</h3>
-                      <div className="relative">
-                        <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                          Variant <span className="text-gray-400">{newProduct.category === "Foods" || newProduct.category === "Makeup" ? "Optional - Add variants (e.g., Strawberry, Vanilla)" : "Optional - Select multiple colors"}</span>
+                    {/* Has Variants Toggle */}
+                    <div className={`p-4 rounded-xl border flex items-start gap-4 ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div className="mt-1">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" checked={hasVariants} onChange={(e) => {
+                            setHasVariants(e.target.checked);
+                            if (!e.target.checked) {
+                              setNewProduct((prev) => ({ ...prev, selectedSizes: [], variant: "", differentVariantsPerSize: false }));
+                              setSelectedVariants([]);
+                              setVariantQuantities({});
+                            }
+                          }} />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#AD7F65]"></div>
                         </label>
-                        {newProduct.category === "Foods" || newProduct.category === "Makeup" ? (
-                          <>
-                            <div className="flex gap-2">
-                              <input type="text" value={customColorInput} onChange={(e) => setCustomColorInput(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (customColorInput.trim() && !selectedVariants.includes(customColorInput.trim())) { setSelectedVariants([...selectedVariants, customColorInput.trim()]); setCustomColorInput(""); } } }}
-                                placeholder={newProduct.category === "Foods" ? "e.g., Strawberry, Chocolate..." : "e.g., Nude, Red, Coral..."} disabled={newProduct.differentVariantsPerSize}
-                                className={`flex-1 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${newProduct.differentVariantsPerSize ? (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-gray-500 cursor-not-allowed" : "bg-gray-100 text-gray-400 cursor-not-allowed") : (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300")}`} />
-                              <button type="button" onClick={() => { if (customColorInput.trim() && !selectedVariants.includes(customColorInput.trim())) { setSelectedVariants([...selectedVariants, customColorInput.trim()]); setCustomColorInput(""); } }}
-                                disabled={!customColorInput.trim() || newProduct.differentVariantsPerSize}
-                                className={`px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${customColorInput.trim() && !newProduct.differentVariantsPerSize ? "bg-[#AD7F65] text-white hover:bg-[#8B6553]" : (theme === "dark" ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed")}`}>Add</button>
-                            </div>
-                            {selectedVariants.length > 0 && !newProduct.differentVariantsPerSize && (
-                              <div className="flex flex-wrap gap-1.5 mt-3">
-                                {selectedVariants.map((variant) => (
-                                  <span key={variant} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65] border border-[#AD7F65]/30" : "bg-[#AD7F65]/10 text-[#AD7F65] border border-[#AD7F65]/20"}`}>
-                                    {variant}
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); removeVariant(variant); }} className="hover:text-red-500 transition-colors">×</button>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <div onClick={() => !newProduct.differentVariantsPerSize && setShowVariantDropdown(!showVariantDropdown)}
-                              className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${newProduct.differentVariantsPerSize ? (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-gray-500 cursor-not-allowed" : "bg-gray-100 text-gray-400 cursor-not-allowed") : (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white hover:border-[#AD7F65]" : "bg-white border-gray-300 hover:border-[#AD7F65]")}`}>
-                              <span className={selectedVariants.length === 0 ? "text-gray-400" : ""}>
-                                {newProduct.differentVariantsPerSize ? "Multiple variants selected" : selectedVariants.length === 0 ? "Select colors..." : `${selectedVariants.length} color${selectedVariants.length > 1 ? 's' : ''} selected`}
-                              </span>
-                              <svg className={`w-4 h-4 transition-transform ${showVariantDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
-                            </div>
-                            {selectedVariants.length > 0 && !newProduct.differentVariantsPerSize && (
-                              <div className="flex flex-wrap gap-1.5 mt-3">
-                                {selectedVariants.map((color) => (
-                                  <span key={color} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65] border border-[#AD7F65]/30" : "bg-[#AD7F65]/10 text-[#AD7F65] border border-[#AD7F65]/20"}`}>
-                                    {color}
-                                    <button type="button" onClick={(e) => { e.stopPropagation(); removeVariant(color); }} className="hover:text-red-500 transition-colors">×</button>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {showVariantDropdown && !newProduct.differentVariantsPerSize && (
-                              <div className={`absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
-                                {COMMON_COLORS.filter((c) => c !== "Custom").map((color) => (
-                                  <div key={color} onClick={() => handleVariantToggle(color)}
-                                    className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${selectedVariants.includes(color) ? (theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65]" : "bg-[#AD7F65]/10 text-[#AD7F65]") : (theme === "dark" ? "hover:bg-[#3A3734]" : "hover:bg-gray-100")}`}>
-                                    <span>{color}</span>
-                                    {selectedVariants.includes(color) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
-                                  </div>
-                                ))}
-                                <div className={`px-3 py-2 border-t ${theme === "dark" ? "border-gray-600" : "border-gray-200"}`} onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex gap-2">
-                                    <input type="text" value={customColorInput} onChange={(e) => setCustomColorInput(e.target.value)} onKeyDown={handleCustomColorKeyDown} placeholder="Add custom color..."
-                                      className={`flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-300"}`} />
-                                    <button type="button" onClick={addCustomColor} disabled={!customColorInput.trim()}
-                                      className={`px-3 py-1 text-sm rounded font-medium transition-colors ${customColorInput.trim() ? "bg-[#AD7F65] text-white hover:bg-[#8B6553]" : (theme === "dark" ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed")}`}>Add</button>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                            {showVariantDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowVariantDropdown(false)} />}
-                          </>
-                        )}
                       </div>
-                      {selectedVariants.length === 0 && (
-                        <p className={`text-sm text-center py-4 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>No variants selected. You can skip this step if not needed.</p>
-                      )}
+                      <div>
+                        <h4 className={`text-sm font-semibold mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>This product has variants</h4>
+                        <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Turn on if it comes in different sizes, colors, flavors, shades, etc. Each combination gets its own SKU and individual stock tracking.</p>
+                      </div>
                     </div>
 
-                    <div className={`h-px w-full ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
-
-                    <div>
-                      <h3 className={`text-base font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Sizes</h3>
-                      <div>
-                        <label className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                          Sizes <span className="text-red-500">* Required</span> <span className="text-gray-400 ml-2">- Select multiple sizes</span>
-                        </label>
-                        <div className="grid grid-cols-4 gap-2 mb-3">
-                          {(() => {
-                            const category = newProduct.category;
-                            const subCategory = newProduct.subCategory || "";
-                            let sizes = [];
-
-                            const parentHasSizes = categoryStructure[category] !== undefined;
-
-                            if (!parentHasSizes) { sizes = ["Free Size"]; }
-                            else if (category === "Foods") {
-                              switch (subCategory) {
-                                case "Beverages": sizes = ["Small", "Medium", "Large", "Extra Large", "Free Size"]; break;
-                                case "Snacks": sizes = ["Small Pack", "Medium Pack", "Large Pack", "Family Pack", "Free Size"]; break;
-                                case "Meals": sizes = ["Regular", "Large", "Family Size", "Free Size"]; break;
-                                case "Desserts": sizes = ["Small", "Medium", "Large", "Free Size"]; break;
-                                case "Ingredients": sizes = ["100g", "250g", "500g", "1kg", "Free Size"]; break;
-                                default: sizes = ["Small", "Medium", "Large", "Free Size"];
-                              }
-                            } else if (["Tops", "Bottoms", "Dresses", "Outerwear"].includes(subCategory)) {
-                              sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
-                            }
-                            else if (category === "Shoes") { sizes = ["5", "6", "7", "8", "9", "10", "11", "12"]; }
-                            else if (category === "Accessories" || category === "Makeup") { sizes = ["Free Size"]; }
-                            else { sizes = ["Free Size"]; }
-                            return [...sizes, ...customSizes].map((size) => (
-                              <label key={size} className="flex items-center gap-2 cursor-pointer">
-                                <input type="checkbox" checked={newProduct.selectedSizes?.includes(size) || false} onChange={() => handleSizeToggle(size)} className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]" />
-                                <span className="flex-1 text-sm text-gray-700 break-words line-clamp-2" title={size}>{size}</span>
-                                {customSizes.includes(size) && (
-                                  <button type="button" title="Remove custom size" className="text-red-500 hover:text-red-700 text-xs ml-1"
-                                    onClick={(e) => { e.preventDefault(); setCustomSizes(prev => prev.filter(s => s !== size)); if (newProduct.selectedSizes?.includes(size)) { handleSizeToggle(size); } }}>×</button>
+                    {hasVariants && (
+                      <>
+                        <div>
+                          <h3 className={`text-base font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Variants</h3>
+                          <div className="relative">
+                            <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                              Variant <span className="text-gray-400">{newProduct.category === "Foods" || newProduct.category === "Makeup" ? "Optional - Add variants (e.g., Strawberry, Vanilla)" : "Optional - Select multiple colors"}</span>
+                            </label>
+                            {newProduct.category === "Foods" || newProduct.category === "Makeup" ? (
+                              <>
+                                <div className="flex gap-2">
+                                  <input type="text" value={customColorInput} onChange={(e) => setCustomColorInput(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (customColorInput.trim() && !selectedVariants.includes(customColorInput.trim())) { setSelectedVariants([...selectedVariants, customColorInput.trim()]); setCustomColorInput(""); } } }}
+                                    placeholder={newProduct.category === "Foods" ? "e.g., Strawberry, Chocolate..." : "e.g., Nude, Red, Coral..."} disabled={newProduct.differentVariantsPerSize}
+                                    className={`flex-1 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${newProduct.differentVariantsPerSize ? (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-gray-500 cursor-not-allowed" : "bg-gray-100 text-gray-400 cursor-not-allowed") : (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300")}`} />
+                                  <button type="button" onClick={() => { if (customColorInput.trim() && !selectedVariants.includes(customColorInput.trim())) { setSelectedVariants([...selectedVariants, customColorInput.trim()]); setCustomColorInput(""); } }}
+                                    disabled={!customColorInput.trim() || newProduct.differentVariantsPerSize}
+                                    className={`px-4 py-2.5 text-sm rounded-lg font-medium transition-colors ${customColorInput.trim() && !newProduct.differentVariantsPerSize ? "bg-[#AD7F65] text-white hover:bg-[#8B6553]" : (theme === "dark" ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed")}`}>Add</button>
+                                </div>
+                                {selectedVariants.length > 0 && !newProduct.differentVariantsPerSize && (
+                                  <div className="flex flex-wrap gap-1.5 mt-3">
+                                    {selectedVariants.map((variant) => (
+                                      <span key={variant} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65] border border-[#AD7F65]/30" : "bg-[#AD7F65]/10 text-[#AD7F65] border border-[#AD7F65]/20"}`}>
+                                        {variant}
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeVariant(variant); }} className="hover:text-red-500 transition-colors">×</button>
+                                      </span>
+                                    ))}
+                                  </div>
                                 )}
-                              </label>
-                            ));
-                          })()}
-                        </div>
-                        <div className="mb-4">
-                          <label className="flex items-center gap-2 cursor-pointer mb-2">
-                            <input type="checkbox" checked={showCustomSizeInput} onChange={(e) => { setShowCustomSizeInput(e.target.checked); if (!e.target.checked) { setCustomSizeValue(""); } }} className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]" />
-                            <span className="text-sm text-gray-700">Size not listed? Add custom size</span>
-                          </label>
-                          {showCustomSizeInput && (
-                            <div className="flex gap-2 items-center">
-                              <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); setCustomSizeValue(""); } } }}
-                                placeholder="Type size and press Enter or Add"
-                                className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
-                              <button type="button" onClick={(e) => { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); setCustomSizeValue(""); } }}
-                                disabled={!customSizeValue.trim()} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${!customSizeValue.trim() ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#AD7F65] text-white hover:bg-[#8B6553]"}`}>Add</button>
-                            </div>
+                              </>
+                            ) : (
+                              <>
+                                <div onClick={() => !newProduct.differentVariantsPerSize && setShowVariantDropdown(!showVariantDropdown)}
+                                  className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${newProduct.differentVariantsPerSize ? (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-gray-500 cursor-not-allowed" : "bg-gray-100 text-gray-400 cursor-not-allowed") : (theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white hover:border-[#AD7F65]" : "bg-white border-gray-300 hover:border-[#AD7F65]")}`}>
+                                  <span className={selectedVariants.length === 0 ? "text-gray-400" : ""}>
+                                    {newProduct.differentVariantsPerSize ? "Multiple variants selected" : selectedVariants.length === 0 ? "Select colors..." : `${selectedVariants.length} color${selectedVariants.length > 1 ? 's' : ''} selected`}
+                                  </span>
+                                  <svg className={`w-4 h-4 transition-transform ${showVariantDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                </div>
+                                {selectedVariants.length > 0 && !newProduct.differentVariantsPerSize && (
+                                  <div className="flex flex-wrap gap-1.5 mt-3">
+                                    {selectedVariants.map((color) => (
+                                      <span key={color} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65] border border-[#AD7F65]/30" : "bg-[#AD7F65]/10 text-[#AD7F65] border border-[#AD7F65]/20"}`}>
+                                        {color}
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeVariant(color); }} className="hover:text-red-500 transition-colors">×</button>
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {showVariantDropdown && !newProduct.differentVariantsPerSize && (
+                                  <div className={`absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
+                                    {COMMON_COLORS.filter((c) => c !== "Custom").map((color) => (
+                                      <div key={color} onClick={() => handleVariantToggle(color)}
+                                        className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${selectedVariants.includes(color) ? (theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65]" : "bg-[#AD7F65]/10 text-[#AD7F65]") : (theme === "dark" ? "hover:bg-[#3A3734]" : "hover:bg-gray-100")}`}>
+                                        <span>{color}</span>
+                                        {selectedVariants.includes(color) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                      </div>
+                                    ))}
+                                    <div className={`px-3 py-2 border-t ${theme === "dark" ? "border-gray-600" : "border-gray-200"}`} onClick={(e) => e.stopPropagation()}>
+                                      <div className="flex gap-2">
+                                        <input type="text" value={customColorInput} onChange={(e) => setCustomColorInput(e.target.value)} onKeyDown={handleCustomColorKeyDown} placeholder="Add custom color..."
+                                          className={`flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-300"}`} />
+                                        <button type="button" onClick={addCustomColor} disabled={!customColorInput.trim()}
+                                          className={`px-3 py-1 text-sm rounded font-medium transition-colors ${customColorInput.trim() ? "bg-[#AD7F65] text-white hover:bg-[#8B6553]" : (theme === "dark" ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed")}`}>Add</button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {showVariantDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowVariantDropdown(false)} />}
+                              </>
+                            )}
+                          </div>
+                          {selectedVariants.length === 0 && (
+                            <p className={`text-sm text-center py-4 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>No variants selected. You can skip this step if not needed.</p>
                           )}
                         </div>
-                      </div>
-                      {(!newProduct.selectedSizes || newProduct.selectedSizes.length === 0) && (
-                        <p className={`text-sm text-center py-4 text-red-500`}>Please select at least one size to continue.</p>
-                      )}
-                    </div>
+
+                        <div className={`h-px w-full ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
+
+                        <div>
+                          <h3 className={`text-base font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Sizes</h3>
+                          <div>
+                            <label className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                              Sizes <span className="text-gray-400 ml-2">- Select multiple sizes (Optional)</span>
+                            </label>
+                            <div className="grid grid-cols-4 gap-2 mb-3">
+                              {(() => {
+                                const category = newProduct.category;
+                                const subCategory = newProduct.subCategory || "";
+                                let sizes = [];
+
+                                const parentHasSizes = categoryStructure[category] !== undefined;
+
+                                if (!parentHasSizes) { sizes = ["Free Size"]; }
+                                else if (category === "Foods") {
+                                  switch (subCategory) {
+                                    case "Beverages": sizes = ["Small", "Medium", "Large", "Extra Large", "Free Size"]; break;
+                                    case "Snacks": sizes = ["Small Pack", "Medium Pack", "Large Pack", "Family Pack", "Free Size"]; break;
+                                    case "Meals": sizes = ["Regular", "Large", "Family Size", "Free Size"]; break;
+                                    case "Desserts": sizes = ["Small", "Medium", "Large", "Free Size"]; break;
+                                    case "Ingredients": sizes = ["100g", "250g", "500g", "1kg", "Free Size"]; break;
+                                    default: sizes = ["Small", "Medium", "Large", "Free Size"];
+                                  }
+                                } else if (["Tops", "Bottoms", "Dresses", "Outerwear"].includes(subCategory)) {
+                                  sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
+                                }
+                                else if (category === "Shoes") { sizes = ["5", "6", "7", "8", "9", "10", "11", "12"]; }
+                                else if (category === "Accessories" || category === "Makeup") { sizes = ["Free Size"]; }
+                                else { sizes = ["Free Size"]; }
+                                return [...sizes, ...customSizes].map((size) => (
+                                  <label key={size} className="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" checked={newProduct.selectedSizes?.includes(size) || false} onChange={() => handleSizeToggle(size)} className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]" />
+                                    <span className="flex-1 text-sm text-gray-700 break-words line-clamp-2" title={size}>{size}</span>
+                                    {customSizes.includes(size) && (
+                                      <button type="button" title="Remove custom size" className="text-red-500 hover:text-red-700 text-xs ml-1"
+                                        onClick={(e) => { e.preventDefault(); setCustomSizes(prev => prev.filter(s => s !== size)); if (newProduct.selectedSizes?.includes(size)) { handleSizeToggle(size); } }}>×</button>
+                                    )}
+                                  </label>
+                                ));
+                              })()}
+                            </div>
+                            <div className="mb-4">
+                              <label className="flex items-center gap-2 cursor-pointer mb-2">
+                                <input type="checkbox" checked={showCustomSizeInput} onChange={(e) => { setShowCustomSizeInput(e.target.checked); if (!e.target.checked) { setCustomSizeValue(""); } }} className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]" />
+                                <span className="text-sm text-gray-700">Size not listed? Add custom size</span>
+                              </label>
+                              {showCustomSizeInput && (
+                                <div className="flex gap-2 items-center">
+                                  <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); setCustomSizeValue(""); } } }}
+                                    placeholder="Type size and press Enter or Add"
+                                    className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                  <button type="button" onClick={(e) => { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); setCustomSizeValue(""); } }}
+                                    disabled={!customSizeValue.trim()} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${!customSizeValue.trim() ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#AD7F65] text-white hover:bg-[#8B6553]"}`}>Add</button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -1311,7 +1352,7 @@ const AddProductModal = ({
                     <h3 className={`text-base font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Pricing & Stock</h3>
 
                     {/* Stock quantities */}
-                    {newProduct.selectedSizes?.length > 0 && (
+                    {hasVariants && newProduct.selectedSizes?.length > 0 ? (
                       <div className={`p-3 rounded-lg border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
                         <label className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
                           {newProduct.differentVariantsPerSize || selectedVariants.length > 0 ? "Quantity per Variant per Size:" : "Quantity per Size:"}
@@ -1392,10 +1433,25 @@ const AddProductModal = ({
                           Total stock to add: {getTotalStockFromInputs()}
                         </p>
                       </div>
+                    ) : (
+                      <div className={`p-3 rounded-lg border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                        <label className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                          Total Quantity:
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newProduct.currentStock || ""}
+                          onChange={handleInputChange}
+                          name="currentStock"
+                          placeholder="Qty"
+                          className={`w-full max-w-xs px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
+                        />
+                      </div>
                     )}
 
                     {/* Per-size pricing options */}
-                    {newProduct.selectedSizes?.length > 0 && (
+                    {hasVariants && newProduct.selectedSizes?.length > 0 && (
                       <>
                         <div className="mt-3 mb-3">
                           <label className="flex items-center gap-2 cursor-pointer">
