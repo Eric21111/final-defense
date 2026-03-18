@@ -41,13 +41,13 @@ const ViewProductModal = ({
     });
   }, [viewingProduct]);
 
-  if (!showViewModal || !viewingProduct) return null;
-
   // If the user opens a different product, reset back to normal view
   // (prevents batch view “sticking” across products)
   useEffect(() => {
     setShowBatchView(false);
   }, [viewingProduct?._id]);
+
+  if (!showViewModal || !viewingProduct) return null;
 
 
   const totalStock =
