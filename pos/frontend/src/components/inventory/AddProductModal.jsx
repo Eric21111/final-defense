@@ -51,6 +51,8 @@ const AddProductModal = ({
 }) => {
   const { theme } = useTheme();
 
+  const genderCategoryOptions = ["Unisex", "Male", "Female", "Kids"];
+
   const builtInCategories = [
     "Tops",
     "Bottoms",
@@ -1031,6 +1033,33 @@ const AddProductModal = ({
                             </select>
                           </div>
                         </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                              Gender Category
+                            </label>
+                            <select
+                              name="genderCategory"
+                              value={newProduct.genderCategory || "Unisex"}
+                              onChange={handleInputChange}
+                              className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
+                            >
+                              {genderCategoryOptions.map((option) => (
+                                <option
+                                  key={option}
+                                  value={option}
+                                  className={theme === "dark" ? "bg-[#2A2724]" : ""}
+                                >
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div />
+                        </div>
+
                         {newProduct.category === "Foods" && (
                           <div>
                             <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>Food Type</label>
