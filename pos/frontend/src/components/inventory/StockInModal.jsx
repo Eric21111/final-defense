@@ -19,6 +19,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [newSizePrices, setNewSizePrices] = useState({});
   const [diffPricesPerVariant, setDiffPricesPerVariant] = useState({});
   const [stockVariantPrices, setStockVariantPrices] = useState({});
+  const [currentStep, setCurrentStep] = useState(1);
   const { theme } = useTheme();
 
   const reasons = ["Restock", "Returned Item", "Exchange", "Other"];
@@ -115,6 +116,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setNewSizePrices({});
       setDiffPricesPerVariant({});
       setStockVariantPrices({});
+      setCurrentStep(1);
     }
 
   }, [isOpen, product?._id]);
@@ -139,6 +141,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setNewSizePrices({});
     setDiffPricesPerVariant({});
     setStockVariantPrices({});
+    setCurrentStep(1);
     onClose();
   };
 
@@ -172,8 +175,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setNewSizePrices(prev => ({
       ...prev,
       [size]: {
-        ...(prev[size] || { price: 0, costPrice: 0 }),
-        [field]: parseFloat(value) || 0
+        ...(prev[size] || { price: product.itemPrice || 0, costPrice: product.costPrice || 0 }),
+        [field]: value
       }
     }));
   };
@@ -211,7 +214,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const handleSizeQuantityChange = (size, qty) => {
     setSizeQuantities((prev) => ({
       ...prev,
-      [size]: parseInt(qty) || 0
+      [size]: qty
     }));
   };
 
@@ -220,7 +223,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       ...prev,
       [size]: {
         ...(prev[size] || {}),
-        [variant]: parseInt(qty) || 0
+        [variant]: qty
       }
     }));
   };
@@ -280,17 +283,56 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setNewVariantPrices((prev) => ({
       ...prev,
       [variantName]: {
-        ...(prev[variantName] || { price: 0, costPrice: 0 }),
-        [field]: parseFloat(value) || 0
+        ...(prev[variantName] || { price: product.itemPrice || 0, costPrice: product.costPrice || 0 }),
+        [field]: value
       }
     }));
   };
 
   const handleDiffPricesToggle = (size) => {
+    const willEnable = !diffPricesPerVariant[size];
     setDiffPricesPerVariant(prev => ({
       ...prev,
-      [size]: !prev[size]
+      [size]: willEnable
     }));
+
+    // When enabling, pre-populate stockVariantPrices from existing DB data
+    // so the displayed defaults are captured in state and sent to the backend
+    if (willEnable) {
+      const sizeVariants = getSizeVariants(size);
+      const sizeData = hasSizes && product.sizes[size] && typeof product.sizes[size] === 'object' ? product.sizes[size] : {};
+      const initialPrices = {};
+
+      allVariants.forEach(variant => {
+        // Try to get the existing variant-level price from DB
+        let variantPrice = product.itemPrice || 0;
+        let variantCost = product.costPrice || 0;
+
+        if (sizeVariants && sizeVariants[variant]) {
+          const vData = sizeVariants[variant];
+          if (typeof vData === 'object' && vData !== null) {
+            variantPrice = vData.price || sizeData.variantPrices?.[variant] || sizeData.price || variantPrice;
+            variantCost = vData.costPrice || sizeData.variantCostPrices?.[variant] || sizeData.costPrice || variantCost;
+          } else {
+            variantPrice = sizeData.variantPrices?.[variant] || sizeData.price || variantPrice;
+            variantCost = sizeData.variantCostPrices?.[variant] || sizeData.costPrice || variantCost;
+          }
+        }
+
+        initialPrices[variant] = {
+          price: variantPrice,
+          costPrice: variantCost
+        };
+      });
+
+      setStockVariantPrices(prev => ({
+        ...prev,
+        [size]: {
+          ...(prev[size] || {}),
+          ...initialPrices
+        }
+      }));
+    }
   };
 
   const handleStockVariantPriceChange = (size, variant, field, value) => {
@@ -300,10 +342,40 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         ...(prev[size] || {}),
         [variant]: {
           ...(prev[size]?.[variant] || { price: product.itemPrice || 0, costPrice: product.costPrice || 0 }),
-          [field]: parseFloat(value) || 0
+          [field]: value
         }
       }
     }));
+  };
+
+  const isStepValid = (step) => {
+    if (step === 1) {
+      if (!hasSizes) {
+        const qty = parseInt(quantity) || 0;
+        return qty > 0;
+      }
+
+      if (selectedSizes.length === 0) return false;
+
+      if (hasVariants) {
+        return selectedSizes.some((size) => {
+          const sizeVariantQtys = variantQuantities[size] || {};
+          return Object.values(sizeVariantQtys).some((qty) => qty > 0);
+        });
+      }
+
+      return selectedSizes.some((size) => {
+        const qty = sizeQuantities[size] || 0;
+        return qty > 0;
+      });
+    }
+
+    if (step === 2) {
+      if (reason === "Other" && !otherReason.trim()) return false;
+      return true;
+    }
+
+    return true;
   };
 
   const handleSubmit = (e) => {
@@ -469,6 +541,45 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
             <div className="w-1/2 p-6 flex flex-col justify-between overflow-y-auto" style={{ maxHeight: "calc(100vh - 150px)" }}>
               <div className="space-y-6">
+                {/* Stepper */}
+                <div className="mb-2">
+                  <div className="flex items-center gap-3">
+                    {[1, 2, 3].map((step) => (
+                      <div key={step} className="flex items-center">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border-2 ${
+                            currentStep === step
+                              ? "bg-[#AD7F65] border-[#AD7F65] text-white"
+                              : currentStep > step
+                                ? "bg-green-500 border-green-500 text-white"
+                                : theme === "dark"
+                                  ? "border-gray-600 text-gray-400"
+                                  : "border-gray-300 text-gray-400"
+                          }`}
+                        >
+                          {currentStep > step ? "✓" : step}
+                        </div>
+                        {step < 3 && (
+                          <div
+                            className={`w-10 h-[2px] mx-2 rounded ${
+                              currentStep > step
+                                ? "bg-green-500"
+                                : theme === "dark"
+                                  ? "bg-gray-700"
+                                  : "bg-gray-200"
+                            }`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex justify-between mt-1 text-[11px] text-gray-400">
+                    <span>Add Stocks</span>
+                    <span>Batch & Expiration</span>
+                    <span>Review</span>
+                  </div>
+                </div>
+
                 <div>
                   <h3
                     className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
@@ -478,6 +589,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                   </h3>
                 </div>
 
+                {/* Step 1: Add Stocks */}
+                {currentStep === 1 && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label
@@ -505,7 +618,177 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                     </p>
                   </div>
                 </div>
+                )}
 
+                {/* Step 2: Batch & Reason */}
+                {currentStep === 2 && (
+                  <>
+                    {/* Batch / Lot Tracking (optional) */}
+                    <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-gray-50"}`}>
+                      <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Batch / Lot (optional)
+                      </label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                            Batch Code
+                          </label>
+                          <input
+                            type="text"
+                            value={batchCode}
+                            onChange={(e) => setBatchCode(e.target.value)}
+                            placeholder="e.g. LOT-2026-001"
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
+                          />
+                        </div>
+                        <div>
+                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                            Expiration Date
+                          </label>
+                          <input
+                            type="date"
+                            value={batchExpirationDate}
+                            onChange={(e) => setBatchExpirationDate(e.target.value)}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                          />
+                        </div>
+                      </div>
+                      <p className={`text-xs mt-2 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                        These will be saved on this stock-in batch only.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label
+                        className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                        Reason
+                      </label>
+                      <div className="relative">
+                        <select
+                          value={reason}
+                          onChange={(e) => {
+                            setReason(e.target.value);
+                            if (e.target.value !== "Other") {
+                              setOtherReason("");
+                            }
+                          }}
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}>
+                          {reasons.map((r) =>
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          )}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                          <svg
+                            className="w-5 h-5 text-gray-400"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24">
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </div>
+                      {reason === "Other" &&
+                        <input
+                          type="text"
+                          value={otherReason}
+                          onChange={(e) => setOtherReason(e.target.value)}
+                          placeholder="Please specify the reason"
+                          className={`w-full mt-2 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                      }
+                    </div>
+                  </>
+                )}
+
+                {/* Step 3: Review */}
+                {currentStep === 3 && (
+                  <div className="space-y-4">
+                    <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                      Review Stock-In
+                    </h3>
+                    <div className={`rounded-xl border p-4 space-y-3 ${theme === "dark" ? "bg-[#2A2724] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-400">Product</p>
+                        <p className={`text-sm font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                          {product.itemName}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-400">Batch Code</p>
+                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
+                            {batchCode.trim() || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-400">Expiration Date</p>
+                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
+                            {batchExpirationDate || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-400">Reason</p>
+                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
+                            {reason === "Other" && otherReason.trim()
+                              ? `Other: ${otherReason.trim()}`
+                              : reason}
+                          </p>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
+                          Quantities to Add
+                        </p>
+                        <div className="text-xs space-y-1">
+                          {hasSizes ? (
+                            selectedSizes.length > 0 ? (
+                              selectedSizes.map((size) => {
+                                if (hasVariants) {
+                                  const sizeVariantQtys = variantQuantities[size] || {};
+                                  const totalForSize = Object.values(sizeVariantQtys).reduce(
+                                    (sum, q) => sum + (parseInt(q) || 0),
+                                    0
+                                  );
+                                  if (totalForSize === 0) return null;
+                                  return (
+                                    <div key={size}>
+                                      <span className="font-semibold">{size}:</span>{" "}
+                                      {Object.entries(sizeVariantQtys)
+                                        .filter(([, q]) => (parseInt(q) || 0) > 0)
+                                        .map(([variant, q]) => `${variant} x ${q}`)
+                                        .join(", ")}
+                                    </div>
+                                  );
+                                }
+                                const qty = sizeQuantities[size] || 0;
+                                if (!qty) return null;
+                                return (
+                                  <div key={size}>
+                                    <span className="font-semibold">{size}:</span> {qty}
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <p className="text-gray-500">No sizes selected.</p>
+                            )
+                          ) : (
+                            <p>
+                              <span className="font-semibold">Quantity:</span>{" "}
+                              {parseInt(quantity) || 0}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Original stock input UI (Add Stocks step) */}
                 {hasSizes ?
                   <div>
                     <label
@@ -995,6 +1278,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
                   </div>
                 }
+                )}
 
                 {/* Batch / Lot Tracking (optional) */}
                 <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-gray-50"}`}>
