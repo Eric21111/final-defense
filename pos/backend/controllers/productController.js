@@ -478,13 +478,27 @@ exports.stockInProduct = async (req, res) => {
       if (qty <= 0) {
         return res.status(400).json({ success: false, message: "Invalid quantity" });
       }
-      product.currentStock = stockBefore + qty;
-      product.lastUpdated = Date.now();
-      await product.save();
+      const hadZeroStockBefore = hasZeroStock(product.toObject());
+      const hasZeroStockNow = hasZeroStock({ ...product.toObject(), currentStock: stockBefore + qty });
 
-      await logStockMovement(product, stockBefore, product.currentStock, "Stock-In", reason, handledBy, handledById, null);
+      const updatePayload = {
+        $set: {
+          currentStock: stockBefore + qty,
+          lastUpdated: Date.now()
+        }
+      };
 
-      return res.json({ success: true, message: "Stock added successfully", data: product.toObject() });
+      if (hasZeroStockNow && stockData.displayInTerminal === undefined) {
+        updatePayload.$set.displayInTerminal = false;
+      } else if (!hasZeroStockNow && hadZeroStockBefore && stockData.displayInTerminal === undefined) {
+        updatePayload.$set.displayInTerminal = true;
+      }
+
+      const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
+
+      await logStockMovement(updatedProduct, stockBefore, updatedProduct.currentStock, "Stock-In", reason, handledBy, handledById, null);
+
+      return res.json({ success: true, message: "Stock added successfully", data: updatedProduct.toObject() });
     }
 
     const updatedSizes = { ...(product.sizes || {}) };
@@ -542,8 +556,8 @@ exports.stockInProduct = async (req, res) => {
             ...normalizedVariant,
             batches: nextBatches,
             quantity: sumBatchesQty(nextBatches),
-            price: normalizedVariant.price,
-            costPrice: normalizedVariant.costPrice,
+            price: incomingPrice,
+            costPrice: incomingCost,
           };
         });
 
@@ -609,26 +623,26 @@ exports.stockInProduct = async (req, res) => {
       return sum + (typeof sizeData === "number" ? safeNum(sizeData, 0) : 0);
     }, 0);
 
-    product.sizes = updatedSizes;
-    product.currentStock = totalStock;
-    product.lastUpdated = Date.now();
+    const updatePayload = {
+      $set: {
+        sizes: updatedSizes,
+        currentStock: totalStock,
+        lastUpdated: Date.now()
+      }
+    };
 
-    // Auto manage display in terminal based on stock levels (same behavior as updateProduct)
-    const hadZeroStockBefore = hasZeroStock(product.toObject());
-    const hasZeroStockNow = hasZeroStock({ ...product.toObject(), sizes: updatedSizes, currentStock: totalStock });
     if (hasZeroStockNow && stockData.displayInTerminal === undefined) {
-      product.displayInTerminal = false;
+      updatePayload.$set.displayInTerminal = false;
     } else if (!hasZeroStockNow && hadZeroStockBefore && stockData.displayInTerminal === undefined) {
-      product.displayInTerminal = true;
+      updatePayload.$set.displayInTerminal = true;
     }
 
-    product.markModified("sizes");
-    await product.save();
+    const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
 
     await logStockMovement(
-      product,
+      updatedProduct,
       stockBefore,
-      product.currentStock,
+      updatedProduct.currentStock,
       "Stock-In",
       reason,
       handledBy,
@@ -636,10 +650,13 @@ exports.stockInProduct = async (req, res) => {
       Object.keys(sizeQuantitiesAdded).length > 0 ? sizeQuantitiesAdded : null,
     );
 
-    res.json({ success: true, message: "Stock added successfully", data: product.toObject() });
+    res.json({ success: true, message: "Stock added successfully", data: updatedProduct.toObject() });
   } catch (error) {
     console.error("Error stock-in:", error);
-    res.status(400).json({ success: false, message: "Error stocking in", error: error.message });
+    if (error.errors) {
+      Object.keys(error.errors).forEach(key => console.error("Validation error:", error.errors[key].message));
+    }
+    res.status(400).json({ success: false, message: "Error stocking in", error: error.message, stack: error.stack });
   }
 };
 
@@ -665,12 +682,27 @@ exports.stockOutProduct = async (req, res) => {
       if (qty <= 0) return res.status(400).json({ success: false, message: "Invalid quantity" });
       if (qty > stockBefore) return res.status(400).json({ success: false, message: "Insufficient stock" });
 
-      product.currentStock = Math.max(0, stockBefore - qty);
-      product.lastUpdated = Date.now();
-      await product.save();
+      const hadZeroStockBefore = hasZeroStock(product.toObject());
+      const newStock = Math.max(0, stockBefore - qty);
+      const hasZeroStockNow = hasZeroStock({ ...product.toObject(), currentStock: newStock });
 
-      await logStockMovement(product, stockBefore, product.currentStock, movementType, reason, handledBy, handledById, null);
-      return res.json({ success: true, message: "Stock removed successfully", data: product.toObject() });
+      const updatePayload = {
+        $set: {
+          currentStock: newStock,
+          lastUpdated: Date.now()
+        }
+      };
+
+      if (hasZeroStockNow && stockData.displayInTerminal === undefined) {
+        updatePayload.$set.displayInTerminal = false;
+      } else if (!hasZeroStockNow && hadZeroStockBefore && stockData.displayInTerminal === undefined) {
+        updatePayload.$set.displayInTerminal = true;
+      }
+
+      const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
+
+      await logStockMovement(updatedProduct, stockBefore, updatedProduct.currentStock, movementType, reason, handledBy, handledById, null);
+      return res.json({ success: true, message: "Stock removed successfully", data: updatedProduct.toObject() });
     }
 
     const updatedSizes = { ...(product.sizes || {}) };
@@ -757,25 +789,26 @@ exports.stockOutProduct = async (req, res) => {
       return sum + (typeof sizeData === "number" ? safeNum(sizeData, 0) : 0);
     }, 0);
 
-    product.sizes = updatedSizes;
-    product.currentStock = totalStock;
-    product.lastUpdated = Date.now();
+    const updatePayload = {
+      $set: {
+        sizes: updatedSizes,
+        currentStock: totalStock,
+        lastUpdated: Date.now()
+      }
+    };
 
-    // Auto-hide/show terminal like updateProduct
-    const hasZeroStockNow = hasZeroStock({ ...product.toObject(), sizes: updatedSizes, currentStock: totalStock });
     if (hasZeroStockNow && stockData.displayInTerminal === undefined) {
-      product.displayInTerminal = false;
+      updatePayload.$set.displayInTerminal = false;
     } else if (!hasZeroStockNow && stockBefore === 0 && totalStock > 0 && stockData.displayInTerminal === undefined) {
-      product.displayInTerminal = true;
+      updatePayload.$set.displayInTerminal = true;
     }
 
-    product.markModified("sizes");
-    await product.save();
+    const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
 
     await logStockMovement(
-      product,
+      updatedProduct,
       stockBefore,
-      product.currentStock,
+      updatedProduct.currentStock,
       movementType,
       reason,
       handledBy,
@@ -783,10 +816,10 @@ exports.stockOutProduct = async (req, res) => {
       Object.keys(sizeQuantitiesRemoved).length > 0 ? sizeQuantitiesRemoved : null,
     );
 
-    res.json({ success: true, message: "Stock removed successfully", data: product.toObject() });
+    res.json({ success: true, message: "Stock removed successfully", data: updatedProduct.toObject() });
   } catch (error) {
     console.error("Error stock-out:", error);
-    res.status(400).json({ success: false, message: "Error stocking out", error: error.message });
+    res.status(400).json({ success: false, message: "Error stocking out", error: error.message, stack: error.stack });
   }
 };
 
