@@ -57,21 +57,37 @@ const AddProductModal = ({
     "Apparel - Kids": ["Tops", "Bottoms", "Dresses", "Outerwear"],
     "Apparel - Unisex": ["Tops", "Bottoms", "Dresses", "Outerwear"],
     "Foods": ["Beverages", "Snacks", "Meals", "Desserts", "Ingredients", "Other"],
-    "Makeup": ["Face", "Eyes", "Lips", "Others"],
-    "Accessories": ["Jewelry", "Bags", "Head Wear", "Others"],
+    "Makeup": ["Face", "Eyes", "Lips", "Nails", "SkinCare", "Others"],
+    "Accessories": ["Jewelry", "Bags", "Head Wear", "Glasses/Sunglasses", "Others"],
     "Shoes": ["Sneakers", "Boots", "Sandals", "Others"],
     "Others": ["Others"]
   };
 
   const parentCategories = Object.keys(categoryStructure);
+  const allKnownDefaultSubs = new Set(Object.values(categoryStructure).flat());
+  const legacyParentCategories = ["Apparel", "Shoes", "Foods", "Accessories", "Makeup", "Head Wear"];
 
   const customSubCategories = categories
-    .filter((cat) => cat.name !== "All" && cat.name !== "Others")
-    .map((c) => c.name);
+    .map((c) => c.name)
+    .filter(
+      (name) =>
+        name !== "All" &&
+        name !== "Others" &&
+        !parentCategories.includes(name) &&
+        !allKnownDefaultSubs.has(name) &&
+        !legacyParentCategories.includes(name)
+    );
 
   const getSubcategories = (parentCat) => {
     const defaultSubs = categoryStructure[parentCat] || [];
-    return [...new Set([...defaultSubs, ...customSubCategories])];
+    const subs = [...defaultSubs, ...customSubCategories];
+
+    if (newProduct.subCategory && newProduct.subCategory !== "__add_new__" && !subs.includes(newProduct.subCategory)) {
+      if (newProduct.category === parentCat) {
+        subs.push(newProduct.subCategory);
+      }
+    }
+    return [...new Set(subs)];
   };
 
   const [showDraftNotice, setShowDraftNotice] = useState(false);
