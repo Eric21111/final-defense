@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { generateDynamicSku } from "../../utils/skuUtils";
 
@@ -8,8 +9,44 @@ const ViewProductModal = ({
   formatDate
 }) => {
   const { theme } = useTheme();
+  const [showBatchView, setShowBatchView] = useState(false);
 
   if (!showViewModal || !viewingProduct) return null;
+
+  const toNum = (v) => {
+    const n = typeof v === "number" ? v : parseInt(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const getBatchList = (data) => {
+    if (!data || typeof data !== "object") return [];
+    return Array.isArray(data.batches) ? data.batches : [];
+  };
+
+  const hasBatch2 = useMemo(() => {
+    const sizes = viewingProduct.sizes;
+    if (!sizes || typeof sizes !== "object") return false;
+    return Object.values(sizes).some((sizeData) => {
+      if (sizeData && typeof sizeData === "object") {
+        if (Array.isArray(sizeData.batches) && sizeData.batches.length > 1) return true;
+        if (sizeData.variants && typeof sizeData.variants === "object") {
+          return Object.values(sizeData.variants).some((variantData) => {
+            if (variantData && typeof variantData === "object") {
+              return Array.isArray(variantData.batches) && variantData.batches.length > 1;
+            }
+            return false;
+          });
+        }
+      }
+      return false;
+    });
+  }, [viewingProduct]);
+
+  // If the user opens a different product, reset back to normal view
+  // (prevents batch view “sticking” across products)
+  useEffect(() => {
+    setShowBatchView(false);
+  }, [viewingProduct?._id]);
 
 
   const totalStock =
@@ -70,12 +107,34 @@ const ViewProductModal = ({
               Product Details
             </h2>
           </div>
-          <button
-            onClick={() => setShowViewModal(false)}
-            className={`text-2xl ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-600"}`}>
-
-            ×
-          </button>
+          <div className="flex items-center gap-2">
+            {hasBatch2 && (
+              <button
+                type="button"
+                onClick={() => setShowBatchView((v) => !v)}
+                className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all duration-200 active:scale-[0.98] ${showBatchView
+                  ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-md"
+                  : theme === "dark"
+                    ? "bg-[#2A2724] text-gray-200 border-gray-700 hover:border-[#AD7F65] hover:text-white"
+                    : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65] hover:text-[#76462B]"
+                  }`}
+              >
+                <span
+                  className={`inline-flex items-center justify-center w-5 h-5 rounded-md transition-transform duration-200 ${showBatchView ? "bg-white/15 rotate-180" : theme === "dark" ? "bg-white/5" : "bg-gray-100"}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h10M7 12h10M7 17h10" />
+                  </svg>
+                </span>
+                {showBatchView ? "Hide batches" : "Show batches"}
+              </button>
+            )}
+            <button
+              onClick={() => setShowViewModal(false)}
+              className={`text-2xl ${theme === "dark" ? "text-gray-400 hover:text-gray-200" : "text-gray-400 hover:text-gray-600"}`}>
+              ×
+            </button>
+          </div>
         </div>
 
         { }
@@ -263,7 +322,14 @@ const ViewProductModal = ({
                         <tr>
                           <th className="px-4 py-3 font-semibold">SKU</th>
                           <th className="px-4 py-3 font-semibold">Variant / Size</th>
-                          <th className="px-4 py-3 font-semibold">Stock</th>
+                          {showBatchView ? (
+                            <>
+                              <th className="px-4 py-3 font-semibold">Batch 1</th>
+                              <th className="px-4 py-3 font-semibold">Batch 2</th>
+                            </>
+                          ) : (
+                            <th className="px-4 py-3 font-semibold">Stock</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className={`divide-y ${theme === "dark" ? "divide-gray-700" : "divide-gray-100"}`}>
@@ -284,6 +350,9 @@ const ViewProductModal = ({
                               variantKeys.forEach((variantName) => {
                                 const variantData = variants?.[variantName];
                                 const variantQty = typeof variantData === 'number' ? variantData : (variantData && typeof variantData === 'object' ? variantData.quantity || 0 : 0);
+                                const batches = getBatchList(typeof variantData === "object" && variantData !== null ? variantData : null);
+                                const b1 = batches[0] || null;
+                                const b2 = batches[1] || null;
 
                                 // Format Variant for SKU
                                 const dynamicSku = generateDynamicSku(baseSku, variantName, size);
@@ -294,19 +363,55 @@ const ViewProductModal = ({
                                     <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                                       {variantName} / {size}
                                     </td>
-                                    <td className="px-4 py-3">
-                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${variantQty === 0 ? "bg-red-100 text-red-700" :
-                                        variantQty <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
-                                          "bg-green-100 text-green-700"
-                                        }`}>
-                                        {variantQty} pcs
-                                      </span>
-                                    </td>
+                                    {showBatchView ? (
+                                      <>
+                                        <td className="px-4 py-3">
+                                          {b1 ? (
+                                            <div className="space-y-0.5">
+                                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b1.qty) === 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                                                {toNum(b1.qty)} pcs
+                                              </span>
+                                              <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                                                Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
+                                          )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {b2 ? (
+                                            <div className="space-y-0.5">
+                                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b2.qty) === 0 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                                                {toNum(b2.qty)} pcs
+                                              </span>
+                                              <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                                                Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
+                                          )}
+                                        </td>
+                                      </>
+                                    ) : (
+                                      <td className="px-4 py-3">
+                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${variantQty === 0 ? "bg-red-100 text-red-700" :
+                                          variantQty <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
+                                            "bg-green-100 text-green-700"
+                                          }`}>
+                                          {variantQty} pcs
+                                        </span>
+                                      </td>
+                                    )}
                                   </tr>
                                 );
                               });
                             } else {
                               const stock = typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined ? sizeData.quantity : (typeof sizeData === "number" ? sizeData : 0);
+                              const batches = getBatchList(typeof sizeData === "object" && sizeData !== null ? sizeData : null);
+                              const b1 = batches[0] || null;
+                              const b2 = batches[1] || null;
                               const dynamicSku = generateDynamicSku(baseSku, null, size);
 
                               rows.push(
@@ -315,14 +420,47 @@ const ViewProductModal = ({
                                   <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                                     {size}
                                   </td>
-                                  <td className="px-4 py-3">
-                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stock === 0 ? "bg-red-100 text-red-700" :
-                                      stock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
-                                        "bg-green-100 text-green-700"
-                                      }`}>
-                                      {stock} pcs
-                                    </span>
-                                  </td>
+                                  {showBatchView ? (
+                                    <>
+                                      <td className="px-4 py-3">
+                                        {b1 ? (
+                                          <div className="space-y-0.5">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b1.qty) === 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                                              {toNum(b1.qty)} pcs
+                                            </span>
+                                            <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                                              Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
+                                        )}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {b2 ? (
+                                          <div className="space-y-0.5">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b2.qty) === 0 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
+                                              {toNum(b2.qty)} pcs
+                                            </span>
+                                            <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                                              Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
+                                        )}
+                                      </td>
+                                    </>
+                                  ) : (
+                                    <td className="px-4 py-3">
+                                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stock === 0 ? "bg-red-100 text-red-700" :
+                                        stock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
+                                          "bg-green-100 text-green-700"
+                                        }`}>
+                                        {stock} pcs
+                                      </span>
+                                    </td>
+                                  )}
                                 </tr>
                               );
                             }

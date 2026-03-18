@@ -10,6 +10,8 @@ const {
   getProductsByCategory,
   searchProducts,
   updateStockAfterTransaction,
+  stockInProduct,
+  stockOutProduct,
   toggleDisplayInTerminal,
   getInventoryStats,
   archiveProduct
@@ -91,6 +93,10 @@ router.get('/low-stock', async (req, res) => {
 
 // Update stock after successful transaction
 router.post('/update-stock', clearCache, updateStockAfterTransaction);
+
+// Stock-in/out endpoints (server-side FIFO batching)
+router.post('/:id/stock-in', clearCache, stockInProduct);
+router.post('/:id/stock-out', clearCache, stockOutProduct);
 
 // Get SKU counts by brand for dashboard chart
 router.get('/sku-stats', cache('2 minutes'), async (req, res) => {

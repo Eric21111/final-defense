@@ -1300,222 +1300,45 @@ const Inventory = () => {
         "System";
       const handledById = currentUser._id || currentUser.id || "";
 
-      let response;
-
       if (stockData.noSizes) {
-
-        const newStock =
-          (editingProduct.currentStock || 0) + stockData.quantity;
-
-        response = await fetch(
-          `${API_BASE_URL}/api/products/${editingProduct._id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              currentStock: newStock,
-              stockMovementType: "Stock-In",
-              stockMovementReason: stockData.reason || "Restock",
-              handledBy: handledBy,
-              handledById: handledById
-            })
-          }
-        );
+        const response = await fetch(`${API_BASE_URL}/api/products/${editingProduct._id}/stock-in`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...stockData,
+            handledBy,
+            handledById
+          })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          alert(data.message || "Failed to update stock");
+          return;
+        }
       } else {
-
-        const updatedSizes = { ...(editingProduct.sizes || {}) };
-
-
-        const getSizeQty = (sizeData) => {
-          if (
-            typeof sizeData === "object" &&
-            sizeData !== null &&
-            sizeData.quantity !== undefined) {
-            return sizeData.quantity;
-          }
-          return typeof sizeData === "number" ? sizeData : 0;
-        };
-
-
-        const getSizePrice = (sizeData) => {
-          if (
-            typeof sizeData === "object" &&
-            sizeData !== null &&
-            sizeData.price !== undefined) {
-            return sizeData.price;
-          }
-          return null;
-        };
-
-
-        if (stockData.hasVariants && stockData.variantQuantities) {
-
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size] || {};
-            const currentVariants = typeof currentSizeData === "object" && currentSizeData.variants || {};
-            const currentVariantPrices = typeof currentSizeData === "object" && currentSizeData.variantPrices || {};
-            const addVariantQtys = stockData.variantQuantities[size] || {};
-
-
-            const getVariantQty = (variantData) => {
-              if (typeof variantData === "number") return variantData;
-              if (typeof variantData === "object" && variantData !== null) {
-                return variantData.quantity || 0;
-              }
-              return 0;
-            };
-
-
-            const newVariants = { ...currentVariants };
-            const newVariantPrices = { ...currentVariantPrices };
-            const currentVariantCostPrices = typeof currentSizeData === "object" && currentSizeData.variantCostPrices || {};
-            const newVariantCostPrices = { ...currentVariantCostPrices };
-
-            Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
-              if (addQty > 0) {
-                const currentQty = getVariantQty(newVariants[variant]);
-
-                newVariants[variant] = currentQty + addQty;
-
-                // Apply per-variant prices from "Diff prices each variants"
-                if (stockData.diffPricesPerVariant && stockData.diffPricesPerVariant[size] &&
-                  stockData.stockVariantPrices && stockData.stockVariantPrices[size]?.[variant]) {
-                  newVariantPrices[variant] = stockData.stockVariantPrices[size][variant].price || editingProduct.itemPrice || 0;
-                  newVariantCostPrices[variant] = stockData.stockVariantPrices[size][variant].costPrice || editingProduct.costPrice || 0;
-                }
-                // Apply prices for newly added variants
-                else if (stockData.newVariantPrices && stockData.newVariantPrices[variant]) {
-                  newVariantPrices[variant] = stockData.newVariantPrices[variant].price || editingProduct.itemPrice || 0;
-                  newVariantCostPrices[variant] = stockData.newVariantPrices[variant].costPrice || editingProduct.costPrice || 0;
-                }
-                // Fallback: new variant on a new size — use the new size's price
-                else if (stockData.newSizePrices && stockData.newSizePrices[size]) {
-                  newVariantPrices[variant] = stockData.newSizePrices[size].price || editingProduct.itemPrice || 0;
-                  newVariantCostPrices[variant] = stockData.newSizePrices[size].costPrice || editingProduct.costPrice || 0;
-                }
-              }
-            });
-
-
-            const newTotalQty = Object.values(newVariants).reduce(
-              (sum, v) => sum + getVariantQty(v), 0
-            );
-
-            updatedSizes[size] = {
-              ...currentSizeData,
-              quantity: newTotalQty,
-              variants: newVariants,
-              variantPrices: Object.keys(newVariantPrices).length > 0 ? newVariantPrices : currentSizeData.variantPrices,
-              variantCostPrices: Object.keys(newVariantCostPrices).length > 0 ? newVariantCostPrices : currentSizeData.variantCostPrices
-            };
-
-            // Mark that this size has different prices per variant
-            if (stockData.diffPricesPerVariant && stockData.diffPricesPerVariant[size]) {
-              updatedSizes[size].hasDifferentPricesPerVariant = true;
-            }
-
-            // Apply price/costPrice for new sizes
-            if (stockData.newSizePrices && stockData.newSizePrices[size]) {
-              updatedSizes[size].price = stockData.newSizePrices[size].price || editingProduct.itemPrice || 0;
-              updatedSizes[size].costPrice = stockData.newSizePrices[size].costPrice || editingProduct.costPrice || 0;
-            }
-          });
-        } else {
-
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size];
-            const currentQty = getSizeQty(currentSizeData);
-            const currentPrice = getSizePrice(currentSizeData);
-            const addQty = stockData.sizes[size] || 0;
-            const newQty = currentQty + addQty;
-
-            // Check if this is a new size with prices from the modal
-            if (stockData.newSizePrices && stockData.newSizePrices[size]) {
-              updatedSizes[size] = {
-                ...(typeof currentSizeData === 'object' && currentSizeData !== null ? currentSizeData : {}),
-                quantity: newQty,
-                price: stockData.newSizePrices[size].price || editingProduct.itemPrice || 0,
-                costPrice: stockData.newSizePrices[size].costPrice || editingProduct.costPrice || 0
-              };
-            } else if (
-              currentPrice !== null ||
-              typeof currentSizeData === "object" && currentSizeData !== null) {
-              updatedSizes[size] = {
-                ...currentSizeData,
-                quantity: newQty,
-                price:
-                  currentPrice !== null ?
-                    currentPrice :
-                    editingProduct.itemPrice || 0
-              };
-            } else {
-              updatedSizes[size] = newQty;
-            }
-          });
+        const response = await fetch(`${API_BASE_URL}/api/products/${editingProduct._id}/stock-in`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...stockData,
+            handledBy,
+            handledById
+          })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          alert(data.message || "Failed to update stock");
+          return;
         }
-
-        const totalStock = Object.values(updatedSizes).reduce(
-          (sum, sizeData) => sum + getSizeQty(sizeData),
-          0
-        );
-
-
-        const sizeQuantitiesAdded = {};
-        if (stockData.hasVariants && stockData.variantQuantities) {
-          stockData.selectedSizes.forEach((size) => {
-            const variantQtys = stockData.variantQuantities[size] || {};
-            const totalForSize = Object.values(variantQtys).reduce((sum, q) => sum + (parseInt(q) || 0), 0);
-            if (totalForSize > 0) {
-              sizeQuantitiesAdded[size] = totalForSize;
-            }
-          });
-        } else {
-          stockData.selectedSizes.forEach((size) => {
-            const addQty = stockData.sizes[size] || 0;
-            if (addQty > 0) {
-              sizeQuantitiesAdded[size] = addQty;
-            }
-          });
-        }
-
-        response = await fetch(
-          `${API_BASE_URL}/api/products/${editingProduct._id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              currentStock: totalStock,
-              sizes: updatedSizes,
-              stockMovementType: "Stock-In",
-              stockMovementReason: stockData.reason || "Restock",
-              handledBy: handledBy,
-              handledById: handledById,
-              stockMovementSizeQuantities:
-                Object.keys(sizeQuantitiesAdded).length > 0 ?
-                  sizeQuantitiesAdded :
-                  null
-            })
-          }
-        );
       }
 
-      const data = await response.json();
-
-      if (data.success) {
-        setShowStockModal(false);
-        setEditingProduct(null);
-        setStockAmount("");
-        setSuccessMessage("Stock added successfully!");
-        setShowSuccessModal(true);
-        invalidateCache("products");
-        fetchProducts();
-      } else {
-        alert(data.message || "Failed to update stock");
-      }
+      setShowStockModal(false);
+      setEditingProduct(null);
+      setStockAmount("");
+      setSuccessMessage("Stock added successfully!");
+      setShowSuccessModal(true);
+      invalidateCache("products");
+      fetchProducts();
     } catch (error) {
       console.error("Error updating stock:", error);
       alert("Failed to update stock. Please try again.");
@@ -1548,221 +1371,128 @@ const Inventory = () => {
           "Pull-Out" :
           "Stock-Out";
 
-      let response;
-      let sizeQuantitiesRemoved = {};
       let totalQuantityRemoved = 0;
 
       if (stockData.noSizes) {
-
-        const newStock = Math.max(
-          0,
-          (editingProduct.currentStock || 0) - stockData.quantity
-        );
-        totalQuantityRemoved = stockData.quantity;
-
-        response = await fetch(
-          `${API_BASE_URL}/api/products/${editingProduct._id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-              currentStock: newStock,
-              stockMovementType: movementType,
-              stockMovementReason: stockData.reason || "Sold",
-              handledBy: handledBy,
-              handledById: handledById
-            })
-          }
-        );
+        totalQuantityRemoved = stockData.quantity || 0;
+        const response = await fetch(`${API_BASE_URL}/api/products/${editingProduct._id}/stock-out`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...stockData,
+            handledBy,
+            handledById
+          })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          alert(data.message || "Failed to update stock");
+          return;
+        }
       } else {
-
-        const updatedSizes = { ...(editingProduct.sizes || {}) };
-
-
-        const getSizeQty = (sizeData) => {
-          if (
-            typeof sizeData === "object" &&
-            sizeData !== null &&
-            sizeData.quantity !== undefined) {
-            return sizeData.quantity;
-          }
-          return typeof sizeData === "number" ? sizeData : 0;
-        };
-
-
-        const getSizePrice = (sizeData) => {
-          if (
-            typeof sizeData === "object" &&
-            sizeData !== null &&
-            sizeData.price !== undefined) {
-            return sizeData.price;
-          }
-          return null;
-        };
-
-
         if (stockData.hasVariants && stockData.variantQuantities) {
-
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size] || {};
-            const currentVariants = typeof currentSizeData === "object" && currentSizeData.variants || {};
-            const removeVariantQtys = stockData.variantQuantities[size] || {};
-
-
-            const getVariantQty = (variantData) => {
-              if (typeof variantData === "number") return variantData;
-              if (typeof variantData === "object" && variantData !== null) {
-                return variantData.quantity || 0;
-              }
-              return 0;
-            };
-
-
-            const newVariants = { ...currentVariants };
-            Object.entries(removeVariantQtys).forEach(([variant, removeQty]) => {
-              if (removeQty > 0 && newVariants[variant] !== undefined) {
-                const currentQty = getVariantQty(newVariants[variant]);
-
-                newVariants[variant] = Math.max(0, currentQty - removeQty);
-              }
-            });
-
-
-            const newTotalQty = Object.values(newVariants).reduce(
-              (sum, v) => sum + getVariantQty(v), 0
-            );
-
-            updatedSizes[size] = {
-              ...currentSizeData,
-              quantity: newTotalQty,
-              variants: newVariants
-            };
-          });
-
-
-          stockData.selectedSizes.forEach((size) => {
+          stockData.selectedSizes?.forEach((size) => {
             const variantQtys = stockData.variantQuantities[size] || {};
-            const totalForSize = Object.values(variantQtys).reduce((sum, q) => sum + (parseInt(q) || 0), 0);
-            if (totalForSize > 0) {
-              sizeQuantitiesRemoved[size] = totalForSize;
-              totalQuantityRemoved += totalForSize;
-            }
+            totalQuantityRemoved += Object.values(variantQtys).reduce((sum, q) => sum + (parseInt(q) || 0), 0);
           });
         } else {
-
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size];
-            const currentQty = getSizeQty(currentSizeData);
-            const currentPrice = getSizePrice(currentSizeData);
-            const removeQty = stockData.sizes[size] || 0;
-            const newQty = Math.max(0, currentQty - removeQty);
-
-
-            if (
-              currentPrice !== null ||
-              typeof currentSizeData === "object" && currentSizeData !== null) {
-              updatedSizes[size] = {
-                ...currentSizeData,
-                quantity: newQty,
-                price:
-                  currentPrice !== null ?
-                    currentPrice :
-                    editingProduct.itemPrice || 0
-              };
-            } else {
-              updatedSizes[size] = newQty;
-            }
-          });
-
-
-          stockData.selectedSizes.forEach((size) => {
-            const removeQty = stockData.sizes[size] || 0;
-            if (removeQty > 0) {
-              sizeQuantitiesRemoved[size] = removeQty;
-              totalQuantityRemoved += removeQty;
-            }
+          stockData.selectedSizes?.forEach((size) => {
+            totalQuantityRemoved += parseInt(stockData.sizes?.[size]) || 0;
           });
         }
 
-        const totalStock = Object.values(updatedSizes).reduce(
-          (sum, sizeData) => sum + getSizeQty(sizeData),
-          0
-        );
+        const response = await fetch(`${API_BASE_URL}/api/products/${editingProduct._id}/stock-out`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...stockData,
+            handledBy,
+            handledById
+          })
+        });
+        const data = await response.json();
+        if (!response.ok || !data.success) {
+          alert(data.message || "Failed to update stock");
+          return;
+        }
+      }
 
-        response = await fetch(
-          `${API_BASE_URL}/api/products/${editingProduct._id}`,
-          {
-            method: "PUT",
+      // Keep existing archive behavior on stock-out reasons
+      const archiveReasons = ["Damaged", "Defective", "Expired"];
+      if (archiveReasons.includes(stockData.reason)) {
+        const sizesString = stockData.selectedSizes ?
+          stockData.selectedSizes.join(", ") :
+          "";
+
+        try {
+          await fetch(`${API_BASE_URL}/api/archive`, {
+            method: "POST",
             headers: {
               "Content-Type": "application/json"
             },
             body: JSON.stringify({
-              currentStock: totalStock,
-              sizes: updatedSizes,
-              stockMovementType: movementType,
-              stockMovementReason: stockData.reason || "Sold",
-              handledBy: handledBy,
-              handledById: handledById,
-              stockMovementSizeQuantities:
-                Object.keys(sizeQuantitiesRemoved).length > 0 ?
-                  sizeQuantitiesRemoved :
-                  null
+              productId: editingProduct._id,
+              itemName: editingProduct.itemName,
+              sku: editingProduct.sku,
+              variant: editingProduct.variant || "",
+              selectedSize: sizesString,
+              category: editingProduct.category,
+              brandName: editingProduct.brandName || "",
+              itemPrice: editingProduct.itemPrice || 0,
+              costPrice: editingProduct.costPrice || 0,
+              quantity: totalQuantityRemoved,
+              itemImage: editingProduct.itemImage || "",
+              reason:
+                stockData.reason === "Defective" ?
+                  "Defective" :
+                  stockData.reason,
+              archivedBy: handledBy,
+              archivedById: handledById,
+              source: "stock-out",
+              notes: `Stock out - ${stockData.reason}. Sizes: ${sizesString}`
             })
-          }
-        );
+          });
+        } catch (archiveError) {
+          console.error("Error archiving item:", archiveError);
+        }
       }
 
+      setShowStockModal(false);
+      setEditingProduct(null);
+      setStockAmount("");
+      setSuccessMessage("Stock removed successfully!");
+      setShowSuccessModal(true);
+      invalidateCache("products");
+      fetchProducts();
+    } catch (error) {
+      console.error("Error updating stock:", error);
+      alert("Failed to update stock. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /*
+   * NOTE:
+   * The old client-side batching logic for stock-in/out was intentionally replaced by
+   * server-side endpoints to prevent concurrent overwrite bugs and keep FIFO rules consistent.
+   */
+
+  /*
+   * The rest of this file still uses `handleStockOutConfirm` in the StockOutModal below.
+   */
+
+  /* eslint-disable no-unreachable */
+  /* eslint-enable no-unreachable */
+
+      /*
       const data = await response.json();
 
       if (data.success) {
-
-        const archiveReasons = ["Damaged", "Defective", "Expired"];
-        if (archiveReasons.includes(stockData.reason)) {
-
-          const sizesString = stockData.selectedSizes ?
-            stockData.selectedSizes.join(", ") :
-            "";
-
-          try {
-            await fetch(`${API_BASE_URL}/api/archive`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                productId: editingProduct._id,
-                itemName: editingProduct.itemName,
-                sku: editingProduct.sku,
-                variant: editingProduct.variant || "",
-                selectedSize: sizesString,
-                category: editingProduct.category,
-                brandName: editingProduct.brandName || "",
-                itemPrice: editingProduct.itemPrice || 0,
-                costPrice: editingProduct.costPrice || 0,
-                quantity: totalQuantityRemoved,
-                itemImage: editingProduct.itemImage || "",
-                reason:
-                  stockData.reason === "Defective" ?
-                    "Defective" :
-                    stockData.reason,
-                archivedBy: handledBy,
-                archivedById: handledById,
-                source: "stock-out",
-                notes: `Stock out - ${stockData.reason}. Sizes: ${sizesString}`
-              })
-            });
-          } catch (archiveError) {
-            console.error("Error archiving item:", archiveError);
-
-          }
-        }
-
         setShowStockModal(false);
         setEditingProduct(null);
         setStockAmount("");
-        setSuccessMessage("Stock removed successfully!");
+        setSuccessMessage("Stock added successfully!");
         setShowSuccessModal(true);
         invalidateCache("products");
         fetchProducts();
@@ -1776,6 +1506,7 @@ const Inventory = () => {
       setLoading(false);
     }
   };
+      */
 
   const formatDate = (date) => {
     if (!date) return "-";

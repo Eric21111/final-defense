@@ -385,6 +385,400 @@ const hasZeroStock = (productData) => {
   return (productData.currentStock || 0) === 0;
 };
 
+// ==========================
+// Stock In/Out (Batch FIFO)
+// ==========================
+const nowIso = () => new Date().toISOString();
+const safeNum = (v, fallback = 0) => {
+  const n = typeof v === "number" ? v : parseFloat(v);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const toSizeObject = (sizeData, fallbackPrice, fallbackCostPrice) => {
+  if (typeof sizeData === "object" && sizeData !== null) {
+    const qty = safeNum(sizeData.quantity, 0);
+    return {
+      ...sizeData,
+      quantity: qty,
+      price: safeNum(sizeData.price, safeNum(fallbackPrice, 0)),
+      costPrice: safeNum(sizeData.costPrice, safeNum(fallbackCostPrice, 0)),
+    };
+  }
+  const qty = typeof sizeData === "number" ? sizeData : 0;
+  return {
+    quantity: qty,
+    price: safeNum(fallbackPrice, 0),
+    costPrice: safeNum(fallbackCostPrice, 0),
+  };
+};
+
+const ensureBatches = (obj, fallbackPrice, fallbackCostPrice) => {
+  const next = typeof obj === "object" && obj !== null ? { ...obj } : { ...toSizeObject(obj, fallbackPrice, fallbackCostPrice) };
+  next.quantity = safeNum(next.quantity, 0);
+  next.price = safeNum(next.price, safeNum(fallbackPrice, 0));
+  next.costPrice = safeNum(next.costPrice, safeNum(fallbackCostPrice, 0));
+  if (!Array.isArray(next.batches) || next.batches.length === 0) {
+    next.batches = next.quantity > 0 ? [{ qty: next.quantity, price: next.price, costPrice: next.costPrice, createdAt: nowIso() }] : [];
+  }
+  return next;
+};
+
+const addBatch = (batches, addQty, price, costPrice) => {
+  const qty = safeNum(addQty, 0);
+  const next = Array.isArray(batches) ? [...batches] : [];
+  if (qty > 0) {
+    next.push({ qty, price: safeNum(price, 0), costPrice: safeNum(costPrice, 0), createdAt: nowIso() });
+  }
+  return next;
+};
+
+const consumeBatches = (batches, removeQty) => {
+  let remaining = safeNum(removeQty, 0);
+  const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+  for (let i = 0; i < next.length && remaining > 0; i++) {
+    const take = Math.min(safeNum(next[i].qty, 0), remaining);
+    next[i].qty = safeNum(next[i].qty, 0) - take;
+    remaining -= take;
+  }
+  return next.filter((b) => safeNum(b.qty, 0) > 0);
+};
+
+const sumBatchesQty = (batches) =>
+  (Array.isArray(batches) ? batches : []).reduce((sum, b) => sum + safeNum(b.qty, 0), 0);
+
+exports.stockInProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const stockData = req.body || {};
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    const stockBefore = product.currentStock || 0;
+    const handledBy = stockData.handledBy || "System";
+    const handledById = stockData.handledById || "";
+    const reason = stockData.reason || "Restock";
+
+    if (!product.sizes || typeof product.sizes !== "object" || Object.keys(product.sizes).length === 0) {
+      // No sizes case: keep behavior same as before
+      const qty = safeNum(stockData.quantity, 0);
+      if (qty <= 0) {
+        return res.status(400).json({ success: false, message: "Invalid quantity" });
+      }
+      product.currentStock = stockBefore + qty;
+      product.lastUpdated = Date.now();
+      await product.save();
+
+      await logStockMovement(product, stockBefore, product.currentStock, "Stock-In", reason, handledBy, handledById, null);
+
+      return res.json({ success: true, message: "Stock added successfully", data: product.toObject() });
+    }
+
+    const updatedSizes = { ...(product.sizes || {}) };
+    const selectedSizes = Array.isArray(stockData.selectedSizes) ? stockData.selectedSizes : [];
+    if (selectedSizes.length === 0) {
+      return res.status(400).json({ success: false, message: "No sizes selected" });
+    }
+
+    const hasVariants = !!(stockData.hasVariants && stockData.variantQuantities);
+
+    const sizeQuantitiesAdded = {};
+
+    if (hasVariants) {
+      selectedSizes.forEach((size) => {
+        const currentSizeData = ensureBatches(
+          toSizeObject(updatedSizes[size] || {}, product.itemPrice || 0, product.costPrice || 0),
+          product.itemPrice || 0,
+          product.costPrice || 0,
+        );
+
+        const currentVariants =
+          currentSizeData.variants && typeof currentSizeData.variants === "object" ? currentSizeData.variants : {};
+
+        const addVariantQtys = stockData.variantQuantities?.[size] || {};
+        const newVariants = { ...currentVariants };
+
+        Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
+          const qty = safeNum(addQty, 0);
+          if (qty <= 0) return;
+
+          const fallbackExistingPrice =
+            safeNum(currentSizeData.variantPrices?.[variant], safeNum(currentSizeData.price, product.itemPrice || 0));
+          const fallbackExistingCost =
+            safeNum(currentSizeData.variantCostPrices?.[variant], safeNum(currentSizeData.costPrice, product.costPrice || 0));
+
+          const normalizedVariant = ensureBatches(newVariants[variant] || {}, fallbackExistingPrice, fallbackExistingCost);
+
+          // Determine incoming prices for new batch
+          let incomingPrice = fallbackExistingPrice;
+          let incomingCost = fallbackExistingCost;
+
+          if (stockData.diffPricesPerVariant?.[size] && stockData.stockVariantPrices?.[size]?.[variant]) {
+            incomingPrice = safeNum(stockData.stockVariantPrices[size][variant].price, incomingPrice);
+            incomingCost = safeNum(stockData.stockVariantPrices[size][variant].costPrice, incomingCost);
+          } else if (stockData.newVariantPrices?.[variant]) {
+            incomingPrice = safeNum(stockData.newVariantPrices[variant].price, incomingPrice);
+            incomingCost = safeNum(stockData.newVariantPrices[variant].costPrice, incomingCost);
+          } else if (stockData.newSizePrices?.[size]) {
+            incomingPrice = safeNum(stockData.newSizePrices[size].price, incomingPrice);
+            incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
+          }
+
+          const nextBatches = addBatch(normalizedVariant.batches, qty, incomingPrice, incomingCost);
+          newVariants[variant] = {
+            ...normalizedVariant,
+            batches: nextBatches,
+            quantity: sumBatchesQty(nextBatches),
+            price: normalizedVariant.price,
+            costPrice: normalizedVariant.costPrice,
+          };
+        });
+
+        const newTotalQty = Object.values(newVariants).reduce((sum, v) => {
+          if (typeof v === "number") return sum + safeNum(v, 0);
+          if (typeof v === "object" && v !== null) return sum + safeNum(v.quantity, 0);
+          return sum;
+        }, 0);
+
+        updatedSizes[size] = {
+          ...currentSizeData,
+          variants: newVariants,
+          quantity: newTotalQty,
+          hasDifferentPricesPerVariant: stockData.diffPricesPerVariant?.[size] ? true : currentSizeData.hasDifferentPricesPerVariant,
+        };
+
+        // Apply price/costPrice for new sizes if provided
+        if (stockData.newSizePrices?.[size]) {
+          updatedSizes[size].price = safeNum(stockData.newSizePrices[size].price, product.itemPrice || 0);
+          updatedSizes[size].costPrice = safeNum(stockData.newSizePrices[size].costPrice, product.costPrice || 0);
+        }
+
+        const totalForSize = Object.values(addVariantQtys).reduce((s, q) => s + safeNum(q, 0), 0);
+        if (totalForSize > 0) sizeQuantitiesAdded[size] = totalForSize;
+      });
+    } else {
+      selectedSizes.forEach((size) => {
+        const addQty = safeNum(stockData.sizes?.[size], 0);
+        if (addQty <= 0) return;
+
+        const currentSizeData = ensureBatches(
+          toSizeObject(updatedSizes[size] || {}, product.itemPrice || 0, product.costPrice || 0),
+          product.itemPrice || 0,
+          product.costPrice || 0,
+        );
+
+        let incomingPrice = currentSizeData.price;
+        let incomingCost = currentSizeData.costPrice;
+        if (stockData.newSizePrices?.[size]) {
+          incomingPrice = safeNum(stockData.newSizePrices[size].price, incomingPrice);
+          incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
+        }
+
+        const nextBatches = addBatch(currentSizeData.batches, addQty, incomingPrice, incomingCost);
+        const nextQty = sumBatchesQty(nextBatches);
+        updatedSizes[size] = {
+          ...currentSizeData,
+          batches: nextBatches,
+          quantity: nextQty,
+          price: incomingPrice,
+          costPrice: incomingCost,
+        };
+
+        sizeQuantitiesAdded[size] = addQty;
+      });
+    }
+
+    // Recalculate total stock across sizes
+    const totalStock = Object.values(updatedSizes).reduce((sum, sizeData) => {
+      if (typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined) {
+        return sum + safeNum(sizeData.quantity, 0);
+      }
+      return sum + (typeof sizeData === "number" ? safeNum(sizeData, 0) : 0);
+    }, 0);
+
+    product.sizes = updatedSizes;
+    product.currentStock = totalStock;
+    product.lastUpdated = Date.now();
+
+    // Auto manage display in terminal based on stock levels (same behavior as updateProduct)
+    const hadZeroStockBefore = hasZeroStock(product.toObject());
+    const hasZeroStockNow = hasZeroStock({ ...product.toObject(), sizes: updatedSizes, currentStock: totalStock });
+    if (hasZeroStockNow && stockData.displayInTerminal === undefined) {
+      product.displayInTerminal = false;
+    } else if (!hasZeroStockNow && hadZeroStockBefore && stockData.displayInTerminal === undefined) {
+      product.displayInTerminal = true;
+    }
+
+    product.markModified("sizes");
+    await product.save();
+
+    await logStockMovement(
+      product,
+      stockBefore,
+      product.currentStock,
+      "Stock-In",
+      reason,
+      handledBy,
+      handledById,
+      Object.keys(sizeQuantitiesAdded).length > 0 ? sizeQuantitiesAdded : null,
+    );
+
+    res.json({ success: true, message: "Stock added successfully", data: product.toObject() });
+  } catch (error) {
+    console.error("Error stock-in:", error);
+    res.status(400).json({ success: false, message: "Error stocking in", error: error.message });
+  }
+};
+
+exports.stockOutProduct = async (req, res) => {
+  try {
+    const productId = req.params.id;
+    const stockData = req.body || {};
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+
+    const stockBefore = product.currentStock || 0;
+    const handledBy = stockData.handledBy || "System";
+    const handledById = stockData.handledById || "";
+    const reason = stockData.reason || "Sold";
+    const movementType =
+      reason === "Damaged" || reason === "Lost" || reason === "Expired" ? "Pull-Out" : "Stock-Out";
+
+    if (!product.sizes || typeof product.sizes !== "object" || Object.keys(product.sizes).length === 0) {
+      const qty = safeNum(stockData.quantity, 0);
+      if (qty <= 0) return res.status(400).json({ success: false, message: "Invalid quantity" });
+      if (qty > stockBefore) return res.status(400).json({ success: false, message: "Insufficient stock" });
+
+      product.currentStock = Math.max(0, stockBefore - qty);
+      product.lastUpdated = Date.now();
+      await product.save();
+
+      await logStockMovement(product, stockBefore, product.currentStock, movementType, reason, handledBy, handledById, null);
+      return res.json({ success: true, message: "Stock removed successfully", data: product.toObject() });
+    }
+
+    const updatedSizes = { ...(product.sizes || {}) };
+    const selectedSizes = Array.isArray(stockData.selectedSizes) ? stockData.selectedSizes : [];
+    if (selectedSizes.length === 0) {
+      return res.status(400).json({ success: false, message: "No sizes selected" });
+    }
+
+    const hasVariants = !!(stockData.hasVariants && stockData.variantQuantities);
+    const sizeQuantitiesRemoved = {};
+    let totalQuantityRemoved = 0;
+
+    if (hasVariants) {
+      selectedSizes.forEach((size) => {
+        const currentSizeData = toSizeObject(updatedSizes[size] || {}, product.itemPrice || 0, product.costPrice || 0);
+        const currentVariants =
+          currentSizeData.variants && typeof currentSizeData.variants === "object" ? currentSizeData.variants : {};
+        const removeVariantQtys = stockData.variantQuantities?.[size] || {};
+
+        const newVariants = { ...currentVariants };
+        Object.entries(removeVariantQtys).forEach(([variant, removeQty]) => {
+          const qty = safeNum(removeQty, 0);
+          if (qty <= 0 || newVariants[variant] === undefined) return;
+
+          const fallbackExistingPrice =
+            safeNum(currentSizeData.variantPrices?.[variant], safeNum(currentSizeData.price, product.itemPrice || 0));
+          const fallbackExistingCost =
+            safeNum(currentSizeData.variantCostPrices?.[variant], safeNum(currentSizeData.costPrice, product.costPrice || 0));
+
+          const normalizedVariant = ensureBatches(newVariants[variant] || {}, fallbackExistingPrice, fallbackExistingCost);
+          const nextBatches = consumeBatches(normalizedVariant.batches, qty);
+          newVariants[variant] = {
+            ...normalizedVariant,
+            batches: nextBatches,
+            quantity: sumBatchesQty(nextBatches),
+          };
+        });
+
+        const newTotalQty = Object.values(newVariants).reduce((sum, v) => {
+          if (typeof v === "number") return sum + safeNum(v, 0);
+          if (typeof v === "object" && v !== null) return sum + safeNum(v.quantity, 0);
+          return sum;
+        }, 0);
+
+        updatedSizes[size] = {
+          ...currentSizeData,
+          variants: newVariants,
+          quantity: newTotalQty,
+        };
+
+        const totalForSize = Object.values(removeVariantQtys).reduce((s, q) => s + safeNum(q, 0), 0);
+        if (totalForSize > 0) {
+          sizeQuantitiesRemoved[size] = totalForSize;
+          totalQuantityRemoved += totalForSize;
+        }
+      });
+    } else {
+      selectedSizes.forEach((size) => {
+        const removeQty = safeNum(stockData.sizes?.[size], 0);
+        if (removeQty <= 0) return;
+
+        const currentSizeData = ensureBatches(
+          toSizeObject(updatedSizes[size] || {}, product.itemPrice || 0, product.costPrice || 0),
+          product.itemPrice || 0,
+          product.costPrice || 0,
+        );
+        const nextBatches = consumeBatches(currentSizeData.batches, removeQty);
+        const newQty = sumBatchesQty(nextBatches);
+        updatedSizes[size] = {
+          ...currentSizeData,
+          batches: nextBatches,
+          quantity: newQty,
+        };
+
+        sizeQuantitiesRemoved[size] = removeQty;
+        totalQuantityRemoved += removeQty;
+      });
+    }
+
+    const totalStock = Object.values(updatedSizes).reduce((sum, sizeData) => {
+      if (typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined) {
+        return sum + safeNum(sizeData.quantity, 0);
+      }
+      return sum + (typeof sizeData === "number" ? safeNum(sizeData, 0) : 0);
+    }, 0);
+
+    product.sizes = updatedSizes;
+    product.currentStock = totalStock;
+    product.lastUpdated = Date.now();
+
+    // Auto-hide/show terminal like updateProduct
+    const hasZeroStockNow = hasZeroStock({ ...product.toObject(), sizes: updatedSizes, currentStock: totalStock });
+    if (hasZeroStockNow && stockData.displayInTerminal === undefined) {
+      product.displayInTerminal = false;
+    } else if (!hasZeroStockNow && stockBefore === 0 && totalStock > 0 && stockData.displayInTerminal === undefined) {
+      product.displayInTerminal = true;
+    }
+
+    product.markModified("sizes");
+    await product.save();
+
+    await logStockMovement(
+      product,
+      stockBefore,
+      product.currentStock,
+      movementType,
+      reason,
+      handledBy,
+      handledById,
+      Object.keys(sizeQuantitiesRemoved).length > 0 ? sizeQuantitiesRemoved : null,
+    );
+
+    res.json({ success: true, message: "Stock removed successfully", data: product.toObject() });
+  } catch (error) {
+    console.error("Error stock-out:", error);
+    res.status(400).json({ success: false, message: "Error stocking out", error: error.message });
+  }
+};
+
 exports.updateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
@@ -648,6 +1042,48 @@ exports.updateStockAfterTransaction = async (req, res) => {
     const movementType = type || "Stock-Out";
     const movementReason = reason || (isStockIn ? "Returned Item" : "Sold");
 
+    // --- Batch helpers (FIFO) ---
+    // We store batches as an array (oldest first): [{ qty, price, costPrice, createdAt }]
+    // This preserves old price/cost for remaining old stock when prices change later.
+    const nowIso = () => new Date().toISOString();
+    const safeNum = (v, fallback = 0) => {
+      const n = typeof v === "number" ? v : parseFloat(v);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    const ensureBatches = (obj, fallbackPrice, fallbackCostPrice) => {
+      const quantity = safeNum(obj?.quantity, safeNum(obj, 0));
+      const price = safeNum(obj?.price, safeNum(fallbackPrice, 0));
+      const costPrice = safeNum(obj?.costPrice, safeNum(fallbackCostPrice, 0));
+      const next = typeof obj === "object" && obj !== null ? { ...obj } : { quantity, price, costPrice };
+      next.quantity = quantity;
+      next.price = price;
+      next.costPrice = costPrice;
+      if (!Array.isArray(next.batches)) {
+        next.batches = quantity > 0 ? [{ qty: quantity, price, costPrice, createdAt: nowIso() }] : [];
+      } else if (next.batches.length === 0 && quantity > 0) {
+        next.batches = [{ qty: quantity, price, costPrice, createdAt: nowIso() }];
+      }
+      return next;
+    };
+    const addBatch = (batches, addQty, price, costPrice) => {
+      const qty = safeNum(addQty, 0);
+      const next = Array.isArray(batches) ? [...batches] : [];
+      if (qty > 0) {
+        next.push({ qty, price: safeNum(price, 0), costPrice: safeNum(costPrice, 0), createdAt: nowIso() });
+      }
+      return next;
+    };
+    const consumeBatches = (batches, removeQty) => {
+      let remaining = safeNum(removeQty, 0);
+      const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+      for (let i = 0; i < next.length && remaining > 0; i++) {
+        const take = Math.min(safeNum(next[i].qty, 0), remaining);
+        next[i].qty = safeNum(next[i].qty, 0) - take;
+        remaining -= take;
+      }
+      return next.filter((b) => safeNum(b.qty, 0) > 0);
+    };
+
     // Process items sequentially to prevent race conditions when multiple
     // items reference the same product (e.g., same shirt in different sizes)
     const updatedProducts = [];
@@ -709,13 +1145,19 @@ exports.updateStockAfterTransaction = async (req, res) => {
             // Handle variant-specific stock
             const variantData = currentSizeData.variants[item.variant];
 
-            // Get current variant quantity (handles both number and object formats)
-            let currentVariantQty = 0;
-            if (typeof variantData === "number") {
-              currentVariantQty = variantData;
-            } else if (typeof variantData === "object" && variantData !== null) {
-              currentVariantQty = variantData.quantity || 0;
-            }
+            const fallbackVariantPrice =
+              safeNum(
+                currentSizeData.variantPrices?.[item.variant],
+                safeNum(currentPrice, safeNum(item.price, safeNum(product.itemPrice, 0))),
+              );
+            const fallbackVariantCostPrice =
+              safeNum(
+                currentSizeData.variantCostPrices?.[item.variant],
+                safeNum(currentSizeData.costPrice, safeNum(product.costPrice, 0)),
+              );
+
+            const normalizedVariant = ensureBatches(variantData, fallbackVariantPrice, fallbackVariantCostPrice);
+            const currentVariantQty = safeNum(normalizedVariant.quantity, 0);
 
             if (isStockOut && currentVariantQty < item.quantity) {
               throw new Error(
@@ -723,19 +1165,22 @@ exports.updateStockAfterTransaction = async (req, res) => {
               );
             }
 
-            const newVariantQty = isStockIn
-              ? currentVariantQty + item.quantity
-              : Math.max(0, currentVariantQty - item.quantity);
+            // Update variant batches FIFO (Batch 1 consumed first, stock-in creates new batch)
+            const nextVariantBatches = isStockIn
+              ? addBatch(
+                normalizedVariant.batches,
+                item.quantity,
+                safeNum(item.price, safeNum(fallbackVariantPrice, safeNum(product.itemPrice, 0))),
+                safeNum(item.costPrice, safeNum(fallbackVariantCostPrice, safeNum(product.costPrice, 0))),
+              )
+              : consumeBatches(normalizedVariant.batches, item.quantity);
 
-            // Update variant quantity while preserving format
-            if (typeof variantData === "object" && variantData !== null) {
-              currentSizeData.variants[item.variant] = {
-                ...variantData,
-                quantity: newVariantQty,
-              };
-            } else {
-              currentSizeData.variants[item.variant] = newVariantQty;
-            }
+            const nextVariantQty = nextVariantBatches.reduce((sum, b) => sum + safeNum(b.qty, 0), 0);
+            currentSizeData.variants[item.variant] = {
+              ...normalizedVariant,
+              batches: nextVariantBatches,
+              quantity: nextVariantQty,
+            };
 
             // Recalculate size total quantity from all variants
             let sizeTotal = 0;
@@ -763,22 +1208,30 @@ exports.updateStockAfterTransaction = async (req, res) => {
               );
             }
 
-            const newQuantity = isStockIn
-              ? (currentQuantity || 0) + item.quantity
-              : Math.max(0, currentQuantity - item.quantity);
+            const normalizedSize = ensureBatches(
+              currentSizeData,
+              safeNum(currentPrice, safeNum(item.price, safeNum(product.itemPrice, 0))),
+              safeNum(currentSizeData?.costPrice, safeNum(product.costPrice, 0)),
+            );
 
-            // Update size data (handle both Map and object types)
-            const updatedSizeData = (
-              currentPrice !== null ||
-              (typeof currentSizeData === "object" && currentSizeData !== null)
-            ) ? {
-              ...currentSizeData,
+            const nextSizeBatches = isStockIn
+              ? addBatch(
+                normalizedSize.batches,
+                item.quantity,
+                safeNum(item.price, safeNum(normalizedSize.price, safeNum(product.itemPrice, 0))),
+                safeNum(item.costPrice, safeNum(normalizedSize.costPrice, safeNum(product.costPrice, 0))),
+              )
+              : consumeBatches(normalizedSize.batches, item.quantity);
+
+            const newQuantity = nextSizeBatches.reduce((sum, b) => sum + safeNum(b.qty, 0), 0);
+
+            // Update size data (keep existing shape object for price fields)
+            const updatedSizeData = {
+              ...normalizedSize,
+              batches: nextSizeBatches,
               quantity: newQuantity,
-              price:
-                currentPrice !== null
-                  ? currentPrice
-                  : item.price || product.itemPrice || 0,
-            } : newQuantity;
+              price: safeNum(currentPrice, safeNum(item.price, safeNum(product.itemPrice, 0))),
+            };
 
             if (product.sizes.set) {
               product.sizes.set(sizeKey, updatedSizeData);
