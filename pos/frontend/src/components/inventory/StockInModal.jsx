@@ -465,7 +465,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   return (
     <div className="fixed inset-0 flex items-center justify-center z-[9999] p-4 backdrop-blur-sm pointer-events-none">
       <div
-        className={`rounded-2xl w-full max-w-5xl relative pointer-events-auto overflow-hidden ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
+        className={`rounded-2xl w-full max-w-3xl relative pointer-events-auto overflow-hidden ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
         style={{
           boxShadow:
             "0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.1)"
@@ -509,37 +509,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
         <form onSubmit={handleSubmit}>
           <div className="flex" style={{ maxHeight: "calc(100vh - 150px)" }}>
-            <div
-              className={`w-1/2 p-6 flex items-center justify-center ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}
-              style={{ minHeight: "500px", maxHeight: "calc(100vh - 150px)" }}>
-
-              {product.itemImage && product.itemImage.trim() !== "" ?
-                <img
-                  src={product.itemImage}
-                  alt={product.itemName}
-                  className="max-w-full max-h-full object-contain rounded-lg" /> :
-
-
-                <div className="text-center text-gray-400">
-                  <svg
-                    className="w-24 h-24 mx-auto mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24">
-
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-
-                  </svg>
-                  <p className="text-sm">No Image Available</p>
-                </div>
-              }
-            </div>
-
-            <div className="w-1/2 p-6 flex flex-col justify-between overflow-y-auto" style={{ maxHeight: "calc(100vh - 150px)" }}>
+            <div className="w-full p-6 flex flex-col justify-between overflow-y-auto" style={{ maxHeight: "calc(100vh - 150px)" }}>
               <div className="space-y-6">
                 {/* Stepper */}
                 <div className="mb-2">
