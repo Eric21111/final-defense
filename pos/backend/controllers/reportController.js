@@ -8,48 +8,65 @@ const StockMovement = require("../models/StockMovement");
  */
 const getDateRange = (timeframe, customStartDate, customEndDate) => {
   const now = new Date();
-  let start, end;
+  let kpiStart, chartStart, end;
 
   end = new Date(now);
   end.setHours(23, 59, 59, 999);
 
   if (timeframe === "custom" && customStartDate && customEndDate) {
-    start = new Date(customStartDate);
-    start.setHours(0, 0, 0, 0);
+    kpiStart = new Date(customStartDate);
+    kpiStart.setHours(0, 0, 0, 0);
+    chartStart = kpiStart;
     end = new Date(customEndDate);
     end.setHours(23, 59, 59, 999);
-    return { start, end };
+    return { kpiStart, chartStart, end };
   }
 
   switch (timeframe) {
     case "daily":
-      // Last 7 days (matches Dashboard chart)
-      start = new Date(now);
-      start.setDate(start.getDate() - 6);
-      start.setHours(0, 0, 0, 0);
+      // KPI: Today
+      kpiStart = new Date(now);
+      kpiStart.setHours(0, 0, 0, 0);
+      // Chart: Last 7 days (matches Dashboard chart)
+      chartStart = new Date(now);
+      chartStart.setDate(chartStart.getDate() - 6);
+      chartStart.setHours(0, 0, 0, 0);
       break;
     case "weekly":
-      // Last 12 weeks
-      start = new Date(now);
-      start.setDate(start.getDate() - 12 * 7);
-      start.setHours(0, 0, 0, 0);
+      // KPI: This Week
+      kpiStart = new Date(now);
+      const day = kpiStart.getDay();
+      kpiStart.setDate(kpiStart.getDate() - day);
+      kpiStart.setHours(0, 0, 0, 0);
+      // Chart: Last 12 weeks
+      chartStart = new Date(now);
+      chartStart.setDate(chartStart.getDate() - 12 * 7);
+      chartStart.setHours(0, 0, 0, 0);
       break;
     case "monthly":
-      // Last 12 months
-      start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-      start.setHours(0, 0, 0, 0);
+      // KPI: This Month
+      kpiStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      kpiStart.setHours(0, 0, 0, 0);
+      // Chart: Last 12 months
+      chartStart = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+      chartStart.setHours(0, 0, 0, 0);
       break;
     case "yearly":
-      // Last 5 years
-      start = new Date(now.getFullYear() - 4, 0, 1);
-      start.setHours(0, 0, 0, 0);
+      // KPI: This Year
+      kpiStart = new Date(now.getFullYear(), 0, 1);
+      kpiStart.setHours(0, 0, 0, 0);
+      // Chart: Last 5 years
+      chartStart = new Date(now.getFullYear() - 4, 0, 1);
+      chartStart.setHours(0, 0, 0, 0);
       break;
     default:
-      start = new Date(now);
-      start.setDate(start.getDate() - 6);
-      start.setHours(0, 0, 0, 0);
+      kpiStart = new Date(now);
+      kpiStart.setHours(0, 0, 0, 0);
+      chartStart = new Date(now);
+      chartStart.setDate(chartStart.getDate() - 6);
+      chartStart.setHours(0, 0, 0, 0);
   }
-  return { start, end };
+  return { kpiStart, chartStart, end };
 };
 
 /**
@@ -67,7 +84,7 @@ exports.getInventoryAnalytics = async (req, res) => {
       startDate: customStart,
       endDate: customEnd,
     } = req.query;
-    const { start, end } = getDateRange(timeframe, customStart, customEnd);
+    const { kpiStart, chartStart, end } = getDateRange(timeframe, customStart, customEnd);
 
     // ── Run all queries in parallel for speed ──
     const [
@@ -128,10 +145,10 @@ exports.getInventoryAnalytics = async (req, res) => {
         {
           $match: {
             $or: [
-              { checkedOutAt: { $gte: start, $lte: end } },
+              { checkedOutAt: { $gte: kpiStart, $lte: end } },
               {
                 checkedOutAt: { $exists: false },
-                createdAt: { $gte: start, $lte: end },
+                createdAt: { $gte: kpiStart, $lte: end },
               },
             ],
             status: { $not: { $regex: /^voided$/i } },
@@ -183,7 +200,7 @@ exports.getInventoryAnalytics = async (req, res) => {
 
       // 3. Stock movement counts aggregation
       StockMovement.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end } } },
+        { $match: { createdAt: { $gte: kpiStart, $lte: end } } },
         {
           $group: {
             _id: "$type",
@@ -194,7 +211,7 @@ exports.getInventoryAnalytics = async (req, res) => {
 
       // 4. Stock movement time series (for inventory chart)
       StockMovement.aggregate([
-        { $match: { createdAt: { $gte: start, $lte: end } } },
+        { $match: { createdAt: { $gte: chartStart, $lte: end } } },
         {
           $group: {
             _id: getTimeSeriesGroupId(timeframe),
@@ -224,10 +241,10 @@ exports.getInventoryAnalytics = async (req, res) => {
         {
           $match: {
             $or: [
-              { checkedOutAt: { $gte: start, $lte: end } },
+              { checkedOutAt: { $gte: chartStart, $lte: end } },
               {
                 checkedOutAt: { $exists: false },
-                createdAt: { $gte: start, $lte: end },
+                createdAt: { $gte: chartStart, $lte: end },
               },
             ],
             status: { $not: { $regex: /^voided$/i } },
@@ -285,7 +302,7 @@ exports.getInventoryAnalytics = async (req, res) => {
       StockMovement.aggregate([
         {
           $match: {
-            createdAt: { $gte: start, $lte: end },
+            createdAt: { $gte: kpiStart, $lte: end },
             reason: { $in: ["Damaged", "Expired", "Lost"] },
           },
         },
@@ -345,7 +362,7 @@ exports.getInventoryAnalytics = async (req, res) => {
     const inventoryChartData = buildChartFromAggregation(
       movementTimeSeries,
       timeframe,
-      start,
+      chartStart,
       end,
       "inventory",
     );
@@ -354,7 +371,7 @@ exports.getInventoryAnalytics = async (req, res) => {
     const profitChartData = buildChartFromAggregation(
       salesTimeSeries,
       timeframe,
-      start,
+      chartStart,
       end,
       "profit",
     );
