@@ -933,21 +933,8 @@ const Transaction = () => {
           continue;
         }
 
-        // Mark product as archived (removes from active products list)
-        try {
-          const archiveProductRes = await fetch(
-            `${API_BASE_URL}/api/products/${item.productId}/archive`,
-            { method: "PATCH" }
-          );
-          const archiveProductData = await archiveProductRes
-            .json()
-            .catch(() => ({}));
-          if (!archiveProductRes.ok || !archiveProductData.success) {
-            console.warn("Failed to archive product record:", archiveProductData);
-          }
-        } catch (archiveProductErr) {
-          console.warn("Failed to archive product record:", archiveProductErr);
-        }
+        // Important: For returns we only archive the *returned stock* (qty + size/variant),
+        // not the entire product. So we DO NOT set `isArchived` on the product here.
       }
 
       // Stock-in items that are returned but NOT damaged/defective/expired
