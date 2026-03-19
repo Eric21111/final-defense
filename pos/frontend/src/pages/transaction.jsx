@@ -862,6 +862,24 @@ const Transaction = () => {
         throw new Error(updateData.message || "Failed to update transaction");
       }
 
+      const updatedOriginalTransaction = updateData.data || {
+        ...transaction,
+        ...updatePayload
+      };
+
+      setTransactions((prev) => {
+        const next = prev.map((trx) =>
+          trx._id === transaction._id ? { ...trx, ...updatedOriginalTransaction } : trx
+        );
+        setCachedDataRef.current("transactions", next);
+        return next;
+      });
+
+      setSelectedTransaction((prev) => {
+        if (!prev || prev._id !== transaction._id) return prev;
+        return { ...prev, ...updatedOriginalTransaction };
+      });
+
 
       for (const item of damagedItems) {
 
@@ -1684,7 +1702,6 @@ const Transaction = () => {
               <button
                 onClick={() => {
                   setShowReturnSuccessModal(false);
-                  window.location.reload();
                 }}
                 className="px-8 py-3 rounded-lg text-white font-semibold transition-all hover:opacity-90"
                 style={{

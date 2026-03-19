@@ -212,8 +212,18 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
       onClick={onClose}>
       
       <div
-        className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col"
+        className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] shadow-2xl overflow-hidden flex flex-col relative"
         onClick={(e) => e.stopPropagation()}>
+
+        {(loading || verifyingPin) && (
+          <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center">
+            <div className="bg-white rounded-2xl px-8 py-6 shadow-2xl flex flex-col items-center">
+              <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-orange-500 mb-3"></div>
+              <p className="text-gray-800 font-semibold">Processing return...</p>
+              <p className="text-gray-500 text-sm mt-1">Please wait. This will close automatically.</p>
+            </div>
+          </div>
+        )}
         
         {}
         <div
