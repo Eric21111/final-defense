@@ -1497,13 +1497,41 @@ const Terminal = () => {
           console.error("Stock update failed:", stockData);
           throw new Error(stockData.message || "Stock update failed");
         }
+
+        // Fast UI update: merge updated products into local state + cache
+        if (Array.isArray(stockData.data) && stockData.data.length > 0) {
+          const updatedMap = new Map(
+            stockData.data
+              .filter((p) => p && (p._id || p.id))
+              .map((p) => [String(p._id || p.id), p])
+          );
+
+          setProducts((prev) => {
+            const prevList = Array.isArray(prev) ? prev : [];
+            const next = prevList.map((p) => {
+              const key = String(p?._id || p?.id || "");
+              const updated = updatedMap.get(key);
+              return updated ? { ...p, ...updated } : p;
+            });
+            setCachedData("products", next);
+            return next;
+          });
+
+          setSelectedProduct((prev) => {
+            if (!prev) return prev;
+            const key = String(prev._id || prev.id || "");
+            const updated = updatedMap.get(key);
+            return updated ? { ...prev, ...updated } : prev;
+          });
+        }
       } catch (stockErr) {
         console.error("Stock update error:", stockErr);
         alert(
           `Transaction saved, but stock update failed: ${stockErr.message || "Unknown error"}`
         );
       } finally {
-        await fetchProducts(true);
+        // Background refresh to stay consistent, but UI should already update fast
+        fetchProducts(true).catch(() => {});
       }
 
 

@@ -122,8 +122,19 @@ exports.clearData = async (req, res) => {
     for (const key of collections) {
       const { model, name } = DATA_COLLECTIONS[key];
       try {
-        const result = await model.deleteMany({});
-        results.push({ key, name, deleted: result.deletedCount });
+        if (key === "employees") {
+          // Safety: never delete Owner accounts during "Clear Data"
+          const result = await model.deleteMany({ role: { $ne: "Owner" } });
+          results.push({
+            key,
+            name,
+            deleted: result.deletedCount,
+            note: "Owner accounts were preserved",
+          });
+        } else {
+          const result = await model.deleteMany({});
+          results.push({ key, name, deleted: result.deletedCount });
+        }
       } catch (err) {
         results.push({ key, name, deleted: 0, error: err.message });
       }
