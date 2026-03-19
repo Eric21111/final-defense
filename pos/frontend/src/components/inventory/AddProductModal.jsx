@@ -1038,7 +1038,7 @@ const AddProductModal = ({
                         }}
                           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
-                          <option value="Default" className={theme === "dark" ? "bg-[#2A2724]" : ""}>eg. Trendlines</option>
+                          <option value="Default" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Default</option>
                           {partnerNames.map((name) => (<option key={name} value={name} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{name}</option>))}
                           <option value="__add_new_brand__" className="font-semibold text-[#09A046]">+ Add Brand</option>
                           {legacyBrandSelected && <option value={newProduct.brandName}>{newProduct.brandName} (Inactive)</option>}
@@ -1065,7 +1065,7 @@ const AddProductModal = ({
                     <div>
                       <label className={`block text-xs font-bold uppercase tracking-wide mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Product Image</label>
 
-                      <div className="flex gap-3 items-start">
+                      <div className="flex gap-3 items-start flex-wrap">
                         {/* Existing image thumbnails */}
                         {productImages.map((img, index) => (
                           <div key={index} className={`relative group rounded-xl overflow-hidden border-2 border-dashed flex-shrink-0 ${index === 0 ? 'ring-2 ring-[#09A046]' : ''} ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`} style={{ width: '120px', height: '120px' }}>
