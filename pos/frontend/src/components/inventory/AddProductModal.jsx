@@ -95,6 +95,7 @@ const AddProductModal = ({
   const [showBrandModal, setShowBrandModal] = useState(false);
   const [showCustomSizeInput, setShowCustomSizeInput] = useState(false);
   const [customSizeValue, setCustomSizeValue] = useState("");
+  const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [productImages, setProductImages] = useState([]);
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [customSizes, setCustomSizes] = useState([]);
@@ -1287,57 +1288,82 @@ const AddProductModal = ({
                             <label className={`block text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                               Sizes <span className="text-gray-400 ml-2">- Select multiple sizes (Optional)</span>
                             </label>
-                            <div className="grid grid-cols-4 gap-2 mb-3">
-                              {(() => {
-                                const category = newProduct.category;
-                                const subCategory = newProduct.subCategory || "";
-                                let sizes = [];
-
-                                const parentHasSizes = categoryStructure[category] !== undefined;
-
-                                if (!parentHasSizes) { sizes = ["Free Size"]; }
-                                else if (category === "Foods") {
-                                  switch (subCategory) {
-                                    case "Beverages": sizes = ["Small", "Medium", "Large", "Extra Large", "Free Size"]; break;
-                                    case "Snacks": sizes = ["Small Pack", "Medium Pack", "Large Pack", "Family Pack", "Free Size"]; break;
-                                    case "Meals": sizes = ["Regular", "Large", "Family Size", "Free Size"]; break;
-                                    case "Desserts": sizes = ["Small", "Medium", "Large", "Free Size"]; break;
-                                    case "Ingredients": sizes = ["100g", "250g", "500g", "1kg", "Free Size"]; break;
-                                    default: sizes = ["Small", "Medium", "Large", "Free Size"];
-                                  }
-                                } else if (["Tops", "Bottoms", "Dresses", "Outerwear"].includes(subCategory)) {
-                                  sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
-                                }
-                                else if (category === "Shoes") { sizes = ["5", "6", "7", "8", "9", "10", "11", "12"]; }
-                                else if (category === "Accessories" || category === "Makeup") { sizes = ["Free Size"]; }
-                                else { sizes = ["Free Size"]; }
-                                return [...sizes, ...customSizes].map((size) => (
-                                  <label key={size} className="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" checked={newProduct.selectedSizes?.includes(size) || false} onChange={() => handleSizeToggle(size)} className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]" />
-                                    <span className="flex-1 text-sm text-gray-700 break-words line-clamp-2" title={size}>{size}</span>
-                                    {customSizes.includes(size) && (
-                                      <button type="button" title="Remove custom size" className="text-red-500 hover:text-red-700 text-xs ml-1"
-                                        onClick={(e) => { e.preventDefault(); setCustomSizes(prev => prev.filter(s => s !== size)); if (newProduct.selectedSizes?.includes(size)) { handleSizeToggle(size); } }}>×</button>
-                                    )}
-                                  </label>
-                                ));
-                              })()}
-                            </div>
-                            <div className="mb-4">
-                              <label className="flex items-center gap-2 cursor-pointer mb-2">
-                                <input type="checkbox" checked={showCustomSizeInput} onChange={(e) => { setShowCustomSizeInput(e.target.checked); if (!e.target.checked) { setCustomSizeValue(""); } }} className="w-4 h-4 text-[#AD7F65] border-gray-300 rounded focus:ring-[#AD7F65]" />
-                                <span className="text-sm text-gray-700">Size not listed? Add custom size</span>
-                              </label>
-                              {showCustomSizeInput && (
-                                <div className="flex gap-2 items-center">
-                                  <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); setCustomSizeValue(""); } } }}
-                                    placeholder="Type size and press Enter or Add"
-                                    className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
-                                  <button type="button" onClick={(e) => { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); setCustomSizeValue(""); } }}
-                                    disabled={!customSizeValue.trim()} className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${!customSizeValue.trim() ? "bg-gray-200 text-gray-400 cursor-not-allowed" : "bg-[#AD7F65] text-white hover:bg-[#8B6553]"}`}>Add</button>
+                            <div className="relative">
+                              {/* Dropdown trigger */}
+                              <div onClick={() => setShowSizeDropdown(!showSizeDropdown)}
+                                className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white hover:border-[#AD7F65]" : "bg-white border-gray-300 hover:border-[#AD7F65]"}`}>
+                                <span className={(newProduct.selectedSizes?.length || 0) === 0 ? "text-gray-400" : ""}>
+                                  {(newProduct.selectedSizes?.length || 0) === 0 ? "Select sizes..." : `${newProduct.selectedSizes.length} size${newProduct.selectedSizes.length > 1 ? 's' : ''} selected`}
+                                </span>
+                                <svg className={`w-4 h-4 transition-transform ${showSizeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                              </div>
+                              {/* Selected size tags */}
+                              {(newProduct.selectedSizes?.length || 0) > 0 && (
+                                <div className="flex flex-wrap gap-1.5 mt-3">
+                                  {newProduct.selectedSizes.map((size) => (
+                                    <span key={size} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65] border border-[#AD7F65]/30" : "bg-[#AD7F65]/10 text-[#AD7F65] border border-[#AD7F65]/20"}`}>
+                                      {size}
+                                      <button type="button" onClick={(e) => { e.stopPropagation(); handleSizeToggle(size); }} className="hover:text-red-500 transition-colors">×</button>
+                                    </span>
+                                  ))}
                                 </div>
                               )}
+                              {/* Dropdown list */}
+                              {showSizeDropdown && (
+                                <div className={`absolute z-50 w-full mt-1 max-h-56 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
+                                  {(() => {
+                                    const category = newProduct.category;
+                                    const subCategory = newProduct.subCategory || "";
+                                    let sizes = [];
+                                    const parentHasSizes = categoryStructure[category] !== undefined;
+                                    if (!parentHasSizes) { sizes = ["Free Size"]; }
+                                    else if (category === "Foods") {
+                                      switch (subCategory) {
+                                        case "Beverages": sizes = ["Small", "Medium", "Large", "Extra Large", "Free Size"]; break;
+                                        case "Snacks": sizes = ["Small Pack", "Medium Pack", "Large Pack", "Family Pack", "Free Size"]; break;
+                                        case "Meals": sizes = ["Regular", "Large", "Family Size", "Free Size"]; break;
+                                        case "Desserts": sizes = ["Small", "Medium", "Large", "Free Size"]; break;
+                                        case "Ingredients": sizes = ["100g", "250g", "500g", "1kg", "Free Size"]; break;
+                                        default: sizes = ["Small", "Medium", "Large", "Free Size"];
+                                      }
+                                    } else if (["Tops", "Bottoms", "Dresses", "Outerwear"].includes(subCategory)) {
+                                      sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
+                                    } else if (category === "Shoes") { sizes = ["5", "6", "7", "8", "9", "10", "11", "12"]; }
+                                    else if (category === "Accessories" || category === "Makeup") { sizes = ["Free Size"]; }
+                                    else { sizes = ["Free Size"]; }
+                                    return [...sizes, ...customSizes].map((size) => (
+                                      <div key={size} onClick={() => handleSizeToggle(size)}
+                                        className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${newProduct.selectedSizes?.includes(size) ? (theme === "dark" ? "bg-[#AD7F65]/20 text-[#AD7F65]" : "bg-[#AD7F65]/10 text-[#AD7F65]") : (theme === "dark" ? "hover:bg-[#3A3734]" : "hover:bg-gray-100")}`}>
+                                        <span>{size}</span>
+                                        <div className="flex items-center gap-1">
+                                          {customSizes.includes(size) && (
+                                            <button type="button" title="Remove custom size"
+                                              onClick={(e) => { e.stopPropagation(); setCustomSizes(prev => prev.filter(s => s !== size)); if (newProduct.selectedSizes?.includes(size)) { handleSizeToggle(size); } }}
+                                              className="text-red-400 hover:text-red-600 text-xs px-1">×</button>
+                                          )}
+                                          {newProduct.selectedSizes?.includes(size) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                        </div>
+                                      </div>
+                                    ));
+                                  })()}
+                                  {/* Custom size input at bottom of dropdown */}
+                                  <div className={`px-3 py-2 border-t ${theme === "dark" ? "border-gray-600" : "border-gray-200"}`} onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex gap-2">
+                                      <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); handleSizeToggle(trimmed); setCustomSizeValue(""); } } }}
+                                        placeholder="Add custom size..."
+                                        className={`flex-1 px-2 py-1 text-sm border rounded focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-300"}`} />
+                                      <button type="button"
+                                        onClick={() => { const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); handleSizeToggle(trimmed); setCustomSizeValue(""); } }}
+                                        disabled={!customSizeValue.trim()}
+                                        className={`px-3 py-1 text-sm rounded font-medium transition-colors ${customSizeValue.trim() ? "bg-[#AD7F65] text-white hover:bg-[#8B6553]" : (theme === "dark" ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed")}`}>Add</button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              {showSizeDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowSizeDropdown(false)} />}
                             </div>
                           </div>
                         </div>
