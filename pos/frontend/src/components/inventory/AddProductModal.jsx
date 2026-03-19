@@ -564,7 +564,7 @@ const AddProductModal = ({
           )}
 
           {/* Scrollable content area */}
-          <div className="flex-1 overflow-y-auto px-8 pb-4">
+          <div className={`flex-1 px-8 pb-4 ${currentStep === 5 ? "flex flex-col overflow-hidden" : "overflow-y-auto"}`}>
 
             {/* ══════════ EDITING MODE: show everything at once ══════════ */}
             {editingProduct && (
@@ -1511,7 +1511,7 @@ const AddProductModal = ({
                   } else { totalStock = parseInt(newProduct.currentStock) || 0; }
 
                   return (
-                    <div className="space-y-4 pt-2">
+                    <div className="flex flex-col gap-4 pt-2 h-full min-h-0">
                       {/* Top card: image + info grid */}
                       <div className={`flex gap-4 rounded-xl border p-4 ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
                         {/* Product image slideshow */}
@@ -1572,16 +1572,16 @@ const AddProductModal = ({
 
                       {/* Variant combo list */}
                       {hasAnyCombos && (
-                        <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                        <div className={`rounded-xl border overflow-hidden flex flex-col min-h-0 flex-1 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                           {/* Header */}
-                          <div className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-wider ${theme === "dark" ? "bg-[#2A2724] text-gray-400 border-b border-gray-700" : "bg-gray-100 text-gray-500 border-b border-gray-200"}`}>
+                          <div className={`grid grid-cols-[1fr_auto_auto_auto] gap-2 px-4 py-2 text-[10px] font-bold uppercase tracking-wider flex-shrink-0 ${theme === "dark" ? "bg-[#2A2724] text-gray-400 border-b border-gray-700" : "bg-gray-100 text-gray-500 border-b border-gray-200"}`}>
                             <span>Variant Combination</span>
                             <span className="w-20 text-right">Cost Price</span>
                             <span className="w-20 text-right">Selling Price</span>
                             <span className="w-14 text-right">Qty</span>
                           </div>
                           {/* Scrollable rows */}
-                          <div className="max-h-52 overflow-y-auto">
+                          <div className="overflow-y-auto flex-1">
                             {combos.map(({ variant: v, size: s }, idx) => {
                               const sell = v && s ? (variantPrices[s]?.[v] ?? newProduct.itemPrice ?? "") : s ? (newProduct.sizePrices?.[s] ?? newProduct.itemPrice ?? "") : (newProduct.itemPrice ?? "");
                               const cost = v && s ? (variantCostPrices[s]?.[v] ?? newProduct.costPrice ?? "") : s ? (newProduct.sizeCostPrices?.[s] ?? newProduct.costPrice ?? "") : (newProduct.costPrice ?? "");
@@ -1594,8 +1594,8 @@ const AddProductModal = ({
                                     {v && s && <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>×</span>}
                                     {v && <span className={`inline-block px-2.5 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{v}</span>}
                                   </div>
-                                  <span className={`w-20 text-right text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>{cost ? `${cost}` : "—"}</span>
-                                  <span className={`w-20 text-right text-sm font-semibold text-[#09A046]`}>{sell ? `${sell}` : "—"}</span>
+                                  <span className={`w-20 text-right text-sm ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>{cost ? `₱${cost}` : "—"}</span>
+                                  <span className={`w-20 text-right text-sm font-semibold text-[#09A046]`}>{sell ? `₱${sell}` : "—"}</span>
                                   <span className={`w-14 text-right text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{qty ? `${qty} ${uom}` : "—"}</span>
                                 </div>
                               );
@@ -1629,8 +1629,8 @@ const AddProductModal = ({
                 </button>
               ) : (
                 <button key="btn-submit" type="submit" disabled={loading}
-                  className="px-10 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
-                  style={{ background: "linear-gradient(135deg, #10B981 0%, #059669 100%)" }}>
+                  className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
+                  style={{ background: "#09A046" }}>
                   {loading ? "Adding..." : "Add Product"}
                 </button>
               )}
