@@ -229,7 +229,7 @@ const AddProductModal = ({
             };
           }
         } else if (typeof sizeData === 'number') {
-//hhh
+
           sizePrices[size] = {
             hasVariants: false,
             price: editingProduct.itemPrice || 0,
