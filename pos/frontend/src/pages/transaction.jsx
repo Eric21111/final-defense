@@ -929,6 +929,8 @@ const Transaction = () => {
 
         if (!archiveData.success) {
           console.error("Failed to archive item:", archiveData);
+          // Don't hide/remove the product if we failed to record the archive.
+          continue;
         }
 
         // Mark product as archived (removes from active products list)

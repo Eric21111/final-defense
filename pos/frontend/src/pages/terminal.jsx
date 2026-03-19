@@ -61,6 +61,7 @@ const Terminal = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [sortOption, setSortOption] = useState("newest");
   const [isProcessingTransaction, setIsProcessingTransaction] = useState(false);
+  const productsBeforeTxnRef = useRef(null);
   const itemsPerPage = 10;
 
   const resolveItemSize = (item = {}) => {
@@ -1403,11 +1404,14 @@ const Terminal = () => {
       itemImage: item.itemImage || ""
     }));
 
-  const applyStockOutOptimistically = useCallback((stockItems, { alsoUpdateSelectedProduct = true } = {}) => {
+  const applyStockOutOptimistically = useCallback((stockItems, { alsoUpdateSelectedProduct = true, capturePrev = false } = {}) => {
     if (!Array.isArray(stockItems) || stockItems.length === 0) return;
 
     setProducts((prev) => {
       const prevList = Array.isArray(prev) ? prev : [];
+      if (capturePrev) {
+        productsBeforeTxnRef.current = prevList;
+      }
       const next = prevList.map((p) => ({ ...p }));
 
       const findSizeKey = (sizesObj, size) => {
@@ -1551,6 +1555,9 @@ const Terminal = () => {
     const currentDiscountIds = selectedDiscounts.map((d) => d._id);
 
     try {
+      // Instant UX: apply stock-out immediately (before waiting on the network).
+      // If the transaction fails, we'll roll back from the snapshot.
+      applyStockOutOptimistically(stockItems, { capturePrev: true });
 
       const transactionResponse = await fetch(
         `${API_BASE_URL}/api/transactions`,
@@ -1594,11 +1601,6 @@ const Terminal = () => {
           "Failed to record transaction"
         );
       }
-
-      // Instant UX: optimistically apply stock-out locally (no refresh needed).
-      // The `/update-stock` response will reconcile right after.
-      applyStockOutOptimistically(stockItems);
-
 
       setCart([]);
       setSelectedDiscounts([]);
@@ -1662,15 +1664,21 @@ const Terminal = () => {
         alert(
           `Transaction saved, but stock update failed: ${stockErr.message || "Unknown error"}`
         );
-      } finally {
-        // Background refresh to stay consistent, but UI should already update fast
-        fetchProducts(true).catch(() => {});
       }
 
+      productsBeforeTxnRef.current = null;
 
       return transactionData.data;
     } catch (error) {
       console.error("Error finalizing transaction:", error);
+
+      // Roll back optimistic stock update if we captured a snapshot.
+      if (Array.isArray(productsBeforeTxnRef.current)) {
+        const prevProducts = productsBeforeTxnRef.current;
+        setProducts(prevProducts);
+        setCachedData("products", prevProducts);
+      }
+      productsBeforeTxnRef.current = null;
 
       setCart(cartSnapshot);
       const errorMessage = error.message || "Unknown error occurred";

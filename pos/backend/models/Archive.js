@@ -29,7 +29,8 @@ const archiveItemSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: ['Tops', 'Bottoms', 'Dresses', 'Makeup', 'Accessories', 'Shoes', 'Head Wear', 'Foods', 'Others']
+    // Keep in sync with web categories (e.g. "Essentials")
+    enum: ['Tops', 'Bottoms', 'Dresses', 'Makeup', 'Accessories', 'Essentials', 'Shoes', 'Head Wear', 'Foods', 'Others']
   },
   brandName: {
     type: String,
