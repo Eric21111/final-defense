@@ -295,8 +295,9 @@ const Inventory = () => {
     return cleaned.substring(0, 3).padEnd(3, "X");
   };
 
-  const generateSKU = (category, variant) => {
-    const categoryCode = categoryCodeMap[category] || "OTH";
+  const generateSKU = (category, subCategory, variant) => {
+    const base = subCategory || category;
+    const categoryCode = categoryCodeMap[base] || "OTH";
 
 
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
@@ -510,10 +511,11 @@ const Inventory = () => {
         [name]: inputValue
       };
 
-      if (!editingProduct && (name === "category" || name === "variant")) {
+      if (!editingProduct && (name === "category" || name === "subCategory" || name === "variant")) {
         const category = name === "category" ? inputValue : prev.category;
+        const subCategory = name === "subCategory" ? inputValue : prev.subCategory;
         const variant = name === "variant" ? inputValue : prev.variant;
-        updatedProduct.sku = generateSKU(category, variant);
+        updatedProduct.sku = generateSKU(category, subCategory, variant);
       }
 
       return updatedProduct;
@@ -571,9 +573,10 @@ const Inventory = () => {
 
   const resetProductForm = (clearStorage = true) => {
     const defaultCategory = "Tops";
+    const defaultSubCategory = "";
     const defaultVariant = "";
     setNewProduct({
-      sku: generateSKU(defaultCategory, defaultVariant),
+      sku: generateSKU(defaultCategory, defaultSubCategory, defaultVariant),
       itemName: "",
       category: "",
       subCategory: "",
