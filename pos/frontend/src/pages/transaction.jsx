@@ -763,17 +763,15 @@ const Transaction = () => {
       const returnedIndices = itemsToReturn.map((item) => item.originalIndex);
 
 
-      const damagedItems = itemsToReturn.filter(
-        (item) =>
-          item.reason === "Damaged" ||
-          item.reason === "Defective" ||
-          item.reason === "Expired"
+      // Rule:
+      // - Damaged / Defective / Expired -> Archive (and mark product as archived)
+      // - Other reasons -> Stock-In (back to inventory)
+      const archiveReasons = ["Damaged", "Defective", "Expired"];
+      const damagedItems = itemsToReturn.filter((item) =>
+        archiveReasons.includes(item.reason)
       );
       const returnableItems = itemsToReturn.filter(
-        (item) =>
-          item.reason !== "Damaged" &&
-          item.reason !== "Defective" &&
-          item.reason !== "Expired"
+        (item) => !archiveReasons.includes(item.reason)
       );
 
       console.log("Damaged items (to archive):", damagedItems.length);
@@ -932,15 +930,32 @@ const Transaction = () => {
         if (!archiveData.success) {
           console.error("Failed to archive item:", archiveData);
         }
+
+        // Mark product as archived (removes from active products list)
+        try {
+          const archiveProductRes = await fetch(
+            `${API_BASE_URL}/api/products/${item.productId}/archive`,
+            { method: "PATCH" }
+          );
+          const archiveProductData = await archiveProductRes
+            .json()
+            .catch(() => ({}));
+          if (!archiveProductRes.ok || !archiveProductData.success) {
+            console.warn("Failed to archive product record:", archiveProductData);
+          }
+        } catch (archiveProductErr) {
+          console.warn("Failed to archive product record:", archiveProductErr);
+        }
       }
 
-
+      // Stock-in items that are returned but NOT damaged/defective/expired
       if (returnableItems.length > 0) {
         const stockUpdatePayload = {
           items: returnableItems.map((item) => ({
             _id: item.productId,
             sku: item.sku,
             size: item.selectedSize,
+            variant: item.variant || null,
             quantity: item.quantity
           })),
           performedByName: transaction.performedByName || "System",
@@ -965,7 +980,6 @@ const Transaction = () => {
           console.error("Failed to update stock:", stockData);
         }
       }
-
 
       for (const item of itemsToReturn) {
         const returnTransaction = {
