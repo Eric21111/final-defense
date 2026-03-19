@@ -87,15 +87,15 @@ const buildReceiptLines = receipt => {
     const qty = item.qty || item.quantity || 1;
     const price = item.price || item.itemPrice || 0;
     const size = item.size || item.selectedSize || '';
-    const color = item.variant || '';
+    const variant = item.selectedVariation || item.variant || '';
 
     lines.push(itemName);
     // Add size/color info if available
-    if (size || color) {
+    if (size || variant) {
       const parts = [];
-      if (size) parts.push(size);
-      if (color) parts.push(color);
-      lines.push(parts.join(' / '));
+      if (size) parts.push(`Size: ${size}`);
+      if (variant) parts.push(`Variant: ${variant}`);
+      lines.push(parts.join(' | '));
     }
     lines.push(`${qty} x P${Number(price).toFixed(2)}`);
   });

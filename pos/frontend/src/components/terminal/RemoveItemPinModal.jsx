@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FaChevronDown, FaTimes } from 'react-icons/fa';
+import { FaChevronDown, FaEye, FaEyeSlash, FaTimes } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 
 const voidReasons = [
@@ -13,6 +13,7 @@ const voidReasons = [
 const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
   const { theme } = useTheme();
   const [pin, setPin] = useState('');
+  const [showPin, setShowPin] = useState(false);
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,6 +24,7 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
   useEffect(() => {
     if (isOpen) {
       setPin('');
+      setShowPin(false);
       setReason('');
       setError('');
       setIsReasonDropdownOpen(false);
@@ -263,24 +265,37 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
             <label className={`block text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
               Manager PIN <span className="text-red-500">*</span>
             </label>
-            <input
-              type="password"
-              id="void-transaction-pin"
-              name="void-transaction-pin"
-              value={pin}
-              onChange={handlePinChange}
-              onBlur={(e) => {
-
-                const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 6);
-                if (digitsOnly !== pin) {
-                  setPin(digitsOnly);
-                }
-              }}
-              className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'}`}
-              placeholder="Enter 6-digit PIN"
-              maxLength={6}
-              autoFocus
-              autoComplete="new-password" />
+            <div className="relative">
+              <input
+                type={showPin ? 'text' : 'password'}
+                inputMode="numeric"
+                id="void-transaction-pin"
+                name="void-transaction-pin"
+                value={pin}
+                onChange={handlePinChange}
+                onBlur={(e) => {
+                  const digitsOnly = e.target.value.replace(/\D/g, '').slice(0, 6);
+                  if (digitsOnly !== pin) {
+                    setPin(digitsOnly);
+                  }
+                }}
+                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900'}`}
+                placeholder="Enter 6-digit PIN"
+                maxLength={6}
+                autoFocus
+                autoComplete="new-password" />
+              <button
+                type="button"
+                onClick={() => setShowPin((v) => !v)}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 transition ${
+                  theme === 'dark'
+                    ? 'text-gray-400 hover:text-gray-200'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+                aria-label={showPin ? 'Hide PIN' : 'Show PIN'}>
+                {showPin ? <FaEyeSlash className="w-4 h-4" /> : <FaEye className="w-4 h-4" />}
+              </button>
+            </div>
             
           </div>
 
