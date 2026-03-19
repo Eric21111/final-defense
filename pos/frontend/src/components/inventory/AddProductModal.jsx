@@ -1448,7 +1448,7 @@ const AddProductModal = ({
 
                 {/* ── Step 4: Batch ── */}
                 {currentStep === 4 && (
-                  <div className="space-y-5">
+                  <div className="space-y-5 pt-4">
                     {/* Reorder Level */}
                     <div className="flex items-start justify-between gap-6">
                       <div className="flex-1">
