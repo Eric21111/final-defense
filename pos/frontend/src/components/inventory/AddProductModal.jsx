@@ -1449,37 +1449,45 @@ const AddProductModal = ({
                 {/* ── Step 4: Batch ── */}
                 {currentStep === 4 && (
                   <div className="space-y-5">
-                    <h3 className={`text-base font-semibold mb-3 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>Batch Information</h3>
-                    <div className={`rounded-xl border p-5 space-y-4 ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                      <div>
-                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch Number</label>
-                        <input type="text" name="batchNumber" value={newProduct.batchNumber || ""} onChange={handleInputChange} placeholder="e.g. BATCH-2026-001"
-                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`} />
+                    {/* Reorder Level */}
+                    <div className="flex items-start justify-between gap-6">
+                      <div className="flex-1">
+                        <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Reorder Level (Per SKU)</label>
+                        <p className={`text-[10px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>System alerts when any SKU falls below this level.</p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Manufacturing Date</label>
-                          <input type="date" name="manufacturingDate" value={newProduct.manufacturingDate || ""} onChange={handleInputChange}
-                            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
-                        </div>
-                        <div>
-                          <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiry Date</label>
-                          <input type="date" name="expiryDate" value={newProduct.expiryDate || ""} onChange={handleInputChange}
-                            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
-                        </div>
-                      </div>
-                      <div>
-                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Supplier</label>
-                        <input type="text" name="supplier" value={newProduct.supplier || ""} onChange={handleInputChange} placeholder="e.g. Supplier Co."
-                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`} />
-                      </div>
-                      <div>
-                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Notes</label>
-                        <textarea name="batchNotes" value={newProduct.batchNotes || ""} onChange={handleInputChange} rows={3} placeholder="Optional notes about this batch..."
-                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent resize-none ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`} />
-                      </div>
+                      <input type="number" min="0" name="reorderNumber" value={newProduct.reorderNumber || ""} onChange={handleInputChange} placeholder="eg. 23"
+                        className={`w-36 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`} />
                     </div>
-                    <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>All batch fields are optional. You can skip this step if not applicable.</p>
+
+                    <div className={`h-px w-full ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
+
+                    {/* Opening Batch */}
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Opening Batch</label>
+                      <p className={`text-[10px] mb-3 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>First batch for all SKUs. Add more later via Stock In on the Inventory page.</p>
+                    </div>
+
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch Number</label>
+                      <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                        {(() => {
+                          const now = new Date();
+                          const y = now.getFullYear();
+                          const m = String(now.getMonth() + 1).padStart(2, '0');
+                          const generated = `B${y}${m} – 001`;
+                          if (!newProduct.batchNumber || newProduct.batchNumber !== generated) {
+                            setTimeout(() => setNewProduct(p => ({ ...p, batchNumber: generated })), 0);
+                          }
+                          return generated;
+                        })()}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiring Date</label>
+                      <input type="date" name="expiryDate" value={newProduct.expiryDate || ""} onChange={handleInputChange}
+                        className={`w-full max-w-xs px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
+                    </div>
                   </div>
                 )}
 
