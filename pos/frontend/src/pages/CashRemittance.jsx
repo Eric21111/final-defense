@@ -7,7 +7,7 @@ import {
     FaBalanceScale, FaClock, FaTimes, FaPrint, FaPlus,
     FaCalendarAlt, FaUser
 } from "react-icons/fa";
-
+//hi
 const DENOMINATIONS = [
     { key: "p1000", label: "₱1,000", value: 1000 },
     { key: "p500", label: "₱500", value: 500 },
