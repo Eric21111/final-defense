@@ -1403,6 +1403,135 @@ const Terminal = () => {
       itemImage: item.itemImage || ""
     }));
 
+  const applyStockOutOptimistically = useCallback((stockItems, { alsoUpdateSelectedProduct = true } = {}) => {
+    if (!Array.isArray(stockItems) || stockItems.length === 0) return;
+
+    setProducts((prev) => {
+      const prevList = Array.isArray(prev) ? prev : [];
+      const next = prevList.map((p) => ({ ...p }));
+
+      const findSizeKey = (sizesObj, size) => {
+        if (!sizesObj || typeof sizesObj !== "object" || !size) return null;
+        if (Object.prototype.hasOwnProperty.call(sizesObj, size)) return size;
+        const target = String(size).trim().toLowerCase();
+        return (
+          Object.keys(sizesObj).find(
+            (k) => String(k).trim().toLowerCase() === target
+          ) || null
+        );
+      };
+
+      const getSizeQty = (sizeData) => {
+        if (typeof sizeData === "number") return sizeData;
+        if (typeof sizeData === "object" && sizeData !== null) {
+          return Number(sizeData.quantity || 0);
+        }
+        return 0;
+      };
+      const setSizeQty = (sizeData, qty) => {
+        const clamped = Math.max(0, Number(qty || 0));
+        if (typeof sizeData === "number") return clamped;
+        if (typeof sizeData === "object" && sizeData !== null) {
+          return { ...sizeData, quantity: clamped };
+        }
+        return clamped;
+      };
+
+      const getVariantQty = (variantData) => {
+        if (typeof variantData === "number") return variantData;
+        if (typeof variantData === "object" && variantData !== null) {
+          return Number(variantData.quantity || 0);
+        }
+        return 0;
+      };
+      const setVariantQty = (variantData, qty) => {
+        const clamped = Math.max(0, Number(qty || 0));
+        if (typeof variantData === "number") return clamped;
+        if (typeof variantData === "object" && variantData !== null) {
+          return { ...variantData, quantity: clamped };
+        }
+        return clamped;
+      };
+
+      const recomputeCurrentStock = (product) => {
+        if (product?.sizes && typeof product.sizes === "object") {
+          return Object.values(product.sizes).reduce(
+            (sum, sd) => sum + getSizeQty(sd),
+            0
+          );
+        }
+        return Math.max(0, Number(product?.currentStock || 0));
+      };
+
+      for (const si of stockItems) {
+        const id = String(si?._id || "");
+        if (!id) continue;
+        const idx = next.findIndex(
+          (p) => String(p?._id || p?.id || "") === id
+        );
+        if (idx === -1) continue;
+
+        const product = next[idx];
+        const qty = Math.max(0, Number(si.quantity || 0));
+        if (!qty) continue;
+
+        if (product?.sizes && typeof product.sizes === "object" && si.size) {
+          const sizeKey = findSizeKey(product.sizes, si.size);
+          if (sizeKey) {
+            const sizeData = product.sizes[sizeKey];
+            if (
+              si.variant &&
+              typeof sizeData === "object" &&
+              sizeData !== null &&
+              sizeData.variants &&
+              typeof sizeData.variants === "object"
+            ) {
+              const currentVar = sizeData.variants[si.variant];
+              const nextVar = setVariantQty(
+                currentVar,
+                getVariantQty(currentVar) - qty
+              );
+              const nextVariants = { ...sizeData.variants, [si.variant]: nextVar };
+              const nextSizeTotal = Object.values(nextVariants).reduce(
+                (sum, vd) => sum + getVariantQty(vd),
+                0
+              );
+              product.sizes[sizeKey] = {
+                ...sizeData,
+                variants: nextVariants,
+                quantity: nextSizeTotal
+              };
+            } else {
+              product.sizes[sizeKey] = setSizeQty(
+                sizeData,
+                getSizeQty(sizeData) - qty
+              );
+            }
+          }
+          product.currentStock = recomputeCurrentStock(product);
+        } else {
+          product.currentStock = Math.max(
+            0,
+            Number(product.currentStock || 0) - qty
+          );
+        }
+      }
+
+      setCachedData("products", next);
+
+      if (alsoUpdateSelectedProduct) {
+        setSelectedProduct((prevSel) => {
+          if (!prevSel) return prevSel;
+          const key = String(prevSel._id || prevSel.id || "");
+          const updated = next.find((p) => String(p?._id || p?.id || "") === key);
+          return updated ? { ...prevSel, ...updated } : prevSel;
+        });
+      }
+
+      return next;
+    });
+  }, [setCachedData]);
+
   const finalizeTransaction = async (meta = {}) => {
     if (!cart.length) return null;
 
@@ -1468,89 +1597,7 @@ const Terminal = () => {
 
       // Instant UX: optimistically apply stock-out locally (no refresh needed).
       // The `/update-stock` response will reconcile right after.
-      setProducts((prev) => {
-        const prevList = Array.isArray(prev) ? prev : [];
-        if (!Array.isArray(stockItems) || stockItems.length === 0) return prevList;
-
-        const next = prevList.map((p) => ({ ...p }));
-
-        const findSizeKey = (sizesObj, size) => {
-          if (!sizesObj || typeof sizesObj !== "object" || !size) return null;
-          if (Object.prototype.hasOwnProperty.call(sizesObj, size)) return size;
-          const target = String(size).trim().toLowerCase();
-          return Object.keys(sizesObj).find((k) => String(k).trim().toLowerCase() === target) || null;
-        };
-
-        const getSizeQty = (sizeData) => {
-          if (typeof sizeData === "number") return sizeData;
-          if (typeof sizeData === "object" && sizeData !== null) return Number(sizeData.quantity || 0);
-          return 0;
-        };
-        const setSizeQty = (sizeData, qty) => {
-          const clamped = Math.max(0, Number(qty || 0));
-          if (typeof sizeData === "number") return clamped;
-          if (typeof sizeData === "object" && sizeData !== null) return { ...sizeData, quantity: clamped };
-          return clamped;
-        };
-
-        const getVariantQty = (variantData) => {
-          if (typeof variantData === "number") return variantData;
-          if (typeof variantData === "object" && variantData !== null) return Number(variantData.quantity || 0);
-          return 0;
-        };
-        const setVariantQty = (variantData, qty) => {
-          const clamped = Math.max(0, Number(qty || 0));
-          if (typeof variantData === "number") return clamped;
-          if (typeof variantData === "object" && variantData !== null) return { ...variantData, quantity: clamped };
-          return clamped;
-        };
-
-        const recomputeCurrentStock = (product) => {
-          if (product?.sizes && typeof product.sizes === "object") {
-            return Object.values(product.sizes).reduce((sum, sd) => sum + getSizeQty(sd), 0);
-          }
-          return Math.max(0, Number(product?.currentStock || 0));
-        };
-
-        for (const si of stockItems) {
-          const id = String(si?._id || "");
-          if (!id) continue;
-          const idx = next.findIndex((p) => String(p?._id || p?.id || "") === id);
-          if (idx === -1) continue;
-
-          const product = next[idx];
-          const qty = Math.max(0, Number(si.quantity || 0));
-          if (!qty) continue;
-
-          if (product?.sizes && typeof product.sizes === "object" && si.size) {
-            const sizeKey = findSizeKey(product.sizes, si.size);
-            if (sizeKey) {
-              const sizeData = product.sizes[sizeKey];
-              if (
-                si.variant &&
-                typeof sizeData === "object" &&
-                sizeData !== null &&
-                sizeData.variants &&
-                typeof sizeData.variants === "object"
-              ) {
-                const currentVar = sizeData.variants[si.variant];
-                const nextVar = setVariantQty(currentVar, getVariantQty(currentVar) - qty);
-                const nextVariants = { ...sizeData.variants, [si.variant]: nextVar };
-                const nextSizeTotal = Object.values(nextVariants).reduce((sum, vd) => sum + getVariantQty(vd), 0);
-                product.sizes[sizeKey] = { ...sizeData, variants: nextVariants, quantity: nextSizeTotal };
-              } else {
-                product.sizes[sizeKey] = setSizeQty(sizeData, getSizeQty(sizeData) - qty);
-              }
-            }
-            product.currentStock = recomputeCurrentStock(product);
-          } else {
-            product.currentStock = Math.max(0, Number(product.currentStock || 0) - qty);
-          }
-        }
-
-        setCachedData("products", next);
-        return next;
-      });
+      applyStockOutOptimistically(stockItems);
 
 
       setCart([]);
@@ -1659,30 +1706,22 @@ const Terminal = () => {
   const handleGCashTransactionComplete = (paymentData) => {
     console.log("[GCash] Transaction complete:", paymentData);
 
+    // QR flow previously relied on delayed refetch; apply the same instant stock-out UX as cash.
+    const stockItems = mapCartItemsForStockUpdate();
+    applyStockOutOptimistically(stockItems);
 
     setCart([]);
     setSelectedDiscounts([]);
     setDiscountAmount("");
 
 
-    invalidateCache("products");
     invalidateCache("transactions");
 
 
-
-    setTimeout(() => {
-      fetchProducts(true).catch((err) =>
-        console.warn("Background product refresh failed:", err)
-      );
-    }, 1500);
-
-
-    setTimeout(() => {
-      invalidateCache("products");
-      fetchProducts(true).catch((err) =>
-        console.warn("Second product refresh failed:", err)
-      );
-    }, 4000);
+    // Background refresh to stay consistent (UI already updated immediately).
+    fetchProducts(true).catch((err) =>
+      console.warn("Background product refresh failed:", err)
+    );
 
 
     setShowQRPaymentModal(false);
