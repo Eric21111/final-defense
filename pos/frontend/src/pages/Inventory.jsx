@@ -91,7 +91,7 @@ const ADD_PRODUCT_STORAGE_KEY = "addProductFormDraft";
 
 const Inventory = () => {
   const { theme } = useTheme();
-  const { getCachedData, setCachedData, isCacheValid, invalidateCache } =
+  const { cache, getCachedData, setCachedData, isCacheValid, invalidateCache } =
     useDataCache();
   const [products, setProducts] = useState(
     () => getCachedData("products") || []
@@ -900,7 +900,17 @@ const Inventory = () => {
       if (data.success) {
         setShowAddModal(false);
         resetProductForm();
-        fetchProducts();
+        if (data.data) {
+          setProducts((prev) => {
+            const next = [data.data, ...(prev || [])];
+            setCachedData("products", next);
+            return next;
+          });
+          fetchProducts(true);
+        } else {
+          invalidateCache("products");
+          fetchProducts();
+        }
         setSuccessMessage("The item was added successfully!");
         setShowSuccessModal(true);
       } else {
@@ -918,6 +928,12 @@ const Inventory = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (Array.isArray(cache?.products) && cache.products.length) {
+      setProducts(cache.products);
+    }
+  }, [cache?.products]);
 
   const handleEditClick = (product) => {
     setEditingProduct(product);

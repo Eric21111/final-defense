@@ -27,7 +27,7 @@ import topIcon from "../assets/inventory-icons/Top.svg";
 const Terminal = () => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
-  const { getCachedData, setCachedData, isCacheValid, invalidateCache } =
+  const { cache, getCachedData, setCachedData, isCacheValid, invalidateCache } =
     useDataCache();
 
   const userId =
@@ -153,6 +153,12 @@ const Terminal = () => {
     }
     fetchCategories();
   }, []);
+
+  useEffect(() => {
+    if (Array.isArray(cache?.products) && cache.products.length) {
+      setProducts(cache.products);
+    }
+  }, [cache?.products]);
 
 
 
@@ -1380,7 +1386,7 @@ const Terminal = () => {
     cart.map((item) => ({
       _id: item.productId || item._id,
       sku: item.sku || null,
-      size: resolveItemSize(item) || null,
+      size: item.selectedSize || item.size || resolveItemSize(item) || null,
       variant: item.selectedVariation || item.variant || null,
       quantity: item.quantity || 1
     }));
@@ -1390,7 +1396,7 @@ const Terminal = () => {
       productId: item.productId || item._id,
       itemName: item.itemName,
       sku: item.sku,
-      variant: item.variant,
+      variant: item.selectedVariation || item.variant || "",
       selectedSize: resolveItemSize(item) || null,
       quantity: item.quantity || 1,
       price: item.itemPrice || 0,
@@ -1471,29 +1477,34 @@ const Terminal = () => {
 
 
 
-      fetch(`${API_BASE_URL}/api/products/update-stock`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          items: stockItems,
-          performedByName:
-            currentUser?.name ||
-            `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
-            "System",
-          performedById: currentUser?._id || currentUser?.id || ""
-        })
-      }).
-        then((res) => res.json()).
-        then((data) => {
-          if (!data.success) console.error("Stock update failed:", data);
-
-          return fetchProducts(true);
-        }).
-        catch((err) => {
-          console.error("Stock update error:", err);
-
-          fetchProducts(true).catch(() => { });
+      try {
+        const stockRes = await fetch(`${API_BASE_URL}/api/products/update-stock`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "Stock-Out",
+            reason: "Sold",
+            items: stockItems,
+            performedByName:
+              currentUser?.name ||
+              `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
+              "System",
+            performedById: currentUser?._id || currentUser?.id || ""
+          })
         });
+        const stockData = await stockRes.json().catch(() => ({}));
+        if (!stockRes.ok || !stockData.success) {
+          console.error("Stock update failed:", stockData);
+          throw new Error(stockData.message || "Stock update failed");
+        }
+      } catch (stockErr) {
+        console.error("Stock update error:", stockErr);
+        alert(
+          `Transaction saved, but stock update failed: ${stockErr.message || "Unknown error"}`
+        );
+      } finally {
+        await fetchProducts(true);
+      }
 
 
       return transactionData.data;
