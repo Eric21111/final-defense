@@ -194,12 +194,40 @@ const ProductDetailsModal = ({
 
   const getVariantPriceInSize = (size, variant) => {
     if (!product.sizes || !product.sizes[size]) return null;
-    const variantPrices = getSizeVariantPrices(product.sizes[size]);
-    if (variantPrices && variantPrices[variant] !== undefined) {
-      return variantPrices[variant];
+    const sizeData = product.sizes[size];
+    if (!sizeData || typeof sizeData !== "object") return null;
+
+    // Primary: variant price stored under `variants[variant].price`
+    if (sizeData.variants && typeof sizeData.variants === "object") {
+      const v = sizeData.variants?.[variant];
+      if (v && typeof v === "object" && v.price !== undefined) return v.price;
     }
 
-    return getSizePrice(product.sizes[size]);
+    // Secondary: legacy mapping under `variantPrices[variant]`
+    const variantPrices = getSizeVariantPrices(sizeData);
+    if (variantPrices && variantPrices[variant] !== undefined) return variantPrices[variant];
+
+    // Fallback: shared size price
+    return getSizePrice(sizeData);
+  };
+
+  const toFinitePrice = (v) => {
+    const n = typeof v === "number" ? v : parseFloat(v);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const collectVariantPrices = (variantData) => {
+    const out = [];
+    if (!variantData || typeof variantData !== "object") return out;
+    if (Array.isArray(variantData.batches)) {
+      variantData.batches.forEach((b) => {
+        const n = toFinitePrice(b?.price);
+        if (n !== null) out.push(n);
+      });
+    }
+    const top = toFinitePrice(variantData.price);
+    if (top !== null) out.push(top);
+    return out;
   };
 
 
@@ -280,40 +308,61 @@ const ProductDetailsModal = ({
     return prices;
   };
 
-  // Strict pricing helpers:
-  // - only reads `sizeData.variantPrices[variant]`
-  // - never falls back to `sizeData.price`
-  // This prevents showing the shared size price when per-variant price exists.
+  // Pricing helpers (match backend storage):
+  // backend puts per-variant price under `sizeData.variants[variant].price`.
+  // some older products may still have `variantPrices`.
   const getAllSellingPricesStrict = () => {
     if (!product?.sizes || typeof product.sizes !== "object") return [];
     const prices = [];
+
     Object.keys(product.sizes).forEach((sizeKey) => {
       const sizeData = product.sizes[sizeKey];
       if (!sizeData || typeof sizeData !== "object") return;
-      const vp = sizeData.variantPrices;
-      if (vp && typeof vp === "object") {
-        Object.values(vp).forEach((p) => {
-          const n = parseFloat(p);
-          if (Number.isFinite(n)) prices.push(n);
+
+      if (sizeData.variants && typeof sizeData.variants === "object") {
+        Object.values(sizeData.variants).forEach((v) => {
+          prices.push(...collectVariantPrices(v));
         });
+        return;
       }
+
+      if (sizeData.variantPrices && typeof sizeData.variantPrices === "object") {
+        Object.values(sizeData.variantPrices).forEach((p) => {
+          const n = toFinitePrice(p);
+          if (n !== null) prices.push(n);
+        });
+        return;
+      }
+
+      const shared = toFinitePrice(sizeData.price);
+      if (shared !== null) prices.push(shared);
     });
-    return prices;
+
+    return Array.from(new Set(prices));
   };
 
   const getSellingPricesForVariantStrict = (variant) => {
     if (!product?.sizes || typeof product.sizes !== "object") return [];
     const prices = [];
+
     Object.keys(product.sizes).forEach((sizeKey) => {
       const sizeData = product.sizes[sizeKey];
       if (!sizeData || typeof sizeData !== "object") return;
+
+      if (sizeData.variants && typeof sizeData.variants === "object" && sizeData.variants?.[variant]) {
+        prices.push(...collectVariantPrices(sizeData.variants[variant]));
+        return;
+      }
+
       const vp = sizeData.variantPrices;
       if (vp && typeof vp === "object" && vp[variant] !== undefined) {
-        const n = parseFloat(vp[variant]);
-        if (Number.isFinite(n)) prices.push(n);
+        const n = toFinitePrice(vp[variant]);
+        if (n !== null) prices.push(n);
+        return;
       }
     });
-    return prices;
+
+    return Array.from(new Set(prices));
   };
 
   const formatPriceRangeText = (vals) => {
