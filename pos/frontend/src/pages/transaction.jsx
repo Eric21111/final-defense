@@ -21,8 +21,9 @@ import {
   FaUndoAlt
 } from
   "react-icons/fa";
-import TotalTransactionIcon from "../assets/total-transaction.svg";
-import TransactionKpiIcon from "../assets/icons/transaction.svg";
+import ShopBagSales from "../assets/ShopBagSales.svg";
+import TransactionsTotalGreen from "../assets/TransactionsTotalGreen.svg";
+import HandCashIcon from "../assets/hand-cash.svg";
 import Header from "../components/shared/header";
 import PrintReceiptModal from "../components/transaction/PrintReceiptModal";
 import RemittanceModal from "../components/transaction/RemittanceModal";
@@ -1075,23 +1076,23 @@ const Transaction = () => {
                 iconBgClass: "bg-blue-100",
                 icon: (
                   <img
-                    src={TotalTransactionIcon}
+                    src={ShopBagSales}
                     alt="Total Sales"
                     className="w-10 h-10"
                   />
                 )
               },
               {
-                label: "Transactions",
+                label: "Total Transactions",
                 value: kpis.transactionTotal,
                 barGradient: "linear-gradient(180deg, #22C55E 0%, #4ADE80 100%)",
                 textColor: "#16A34A",
                 iconBgClass: "bg-green-100",
                 icon: (
                   <img
-                    src={TransactionKpiIcon}
+                    src={TransactionsTotalGreen}
                     alt="Transactions"
-                    className="w-9 h-9"
+                    className="w-10 h-10"
                   />
                 )
               },
@@ -1165,10 +1166,11 @@ const Transaction = () => {
                 </button>
               </div>
               <div className={`w-14 h-14 rounded-full flex items-center justify-center ${theme === "dark" ? "bg-blue-900/40" : "bg-[#d0e0f0]"}`}>
-                <svg className={`w-7 h-7 ${theme === "dark" ? "text-blue-400" : "text-[#1a3a5c]"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 7v4m0 0v4m0-4h4m-4 0H6" />
-                </svg>
+                <img
+                  src={HandCashIcon}
+                  alt="Hand Cash"
+                  className="w-8 h-8"
+                />
               </div>
             </motion.div>
           </div>
