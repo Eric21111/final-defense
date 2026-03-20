@@ -20,6 +20,17 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [diffPricesPerVariant, setDiffPricesPerVariant] = useState({});
   const [stockVariantPrices, setStockVariantPrices] = useState({});
   const [currentStep, setCurrentStep] = useState(1);
+  const [checkedCombos, setCheckedCombos] = useState({});
+  const [showAddNewSection, setShowAddNewSection] = useState(false);
+  const [newV1Tags, setNewV1Tags] = useState([]);
+  const [newV2Tags, setNewV2Tags] = useState([]);
+  const [newV1Input, setNewV1Input] = useState("");
+  const [newV2Input, setNewV2Input] = useState("");
+  const [addedNewCombos, setAddedNewCombos] = useState([]);
+  const [newComboData, setNewComboData] = useState({});
+  const [fillAllCostSI, setFillAllCostSI] = useState("");
+  const [fillAllSellSI, setFillAllSellSI] = useState("");
+  const [fillAllQtySI, setFillAllQtySI] = useState("");
   const { theme } = useTheme();
 
   const reasons = ["Restock", "Returned Item", "Exchange", "Other"];
@@ -97,9 +108,40 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     return sizes.filter(s => !existingSizes.includes(s) && !addedNewSizes.includes(s));
   })();
 
+  const existingCombos = (() => {
+    const combos = [];
+    if (hasSizes) {
+      existingSizes.forEach(size => {
+        const sizeVariants = getSizeVariants(size);
+        if (sizeVariants) {
+          Object.keys(sizeVariants).forEach(variant => {
+            const vData = sizeVariants[variant];
+            const stock = typeof vData === 'object' ? (vData.quantity || 0) : (typeof vData === 'number' ? vData : 0);
+            combos.push({ size, variant, stock });
+          });
+        }
+      });
+    }
+    return combos;
+  })();
+
+  const getExistingPrice = (size, variant) => {
+    const sizeData = hasSizes && product.sizes[size];
+    if (!sizeData || typeof sizeData !== 'object') return { cost: product.costPrice || 0, sell: product.itemPrice || 0 };
+    const vts = sizeData.variants;
+    if (!vts || !vts[variant]) return { cost: sizeData.costPrice || product.costPrice || 0, sell: sizeData.price || product.itemPrice || 0 };
+    const vData = vts[variant];
+    if (typeof vData === 'object' && vData !== null) {
+      return {
+        cost: vData.costPrice || sizeData.variantCostPrices?.[variant] || sizeData.costPrice || product.costPrice || 0,
+        sell: vData.price || sizeData.variantPrices?.[variant] || sizeData.price || product.itemPrice || 0
+      };
+    }
+    return { cost: sizeData.costPrice || product.costPrice || 0, sell: sizeData.price || product.itemPrice || 0 };
+  };
+
   useEffect(() => {
     if (isOpen && product) {
-      setSelectedSizes([]);
       setSizeQuantities({});
       setVariantQuantities({});
       setQuantity("");
@@ -114,11 +156,40 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setCustomNewSizeInput("");
       setAddedNewSizes([]);
       setNewSizePrices({});
-      setDiffPricesPerVariant({});
-      setStockVariantPrices({});
       setCurrentStep(1);
-    }
+      setShowAddNewSection(false);
+      setNewV1Tags([]); setNewV2Tags([]);
+      setNewV1Input(""); setNewV2Input("");
+      setAddedNewCombos([]);
+      setNewComboData({});
+      setFillAllCostSI(""); setFillAllSellSI(""); setFillAllQtySI("");
 
+      const initChecked = {};
+      const initPrices = {};
+      const initDiff = {};
+      if (product.sizes && typeof product.sizes === 'object') {
+        const sizes = Object.keys(product.sizes);
+        setSelectedSizes(sizes);
+        sizes.forEach(size => {
+          const sd = product.sizes[size];
+          if (typeof sd === 'object' && sd?.variants) {
+            initDiff[size] = true;
+            initPrices[size] = {};
+            Object.entries(sd.variants).forEach(([variant, vData]) => {
+              initChecked[`${size}|${variant}`] = true;
+              const cost = typeof vData === 'object' ? (vData.costPrice || sd.variantCostPrices?.[variant] || sd.costPrice || product.costPrice || 0) : (product.costPrice || 0);
+              const sell = typeof vData === 'object' ? (vData.price || sd.variantPrices?.[variant] || sd.price || product.itemPrice || 0) : (product.itemPrice || 0);
+              initPrices[size][variant] = { price: sell, costPrice: cost };
+            });
+          }
+        });
+      } else {
+        setSelectedSizes([]);
+      }
+      setCheckedCombos(initChecked);
+      setStockVariantPrices(initPrices);
+      setDiffPricesPerVariant(initDiff);
+    }
   }, [isOpen, product?._id]);
 
   if (!isOpen || !product) return null;
@@ -142,6 +213,13 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setDiffPricesPerVariant({});
     setStockVariantPrices({});
     setCurrentStep(1);
+    setCheckedCombos({});
+    setShowAddNewSection(false);
+    setNewV1Tags([]); setNewV2Tags([]);
+    setNewV1Input(""); setNewV2Input("");
+    setAddedNewCombos([]);
+    setNewComboData({});
+    setFillAllCostSI(""); setFillAllSellSI(""); setFillAllQtySI("");
     onClose();
   };
 
@@ -348,26 +426,106 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     }));
   };
 
+  const handleComboCheck = (size, variant) => {
+    const key = `${size}|${variant}`;
+    const wasChecked = checkedCombos[key] !== false;
+    setCheckedCombos(prev => ({ ...prev, [key]: !wasChecked }));
+    if (wasChecked) {
+      setVariantQuantities(prev => {
+        const updated = { ...prev };
+        if (updated[size]) { delete updated[size][variant]; }
+        return updated;
+      });
+    }
+  };
+
+  const handleAddNewCombosFromPicker = () => {
+    const existingSet = new Set(existingCombos.map(c => `${c.size}|${c.variant}`));
+    const addedSet = new Set(addedNewCombos.map(c => `${c.size}|${c.variant}`));
+    const previewCombos = [];
+    newV1Tags.forEach(v1 => { newV2Tags.forEach(v2 => {
+      const key = `${v2}|${v1}`;
+      if (!existingSet.has(key) && !addedSet.has(key)) previewCombos.push({ size: v2, variant: v1 });
+    }); });
+    if (previewCombos.length === 0) return;
+
+    setAddedNewCombos(prev => [...prev, ...previewCombos]);
+    const newVars = newV1Tags.filter(v => !allVariants.includes(v));
+    const newSzs = newV2Tags.filter(s => !existingSizes.includes(s) && !addedNewSizes.includes(s));
+    if (newVars.length > 0) setAddedVariants(prev => [...new Set([...prev, ...newVars])]);
+    if (newSzs.length > 0) {
+      setAddedNewSizes(prev => [...new Set([...prev, ...newSzs])]);
+      setSelectedSizes(prev => [...new Set([...prev, ...newSzs])]);
+    }
+    newV2Tags.filter(s => existingSizes.includes(s) && !selectedSizes.includes(s)).forEach(s => {
+      setSelectedSizes(prev => prev.includes(s) ? prev : [...prev, s]);
+    });
+
+    const checkedUpdates = {};
+    const priceUpdates = {};
+    const qtyUpdates = {};
+    previewCombos.forEach(({ size, variant }) => {
+      const key = `${size}|${variant}`;
+      const data = newComboData[key] || {};
+      checkedUpdates[key] = true;
+      if (!priceUpdates[size]) priceUpdates[size] = {};
+      priceUpdates[size][variant] = { price: data.sell || product.itemPrice || 0, costPrice: data.cost || product.costPrice || 0 };
+      if (data.qty) { if (!qtyUpdates[size]) qtyUpdates[size] = {}; qtyUpdates[size][variant] = data.qty; }
+    });
+    setCheckedCombos(prev => ({ ...prev, ...checkedUpdates }));
+    setStockVariantPrices(prev => {
+      const u = { ...prev };
+      Object.entries(priceUpdates).forEach(([s, vs]) => { u[s] = { ...(u[s] || {}), ...vs }; });
+      return u;
+    });
+    if (Object.keys(qtyUpdates).length > 0) {
+      setVariantQuantities(prev => {
+        const u = { ...prev };
+        Object.entries(qtyUpdates).forEach(([s, vs]) => { u[s] = { ...(u[s] || {}), ...vs }; });
+        return u;
+      });
+    }
+    setNewV1Tags([]); setNewV2Tags([]); setNewComboData({}); setShowAddNewSection(false);
+  };
+
+  const handleFillAllSI = () => {
+    const allCombosList = [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos];
+    if (fillAllCostSI || fillAllSellSI) {
+      setStockVariantPrices(prev => {
+        const u = { ...prev };
+        allCombosList.forEach(({ size, variant }) => {
+          if (checkedCombos[`${size}|${variant}`] !== false) {
+            if (!u[size]) u[size] = {};
+            u[size][variant] = { ...(u[size]?.[variant] || {}), ...(fillAllCostSI ? { costPrice: fillAllCostSI } : {}), ...(fillAllSellSI ? { price: fillAllSellSI } : {}) };
+          }
+        });
+        return u;
+      });
+    }
+    if (fillAllQtySI) {
+      setVariantQuantities(prev => {
+        const u = { ...prev };
+        allCombosList.forEach(({ size, variant }) => {
+          if (checkedCombos[`${size}|${variant}`] !== false) {
+            if (!u[size]) u[size] = {};
+            u[size][variant] = fillAllQtySI;
+          }
+        });
+        return u;
+      });
+    }
+  };
+
   const isStepValid = (step) => {
     if (step === 1) {
-      if (!hasSizes) {
-        const qty = parseInt(quantity) || 0;
-        return qty > 0;
-      }
-
-      if (selectedSizes.length === 0) return false;
-
+      if (!hasSizes) return (parseInt(quantity) || 0) > 0;
       if (hasVariants) {
-        return selectedSizes.some((size) => {
-          const sizeVariantQtys = variantQuantities[size] || {};
-          return Object.values(sizeVariantQtys).some((qty) => qty > 0);
+        const allCombosList = [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos];
+        return allCombosList.some(({ size, variant }) => {
+          return checkedCombos[`${size}|${variant}`] !== false && (parseInt(variantQuantities[size]?.[variant]) || 0) > 0;
         });
       }
-
-      return selectedSizes.some((size) => {
-        const qty = sizeQuantities[size] || 0;
-        return qty > 0;
-      });
+      return selectedSizes.some(s => (parseInt(sizeQuantities[s]) || 0) > 0);
     }
 
     if (step === 2) {
@@ -415,20 +573,29 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
 
     if (hasVariants) {
-      const hasValidVariantQuantities = selectedSizes.some((size) => {
-        const sizeVariantQtys = variantQuantities[size] || {};
-        return Object.values(sizeVariantQtys).some((qty) => qty > 0);
+      // Filter by checked combos
+      const filteredVarQtys = {};
+      const checkedSizesSet = new Set();
+      [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos].forEach(({ size, variant }) => {
+        const key = `${size}|${variant}`;
+        const qty = parseInt(variantQuantities[size]?.[variant]) || 0;
+        if (checkedCombos[key] !== false && qty > 0) {
+          if (!filteredVarQtys[size]) filteredVarQtys[size] = {};
+          filteredVarQtys[size][variant] = variantQuantities[size][variant];
+          checkedSizesSet.add(size);
+        }
       });
 
-      if (!hasValidVariantQuantities) {
-        alert("Please enter quantities for at least one variant");
+      if (Object.keys(filteredVarQtys).length === 0) {
+        alert("Please enter quantities for at least one checked variant");
         return;
       }
 
+      const filteredSizes = Array.from(checkedSizesSet);
       onConfirm({
         sizes: sizeQuantities,
-        variantQuantities: variantQuantities,
-        selectedSizes: selectedSizes,
+        variantQuantities: filteredVarQtys,
+        selectedSizes: filteredSizes,
         reason: finalReason,
         hasVariants: true,
         newVariantPrices: addedVariants.length > 0 ? newVariantPrices : null,
@@ -513,40 +680,24 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
               <div className="space-y-6">
                 {/* Stepper */}
                 <div className="mb-2">
-                  <div className="flex items-center gap-3">
-                    {[1, 2, 3].map((step) => (
-                      <div key={step} className="flex items-center">
-                        <div
-                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold border-2 ${
-                            currentStep === step
-                              ? "bg-[#AD7F65] border-[#AD7F65] text-white"
-                              : currentStep > step
-                                ? "bg-green-500 border-green-500 text-white"
-                                : theme === "dark"
-                                  ? "border-gray-600 text-gray-400"
-                                  : "border-gray-300 text-gray-400"
-                          }`}
-                        >
-                          {currentStep > step ? "✓" : step}
+                  <div className="flex items-center justify-center gap-0">
+                    {[{ id: 1, label: "Add Items" }, { id: 2, label: "Details" }, { id: 3, label: "Review" }].map((s, idx) => (
+                      <div key={s.id} className="flex items-center">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                            currentStep === s.id ? "bg-[#09A046] border-[#09A046] text-white"
+                              : currentStep > s.id ? "bg-[#09A046] border-[#09A046] text-white"
+                                : theme === "dark" ? "border-gray-600 text-gray-400" : "border-gray-300 text-gray-400"
+                          }`}>
+                            {currentStep > s.id ? "✓" : s.id}
+                          </div>
+                          <span className={`text-[10px] mt-1 ${currentStep >= s.id ? "text-[#09A046] font-semibold" : "text-gray-400"}`}>{s.label}</span>
                         </div>
-                        {step < 3 && (
-                          <div
-                            className={`w-10 h-[2px] mx-2 rounded ${
-                              currentStep > step
-                                ? "bg-green-500"
-                                : theme === "dark"
-                                  ? "bg-gray-700"
-                                  : "bg-gray-200"
-                            }`}
-                          />
+                        {idx < 2 && (
+                          <div className={`w-14 h-[2px] mx-2 mb-4 ${currentStep > s.id ? "bg-[#09A046]" : theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} style={{ borderStyle: "dashed" }} />
                         )}
                       </div>
                     ))}
-                  </div>
-                  <div className="flex justify-between mt-1 text-[11px] text-gray-400">
-                    <span>Add Stocks</span>
-                    <span>Batch & Expiration</span>
-                    <span>Review</span>
                   </div>
                 </div>
 
@@ -559,34 +710,226 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                   </h3>
                 </div>
 
-                {/* Step 1: Add Stocks */}
+                {/* Step 1: Add Items */}
                 {currentStep === 1 && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
                   <div>
-                    <label
-                      className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                      SKU/Item Code
-                    </label>
-                    <p
-                      className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-
-                      {product.sku || "-"}
-                    </p>
+                    <h4 className={`text-sm font-bold uppercase tracking-wide ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Items to Stock In</h4>
+                    <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>check variants that arrived, unchecked = skip</p>
                   </div>
-                  <div>
-                    <label
-                      className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
 
-                      Brand Partner{" "}
-                      <span className="text-gray-400">(optional)</span>
-                    </label>
-                    <p
-                      className={`text-sm font-medium ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                  {hasSizes && hasVariants ? (<>
+                    <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Existing variants</p>
 
-                      {product.supplierName || "-"}
-                    </p>
-                  </div>
+                    {/* Combo table */}
+                    <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                      <div className={`grid grid-cols-[28px_1fr_1fr_48px_68px_88px_88px] gap-1 items-center px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${theme === "dark" ? "bg-[#2A2724] text-gray-400 border-b border-gray-700" : "bg-gray-50 text-gray-500 border-b border-gray-200"}`}>
+                        <span></span><span>V1</span><span>V2</span><span>Stock</span><span>Qty In</span><span>Cost</span><span>Sell Price</span>
+                      </div>
+                      <div className="max-h-72 overflow-y-auto">
+                        {existingCombos.map(({ size, variant, stock }) => {
+                          const key = `${size}|${variant}`;
+                          const checked = checkedCombos[key] !== false;
+                          return (
+                            <div key={key} className={`grid grid-cols-[28px_1fr_1fr_48px_68px_88px_88px] gap-1 items-center px-3 py-2 ${theme === "dark" ? "border-t border-gray-700" : "border-t border-gray-100"}`}>
+                              <input type="checkbox" checked={checked} onChange={() => handleComboCheck(size, variant)} className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: "#09A046" }} />
+                              <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{variant}</span>
+                              <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size}</span>
+                              <span className="text-xs font-semibold text-[#09A046]">{stock}</span>
+                              <input type="number" min="0" placeholder="qty" disabled={!checked} value={variantQuantities[size]?.[variant] || ""} onChange={(e) => handleVariantQuantityChange(size, variant, e.target.value)}
+                                className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                              <div className="flex items-center">
+                                <input type="number" min="0" step="0.01" disabled={!checked} value={stockVariantPrices[size]?.[variant]?.costPrice ?? ""} onChange={(e) => handleStockVariantPriceChange(size, variant, "costPrice", e.target.value)}
+                                  className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                <span className="text-[10px] text-gray-400 ml-0.5">₱</span>
+                              </div>
+                              <div className="flex items-center">
+                                <input type="number" min="0" step="0.01" disabled={!checked} value={stockVariantPrices[size]?.[variant]?.price ?? ""} onChange={(e) => handleStockVariantPriceChange(size, variant, "price", e.target.value)}
+                                  className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                <span className="text-[10px] text-gray-400 ml-0.5">₱</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* NEW combos */}
+                        {addedNewCombos.length > 0 && (<>
+                          <div className={`px-3 py-1.5 ${theme === "dark" ? "border-t border-gray-700" : "border-t border-gray-200"}`}>
+                            <span className="text-xs font-bold text-[#09A046]">NEW</span>
+                          </div>
+                          {addedNewCombos.map(({ size, variant }) => {
+                            const key = `${size}|${variant}`;
+                            const checked = checkedCombos[key] !== false;
+                            return (
+                              <div key={`new-${key}`} className={`grid grid-cols-[28px_1fr_1fr_48px_68px_88px_88px] gap-1 items-center px-3 py-2 ${theme === "dark" ? "border-t border-gray-700" : "border-t border-gray-100"}`}>
+                                <input type="checkbox" checked={checked} onChange={() => handleComboCheck(size, variant)} className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: "#09A046" }} />
+                                <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{variant}</span>
+                                <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size}</span>
+                                <span className="text-xs text-gray-400">—</span>
+                                <input type="number" min="0" placeholder="qty" disabled={!checked} value={variantQuantities[size]?.[variant] || ""} onChange={(e) => handleVariantQuantityChange(size, variant, e.target.value)}
+                                  className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                <div className="flex items-center">
+                                  <input type="number" min="0" step="0.01" disabled={!checked} value={stockVariantPrices[size]?.[variant]?.costPrice ?? ""} onChange={(e) => handleStockVariantPriceChange(size, variant, "costPrice", e.target.value)}
+                                    className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                  <span className="text-[10px] text-gray-400 ml-0.5">₱</span>
+                                </div>
+                                <div className="flex items-center">
+                                  <input type="number" min="0" step="0.01" disabled={!checked} value={stockVariantPrices[size]?.[variant]?.price ?? ""} onChange={(e) => handleStockVariantPriceChange(size, variant, "price", e.target.value)}
+                                    className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                  <span className="text-[10px] text-gray-400 ml-0.5">₱</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </>)}
+                      </div>
+                    </div>
+
+                    {/* Fill all prices */}
+                    <div className="flex items-center gap-2 justify-end flex-wrap">
+                      <input type="number" min="0" step="0.01" value={fillAllCostSI} onChange={(e) => setFillAllCostSI(e.target.value)} placeholder="Cost"
+                        className={`w-20 px-2 py-1 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                      <input type="number" min="0" step="0.01" value={fillAllSellSI} onChange={(e) => setFillAllSellSI(e.target.value)} placeholder="Sell"
+                        className={`w-20 px-2 py-1 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                      <input type="number" min="0" value={fillAllQtySI} onChange={(e) => setFillAllQtySI(e.target.value)} placeholder="Qty"
+                        className={`w-16 px-2 py-1 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                      <button type="button" onClick={handleFillAllSI} className="text-xs font-semibold text-[#09A046] hover:underline">Fill All</button>
+                    </div>
+
+                    {/* + add NEW Variants */}
+                    <div className={`border-2 border-dashed rounded-xl overflow-hidden ${theme === "dark" ? "border-[#09A046]/30 bg-[#09A046]/5" : "border-[#09A046]/40 bg-[#09A046]/5"}`}>
+                      <button type="button" onClick={() => setShowAddNewSection(!showAddNewSection)} className="w-full flex items-center justify-between px-4 py-2.5">
+                        <span className="text-sm font-semibold text-[#09A046]">+ add NEW Variants</span>
+                        <span className="text-xs text-[#09A046]">{showAddNewSection ? "collapse" : "expand"}</span>
+                      </button>
+                      {showAddNewSection && (
+                        <div className={`px-4 pb-4 space-y-4 border-t ${theme === "dark" ? "border-[#09A046]/20" : "border-[#09A046]/20"}`}>
+                          <div className="grid grid-cols-2 gap-4 pt-3">
+                            {/* V1 - Colors */}
+                            <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-white"}`}>
+                              <p className={`text-xs font-bold mb-2 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>VARIANT 1 – Colors</p>
+                              <select value="" onChange={(e) => { if (e.target.value && !newV1Tags.includes(e.target.value)) setNewV1Tags(prev => [...prev, e.target.value]); }}
+                                className={`w-full px-2 py-1.5 text-xs border rounded-lg mb-2 appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`}>
+                                <option value="">Select color...</option>
+                                {["White","Black","Red","Blue","Green","Yellow","Pink","Purple","Orange","Brown","Gray","Beige","Navy","Maroon","Cream","Teal"].filter(c => !newV1Tags.includes(c)).map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                              <div className="flex flex-wrap gap-1 items-center">
+                                {newV1Tags.map(tag => (
+                                  <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-pink-100 text-pink-700 font-medium">
+                                    {tag} <button type="button" onClick={() => setNewV1Tags(prev => prev.filter(t => t !== tag))} className="hover:text-pink-900">×</button>
+                                  </span>
+                                ))}
+                                <input type="text" value={newV1Input} onChange={(e) => setNewV1Input(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = newV1Input.trim(); if (v && !newV1Tags.includes(v)) { setNewV1Tags(prev => [...prev, v]); setNewV1Input(""); } } }}
+                                  placeholder="Add +" className={`w-16 px-1 py-0.5 text-[11px] border-b border-dashed outline-none ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-400 placeholder-gray-400"}`} />
+                              </div>
+                            </div>
+                            {/* V2 - Size */}
+                            <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-white"}`}>
+                              <p className={`text-xs font-bold mb-2 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>VARIANT 2 – Size</p>
+                              <select value="" onChange={(e) => { if (e.target.value && !newV2Tags.includes(e.target.value)) setNewV2Tags(prev => [...prev, e.target.value]); }}
+                                className={`w-full px-2 py-1.5 text-xs border rounded-lg mb-2 appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`}>
+                                <option value="">Select size...</option>
+                                {["XS","S","M","L","XL","XXL","XXXL","Free Size","Small","Medium","Large"].filter(s => !newV2Tags.includes(s)).map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                              <div className="flex flex-wrap gap-1 items-center">
+                                {newV2Tags.map(tag => (
+                                  <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-[#09A046]/10 text-[#09A046] font-medium">
+                                    {tag} <button type="button" onClick={() => setNewV2Tags(prev => prev.filter(t => t !== tag))} className="hover:text-green-800">×</button>
+                                  </span>
+                                ))}
+                                <input type="text" value={newV2Input} onChange={(e) => setNewV2Input(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = newV2Input.trim(); if (v && !newV2Tags.includes(v)) { setNewV2Tags(prev => [...prev, v]); setNewV2Input(""); } } }}
+                                  placeholder="Add +" className={`w-16 px-1 py-0.5 text-[11px] border-b border-dashed outline-none ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-400 placeholder-gray-400"}`} />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Preview combos */}
+                          {(() => {
+                            const existingSet = new Set(existingCombos.map(c => `${c.size}|${c.variant}`));
+                            const addedSet = new Set(addedNewCombos.map(c => `${c.size}|${c.variant}`));
+                            const previewCombos = [];
+                            newV1Tags.forEach(v1 => { newV2Tags.forEach(v2 => { const k = `${v2}|${v1}`; if (!existingSet.has(k) && !addedSet.has(k)) previewCombos.push({ size: v2, variant: v1 }); }); });
+                            if (previewCombos.length === 0) return null;
+                            return (<>
+                              <div className="flex items-center justify-between">
+                                <span className={`text-xs font-semibold ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{previewCombos.length} COMBINATIONS GENERATED</span>
+                                <span className="text-xs text-gray-400 cursor-pointer hover:underline" onClick={() => {
+                                  const u = { ...newComboData };
+                                  previewCombos.forEach(({ size, variant }) => { const k = `${size}|${variant}`; u[k] = { ...(u[k] || {}), ...(fillAllCostSI ? { cost: fillAllCostSI } : {}), ...(fillAllSellSI ? { sell: fillAllSellSI } : {}), ...(fillAllQtySI ? { qty: fillAllQtySI } : {}) }; });
+                                  setNewComboData(u);
+                                }}>Fill all Prices</span>
+                              </div>
+                              <div className={`rounded-lg border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                                <div className={`grid grid-cols-[1fr_88px_88px_68px] gap-1 items-center px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${theme === "dark" ? "bg-[#2A2724] text-gray-400 border-b border-gray-700" : "bg-gray-50 text-gray-500 border-b border-gray-200"}`}>
+                                  <span>New Combo</span><span>Cost Price ₱</span><span>Selling Price ₱</span><span>Qty In</span>
+                                </div>
+                                {previewCombos.map(({ size, variant }) => {
+                                  const k = `${size}|${variant}`;
+                                  return (
+                                    <div key={k} className={`grid grid-cols-[1fr_88px_88px_68px] gap-1 items-center px-3 py-2 ${theme === "dark" ? "border-t border-gray-700" : "border-t border-gray-100"}`}>
+                                      <div className="flex items-center gap-1">
+                                        <span className={`px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size}</span>
+                                        <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>×</span>
+                                        <span className={`px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{variant}</span>
+                                      </div>
+                                      <div className="flex items-center">
+                                        <input type="number" min="0" step="0.01" value={newComboData[k]?.cost || ""} onChange={(e) => setNewComboData(prev => ({ ...prev, [k]: { ...(prev[k] || {}), cost: e.target.value } }))}
+                                          placeholder="0" className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                        <span className="text-[10px] text-gray-400 ml-0.5">₱</span>
+                                      </div>
+                                      <div className="flex items-center">
+                                        <input type="number" min="0" step="0.01" value={newComboData[k]?.sell || ""} onChange={(e) => setNewComboData(prev => ({ ...prev, [k]: { ...(prev[k] || {}), sell: e.target.value } }))}
+                                          placeholder="0" className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                        <span className="text-[10px] text-gray-400 ml-0.5">₱</span>
+                                      </div>
+                                      <input type="number" min="0" value={newComboData[k]?.qty || ""} onChange={(e) => setNewComboData(prev => ({ ...prev, [k]: { ...(prev[k] || {}), qty: e.target.value } }))}
+                                        placeholder="qty" className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <button type="button" onClick={handleAddNewCombosFromPicker} className="w-full py-2 text-sm font-semibold rounded-lg text-white transition-all hover:opacity-90" style={{ background: "#09A046" }}>Add</button>
+                            </>);
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  </>) : hasSizes ? (
+                    <div>
+                      <p className={`text-xs mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Select sizes to add stock to</p>
+                      <div className="grid grid-cols-4 gap-2 mb-3">
+                        {availableSizes.map((size) => {
+                          const currentQty = hasSizes && product.sizes[size] ? getSizeQuantity(product.sizes[size]) : 0;
+                          return (
+                            <label key={size} className="flex items-center gap-2 cursor-pointer">
+                              <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => handleSizeToggle(size)} className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: "#09A046" }} />
+                              <span className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{size} <span className="text-xs text-gray-500">({currentQty})</span></span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {selectedSizes.length > 0 && (
+                        <div className={`space-y-2 p-3 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}>
+                          <label className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Quantity per Size:</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            {selectedSizes.map((size) => (
+                              <div key={size}>
+                                <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>{size}</label>
+                                <input type="number" min="0" value={sizeQuantities[size] || ""} onChange={(e) => handleSizeQuantityChange(size, e.target.value)} placeholder="Qty"
+                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <p className={`text-xs mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Current Stock: {product.currentStock || 0}</p>
+                      <input type="number" min="1" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="Enter quantity to add"
+                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300"}`} />
+                    </div>
+                  )}
                 </div>
                 )}
 
@@ -608,7 +951,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                             value={batchCode}
                             onChange={(e) => setBatchCode(e.target.value)}
                             placeholder="e.g. LOT-2026-001"
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
                           />
                         </div>
                         <div>
@@ -619,7 +962,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                             type="date"
                             value={batchExpirationDate}
                             onChange={(e) => setBatchExpirationDate(e.target.value)}
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                           />
                         </div>
                       </div>
@@ -642,7 +985,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                               setOtherReason("");
                             }
                           }}
-                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}>
+                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}>
                           {reasons.map((r) =>
                             <option key={r} value={r}>
                               {r}
@@ -669,7 +1012,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                           value={otherReason}
                           onChange={(e) => setOtherReason(e.target.value)}
                           placeholder="Please specify the reason"
-                          className={`w-full mt-2 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                          className={`w-full mt-2 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
                       }
                     </div>
                   </>
@@ -758,8 +1101,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                   </div>
                 )}
 
-                {/* Step 1: Stock inputs only */}
-                {currentStep === 1 && (
+                {/* Step 1: (moved above) */}
+                {false && (
                 <>
                 {hasSizes ?
                   <div>
@@ -784,9 +1127,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                               type="checkbox"
                               checked={selectedSizes.includes(size)}
                               onChange={() => handleSizeToggle(size)}
-                              className="w-4 h-4 border-gray-300 rounded focus:ring-[#AD7F65] cursor-pointer"
+                              className="w-4 h-4 border-gray-300 rounded focus:ring-[#09A046] cursor-pointer"
                               style={{
-                                accentColor: "#AD7F65"
+                                accentColor: "#09A046"
                               }} />
 
                             <span
@@ -829,8 +1172,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                               setCustomNewSizeInput("");
                             }
                           }}
-                          className="w-4 h-4 border-gray-300 rounded focus:ring-[#AD7F65] cursor-pointer"
-                          style={{ accentColor: "#AD7F65" }} />
+                          className="w-4 h-4 border-gray-300 rounded focus:ring-[#09A046] cursor-pointer"
+                          style={{ accentColor: "#09A046" }} />
                         <span className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-700"}`}>
                           New sizes? Add sizes not listed
                         </span>
@@ -875,7 +1218,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                 }
                               }}
                               placeholder="Type size and press Enter or Add"
-                              className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                              className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
                             <button
                               type="button"
                               onClick={() => {
@@ -942,7 +1285,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                           value={newSizePrices[size]?.price || ""}
                                           onChange={(e) => handleNewSizePriceChange(size, "price", e.target.value)}
                                           placeholder="0.00"
-                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
                                       </div>
                                       <div>
                                         <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
@@ -955,7 +1298,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                           value={newSizePrices[size]?.costPrice || ""}
                                           onChange={(e) => handleNewSizePriceChange(size, "costPrice", e.target.value)}
                                           placeholder="0.00"
-                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
                                       </div>
                                     </div>
                                   }
@@ -990,7 +1333,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                               )
                                             }
                                             placeholder="Qty"
-                                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
+                                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
 
                                           {showDiffPrices &&
                                             <div className="grid grid-cols-2 gap-1 mt-1">
@@ -1001,7 +1344,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                                 value={stockVariantPrices[size]?.[variant]?.price ?? (product.itemPrice || "")}
                                                 onChange={(e) => handleStockVariantPriceChange(size, variant, "price", e.target.value)}
                                                 placeholder="Price"
-                                                className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
+                                                className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
                                               <input
                                                 type="number"
                                                 min="0"
@@ -1009,7 +1352,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                                 value={stockVariantPrices[size]?.[variant]?.costPrice ?? (product.costPrice || "")}
                                                 onChange={(e) => handleStockVariantPriceChange(size, variant, "costPrice", e.target.value)}
                                                 placeholder="Cost"
-                                                className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#AD7F65] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
+                                                className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`} />
                                             </div>
                                           }
                                         </div>);
@@ -1024,8 +1367,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                         type="checkbox"
                                         checked={diffPricesPerVariant[size] || false}
                                         onChange={() => handleDiffPricesToggle(size)}
-                                        className="w-4 h-4 border-gray-300 rounded focus:ring-[#AD7F65] cursor-pointer"
-                                        style={{ accentColor: "#AD7F65" }} />
+                                        className="w-4 h-4 border-gray-300 rounded focus:ring-[#09A046] cursor-pointer"
+                                        style={{ accentColor: "#09A046" }} />
                                       <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
                                         Diff prices each variants
                                       </span>
@@ -1052,7 +1395,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                           handleNewVariantInputChange(size, e.target.value)
                                         }
                                         placeholder="e.g. Red, Green..."
-                                        className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
+                                        className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
                                         onKeyDown={(e) => {
                                           if (e.key === "Enter") {
                                             e.preventDefault();
@@ -1096,7 +1439,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                                   value={newVariantPrices[variant]?.price || ""}
                                                   onChange={(e) => handleNewVariantPriceChange(variant, "price", e.target.value)}
                                                   placeholder="0.00"
-                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
 
                                               </div>
                                               <div>
@@ -1110,7 +1453,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                                   value={newVariantPrices[variant]?.costPrice || ""}
                                                   onChange={(e) => handleNewVariantPriceChange(variant, "costPrice", e.target.value)}
                                                   placeholder="0.00"
-                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
 
                                               </div>
                                             </div>
@@ -1159,7 +1502,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                         value={newSizePrices[size]?.price || ""}
                                         onChange={(e) => handleNewSizePriceChange(size, "price", e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
                                     </div>
                                     <div>
                                       <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
@@ -1172,7 +1515,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                         value={newSizePrices[size]?.costPrice || ""}
                                         onChange={(e) => handleNewSizePriceChange(size, "costPrice", e.target.value)}
                                         placeholder="0.00"
-                                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                        className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
                                     </div>
                                   </div>
                                 }
@@ -1187,7 +1530,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                     )
                                   }
                                   placeholder="Enter quantity"
-                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                                  className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
 
 
                                 { }
@@ -1200,7 +1543,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                         handleNewVariantInputChange(size, e.target.value)
                                       }
                                       placeholder="Add variant (e.g. Blue)"
-                                      className={`flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
+                                      className={`flex-1 px-3 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white placeholder-gray-500" : "bg-gray-50 border-gray-300 text-gray-900"}`}
                                       onKeyDown={(e) => {
                                         if (e.key === "Enter") {
                                           e.preventDefault();
@@ -1246,7 +1589,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                       value={quantity}
                       onChange={(e) => setQuantity(e.target.value)}
                       placeholder="Enter quantity to add"
-                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
+                      className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
 
                   </div>
                 }
@@ -1254,51 +1597,21 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                 )}
               </div>
 
-              <div
-                className={`flex justify-end gap-3 mt-8 pt-6 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className={`px-6 py-3 border rounded-lg font-medium transition-colors ${theme === "dark" ? "border-gray-600 text-gray-300 hover:bg-gray-800" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
-
-                  Cancel
+              <div className={`flex justify-between items-center mt-6 pt-4 border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                <button type="button" onClick={currentStep === 1 ? handleClose : () => setCurrentStep(prev => prev - 1)}
+                  className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${theme === "dark" ? "text-gray-300 border-gray-600 hover:bg-gray-700" : "text-gray-600 border-gray-300 hover:bg-gray-100"}`}>
+                  {currentStep === 1 ? "Cancel" : "← Back"}
                 </button>
-                {currentStep > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-                    className={`px-6 py-3 border rounded-lg font-medium transition-colors ${theme === "dark" ? "border-gray-600 text-gray-300 hover:bg-gray-800" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}>
-                    ← Back
+                {currentStep < 3 ? (
+                  <button type="button" disabled={!isStepValid(currentStep)} onClick={() => { if (isStepValid(currentStep)) setCurrentStep(prev => prev + 1); }}
+                    className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: "#09A046" }}>
+                    Continue
                   </button>
-                )}
-
-                {currentStep < 3 && (
-                  <button
-                    type="button"
-                    disabled={!isStepValid(currentStep)}
-                    onClick={() => {
-                      if (!isStepValid(currentStep)) return;
-                      setCurrentStep((prev) => prev + 1);
-                    }}
-                    className="px-6 py-3 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-all"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #AD7F65 0%, #8B6553 100%)"
-                    }}>
-                    Continue →
-                  </button>
-                )}
-
-                {currentStep === 3 && (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="px-6 py-3 text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-all"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #10B981 0%, #059669 100%)"
-                    }}>
+                ) : (
+                  <button type="submit" disabled={loading}
+                    className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
+                    style={{ background: "#09A046" }}>
                     {loading ? "Adding..." : "Confirm Stock-In"}
                   </button>
                 )}
