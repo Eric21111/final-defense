@@ -1834,10 +1834,10 @@ const Terminal = () => {
   return (
     <>
       <div
-        className={`relative flex flex-col h-screen ${theme === "dark" ? "bg-[#121212]" : "bg-[#F9F9F9]"}`}>
+        className={`relative flex flex-col h-screen ${theme === "dark" ? "bg-[#121212]" : "bg-[#FFFFFF]"}`}>
 
         <div
-          className={`absolute top-0 left-0 right-[420px] px-6 py-4 z-40 transition-colors duration-300 flex flex-col gap-4 ${theme === "dark" ? "bg-[#121212]" : "bg-[#F9F9F9]"}`}
+          className={`absolute top-0 left-0 right-[420px] px-6 py-4 z-40 transition-colors duration-300 flex flex-col gap-4 ${theme === "dark" ? "bg-[#121212]" : "bg-[#FFFFFF]"}`}
           style={{ paddingRight: "24px" }}>
 
           <Header
@@ -1863,12 +1863,14 @@ const Terminal = () => {
               <button
                 key={cat.name}
                 onClick={() => setSelectedCategory(cat.name)}
-                className={`flex items-center justify-center px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 border truncate ${
+                className={`flex items-center justify-center px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md border truncate ${
                   selectedCategory === cat.name
-                    ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-md"
+                    ? `text-[#AD7F65] border-b-4 border-[#AD7F65] ${
+                      theme === "dark" ? "bg-[#2A2724]" : "bg-white"
+                    }`
                     : theme === "dark"
-                      ? "bg-[#2A2724] text-gray-300 border-gray-600 hover:border-[#09A046]"
-                      : "bg-white text-gray-700 border-gray-200 hover:border-[#09A046] hover:text-[#09A046]"
+                      ? "bg-[#2A2724] text-gray-300 border border-gray-700 hover:border-[#AD7F65]"
+                      : "bg-white text-gray-800 border border-gray-200 hover:border-[#AD7F65]"
                 }`}
                 title={cat.name}>
 
