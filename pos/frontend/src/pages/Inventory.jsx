@@ -621,7 +621,6 @@ const Inventory = () => {
         Object.values(newProduct.sizeQuantities || {}).some((qty) => qty > 0);
       const hasStock = parseInt(newProduct.currentStock) > 0;
       const hasVariantQuantities =
-        newProduct.selectedSizes?.length > 0 &&
         newProduct.variantQuantities &&
         Object.keys(newProduct.variantQuantities).length > 0 &&
         Object.values(newProduct.variantQuantities).some((sizeVariants) =>
