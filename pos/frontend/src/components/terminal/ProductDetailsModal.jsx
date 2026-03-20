@@ -339,26 +339,36 @@ const ProductDetailsModal = ({
   }, [product?._id]);
 
   const sizeKeys = product?.sizes && typeof product.sizes === "object" ? Object.keys(product.sizes) : [];
-  const hasRealV2 = sizeKeys.some((k) => k && k !== VARIANT_ONLY_SIZE_KEY);
-  const isVariantOnlyProduct = sizeKeys.length > 0 && sizeKeys.every((k) => k === VARIANT_ONLY_SIZE_KEY);
-  const effectiveSelectedSize = selectedSize || (isVariantOnlyProduct ? VARIANT_ONLY_SIZE_KEY : "");
 
-  // If this product has only variant-level stock (no real V2 sizes),
-  // auto-select the synthetic size key so Add-to-Cart still sends the correct SKU.
+  const availableSizesForSelectedVariant = selectedVariant ? getAvailableSizesForVariant(selectedVariant) : [];
+  const hasRealV2ForSelectedVariant = availableSizesForSelectedVariant.some(
+    (s) => s && s !== VARIANT_ONLY_SIZE_KEY
+  );
+
+  // If there are no real V2 options for this variant, we still need a valid size key
+  // for stock/price/SKU, but we hide it from the UI.
+  const effectiveSelectedSize = selectedSize || (!hasRealV2ForSelectedVariant && selectedVariant ? VARIANT_ONLY_SIZE_KEY : "");
+
+  // Auto-select the synthetic size only when the selected variant has no real V2.
   useEffect(() => {
-    if (!isVariantOnlyProduct) return;
     if (!selectedVariant) return;
     if (!onSelectSize) return;
+    if (hasRealV2ForSelectedVariant) return;
     if (selectedSize === VARIANT_ONLY_SIZE_KEY) return;
+    if (!sizeKeys.includes(VARIANT_ONLY_SIZE_KEY)) return;
     onSelectSize(VARIANT_ONLY_SIZE_KEY);
-  }, [isVariantOnlyProduct, selectedVariant, selectedSize, onSelectSize]);
+  }, [selectedVariant, hasRealV2ForSelectedVariant, selectedSize, onSelectSize, sizeKeys]);
 
-
-  const availableSizes = productHasVariants ?
-    selectedVariant
-      ? getAvailableSizesForVariant(selectedVariant).filter((s) => (hasRealV2 ? true : s !== VARIANT_ONLY_SIZE_KEY))
-      : [] :
-    product.sizes && typeof product.sizes === "object" ? Object.keys(product.sizes) : [];
+  const availableSizes = productHasVariants
+    ? selectedVariant
+      // If there are real V2 options for this variant, hide synthetic.
+      ? (hasRealV2ForSelectedVariant
+        ? availableSizesForSelectedVariant.filter((s) => s !== VARIANT_ONLY_SIZE_KEY)
+        : []) // hide synthetic pill when there are no real V2 options for this variant
+      : []
+    : product.sizes && typeof product.sizes === "object"
+      ? Object.keys(product.sizes)
+      : [];
 
 
   const getAvailableStock = () => {
