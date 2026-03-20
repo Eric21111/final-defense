@@ -2257,7 +2257,8 @@ const Inventory = () => {
           }}
           product={editingProduct}
           onConfirm={handleStockInConfirm}
-          loading={loading} />
+          loading={loading}
+          brandPartners={brandPartners} />
 
       }
 

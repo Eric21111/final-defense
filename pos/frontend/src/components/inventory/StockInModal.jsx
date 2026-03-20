@@ -22,7 +22,7 @@ const buildPickerCombos = (v1Tags, v2Tags, existingSet, addedSet) => {
   return out;
 };
 
-const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
+const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartners = [] }) => {
   const [selectedSizes, setSelectedSizes] = useState([]);
   const [sizeQuantities, setSizeQuantities] = useState({});
   const [variantQuantities, setVariantQuantities] = useState({});
@@ -52,6 +52,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [fillAllCostSI, setFillAllCostSI] = useState("");
   const [fillAllSellSI, setFillAllSellSI] = useState("");
   const [fillAllQtySI, setFillAllQtySI] = useState("");
+  const [stockInBrandPartner, setStockInBrandPartner] = useState("");
+  const [dateReceived, setDateReceived] = useState("");
   const { theme } = useTheme();
 
   const reasons = ["Restock", "Returned Item", "Exchange", "Other"];
@@ -166,7 +168,10 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setSizeQuantities({});
       setVariantQuantities({});
       setQuantity("");
-      setBatchCode("");
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      setBatchCode(`B${y}${m} – 001`);
       setBatchExpirationDate("");
       setReason("Restock");
       setOtherReason("");
@@ -184,6 +189,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       setAddedNewCombos([]);
       setNewComboData({});
       setFillAllCostSI(""); setFillAllSellSI(""); setFillAllQtySI("");
+      setStockInBrandPartner(product?.brandName || "");
+      setDateReceived(new Date().toISOString().split('T')[0]);
 
       const initChecked = {};
       const initPrices = {};
@@ -222,6 +229,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     setQuantity("");
     setBatchCode("");
     setBatchExpirationDate("");
+    setStockInBrandPartner("");
+    setDateReceived("");
     setReason("Restock");
     setOtherReason("");
     setNewVariantInputs({});
@@ -549,6 +558,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     }
 
     if (step === 2) {
+      if (!stockInBrandPartner) return false;
+      if (!dateReceived) return false;
       if (reason === "Other" && !otherReason.trim()) return false;
       return true;
     }
@@ -580,7 +591,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         noSizes: true,
         reason: finalReason,
         ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
-        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {})
+        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+        ...(stockInBrandPartner ? { brandPartner: stockInBrandPartner } : {}),
+        ...(dateReceived ? { dateReceived } : {}),
       });
       return;
     }
@@ -623,7 +636,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         diffPricesPerVariant: Object.keys(diffPricesPerVariant).some(k => diffPricesPerVariant[k]) ? diffPricesPerVariant : null,
         stockVariantPrices: Object.keys(stockVariantPrices).length > 0 ? stockVariantPrices : null,
         ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
-        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {})
+        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+        ...(stockInBrandPartner ? { brandPartner: stockInBrandPartner } : {}),
+        ...(dateReceived ? { dateReceived } : {}),
       });
       return;
     }
@@ -645,7 +660,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
       reason: finalReason,
       newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null,
       ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
-      ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {})
+      ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+      ...(stockInBrandPartner ? { brandPartner: stockInBrandPartner } : {}),
+      ...(dateReceived ? { dateReceived } : {}),
     });
   };
 
@@ -958,87 +975,87 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
                 {/* Step 2: Batch & Reason */}
                 {currentStep === 2 && (
-                  <>
-                    {/* Batch / Lot Tracking (optional) */}
-                    <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-gray-50"}`}>
-                      <label className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Batch / Lot (optional)
-                      </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            Batch Code
-                          </label>
-                          <input
-                            type="text"
-                            value={batchCode}
-                            onChange={(e) => setBatchCode(e.target.value)}
-                            placeholder="e.g. LOT-2026-001"
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
-                          />
-                        </div>
-                        <div>
-                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            Expiration Date
-                          </label>
-                          <input
-                            type="date"
-                            value={batchExpirationDate}
-                            onChange={(e) => setBatchExpirationDate(e.target.value)}
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-700 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                          />
+                  <div className="space-y-5 pt-2">
+                    <h3 className={`text-sm font-bold uppercase tracking-wide ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Entry Details</h3>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                          Brand Partner/Supplier <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <select
+                            value={stockInBrandPartner}
+                            onChange={(e) => setStockInBrandPartner(e.target.value)}
+                            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                          >
+                            <option value="" disabled style={{ color: '#9CA3AF' }}>Select</option>
+                            {brandPartners.map((bp) => (
+                              <option key={bp.id || bp.name} value={bp.name}>{bp.name}</option>
+                            ))}
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </div>
                         </div>
                       </div>
-                      <p className={`text-xs mt-2 ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                        These will be saved on this stock-in batch only.
-                      </p>
+                      <div>
+                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                          Date Received <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={dateReceived}
+                          onChange={(e) => setDateReceived(e.target.value)}
+                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch Number</label>
+                        <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{batchCode || "—"}</p>
+                      </div>
+                      <div>
+                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiring Date (if applicable)</label>
+                        <input
+                          type="date"
+                          value={batchExpirationDate}
+                          onChange={(e) => setBatchExpirationDate(e.target.value)}
+                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label
-                        className={`block text-sm font-medium mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                        Reason
-                      </label>
+                      <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Reason</label>
                       <div className="relative">
                         <select
                           value={reason}
                           onChange={(e) => {
                             setReason(e.target.value);
-                            if (e.target.value !== "Other") {
-                              setOtherReason("");
-                            }
+                            if (e.target.value !== "Other") setOtherReason("");
                           }}
-                          className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}>
-                          {reasons.map((r) =>
-                            <option key={r} value={r}>
-                              {r}
-                            </option>
-                          )}
+                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                        >
+                          {reasons.map((r) => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                          <svg
-                            className="w-5 h-5 text-gray-400"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 9l-7 7-7-7" />
-                          </svg>
+                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                         </div>
                       </div>
-                      {reason === "Other" &&
+                      {reason === "Other" && (
                         <input
                           type="text"
                           value={otherReason}
                           onChange={(e) => setOtherReason(e.target.value)}
                           placeholder="Please specify the reason"
-                          className={`w-full mt-2 px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`} />
-                      }
+                          className={`w-full mt-2 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
+                        />
+                      )}
                     </div>
-                  </>
+                  </div>
                 )}
 
                 {/* Step 3: Review */}
@@ -1056,13 +1073,25 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                       </div>
                       <div className="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-400">Batch Code</p>
+                          <p className="text-xs uppercase tracking-wide text-gray-400">Brand Partner/Supplier</p>
+                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
+                            {stockInBrandPartner || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-400">Date Received</p>
+                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
+                            {dateReceived || "—"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs uppercase tracking-wide text-gray-400">Batch Number</p>
                           <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
                             {batchCode.trim() || "—"}
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-400">Expiration Date</p>
+                          <p className="text-xs uppercase tracking-wide text-gray-400">Expiring Date</p>
                           <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
                             {batchExpirationDate || "—"}
                           </p>
