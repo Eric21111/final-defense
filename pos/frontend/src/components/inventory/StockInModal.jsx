@@ -189,7 +189,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
       setAddedNewCombos([]);
       setNewComboData({});
       setFillAllCostSI(""); setFillAllSellSI(""); setFillAllQtySI("");
-      setStockInBrandPartner(product?.brandName || "");
+      setStockInBrandPartner("");
       setDateReceived(new Date().toISOString().split('T')[0]);
 
       const initChecked = {};
@@ -569,7 +569,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
+    if (currentStep !== 3) return;
 
     if (reason === "Other" && !otherReason.trim()) {
       alert("Please specify the reason");
@@ -981,8 +981,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                             className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                           >
                             <option value="" disabled style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
-                            {brandPartners.map((bp) => (
-                              <option key={bp.id || bp.name} value={bp.name}>{bp.name}</option>
+                            {[...new Set(brandPartners.map(bp => bp.brandName).filter(Boolean))].sort().map((name) => (
+                              <option key={name} value={name}>{name}</option>
                             ))}
                           </select>
                           <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
