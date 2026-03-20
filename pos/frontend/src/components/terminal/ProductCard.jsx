@@ -164,7 +164,7 @@ const ProductCard = memo(function ProductCard({ product, onToggleExpand }) {
             e.stopPropagation();
             onToggleExpand(product);
           }}
-          className="w-full mt-2 py-2 text-xs text-white rounded-lg border hover:opacity-90 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
+          className="w-full mt-2 py-2 text-xs text-[#09A046] rounded-lg border hover:opacity-90 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
           style={{
             background: "#BAE4CB",
             borderColor: "rgba(9, 160, 70, 1)",

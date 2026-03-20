@@ -560,7 +560,7 @@ const ProductDetailsModal = ({
           <div className="flex gap-6">
             { }
             <div
-              className={`relative w-64 h-64 rounded-xl overflow-hidden flex-shrink-0 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
+              className={`relative w-72 h-72 rounded-xl overflow-hidden flex-shrink-0 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
 
               {productImages.length > 0 && productImages[productImgIdx] ? (
                 <>
