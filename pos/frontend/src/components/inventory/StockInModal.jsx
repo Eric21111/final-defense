@@ -738,15 +738,6 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                   </div>
                 </div>
 
-                <div>
-                  <h3
-                    className={`text-2xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-
-                    {product.itemName}
-                    {product.size && !product.sizes && ` (${product.size})`}
-                  </h3>
-                </div>
-
                 {/* Step 1: Add Items */}
                 {currentStep === 1 && (
                 <div className="space-y-3">
@@ -989,7 +980,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                             onChange={(e) => setStockInBrandPartner(e.target.value)}
                             className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                           >
-                            <option value="" disabled style={{ color: '#9CA3AF' }}>Select</option>
+                            <option value="" disabled style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
                             {brandPartners.map((bp) => (
                               <option key={bp.id || bp.name} value={bp.name}>{bp.name}</option>
                             ))}
@@ -1059,99 +1050,85 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                 )}
 
                 {/* Step 3: Review */}
-                {currentStep === 3 && (
-                  <div className="space-y-4">
-                    <h3 className={`text-lg font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      Review Stock-In
-                    </h3>
-                    <div className={`rounded-xl border p-4 space-y-3 ${theme === "dark" ? "bg-[#2A2724] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-400">Product</p>
-                        <p className={`text-sm font-semibold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                          {product.itemName}
-                        </p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-400">Brand Partner/Supplier</p>
-                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
-                            {stockInBrandPartner || "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-400">Date Received</p>
-                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
-                            {dateReceived || "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-400">Batch Number</p>
-                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
-                            {batchCode.trim() || "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-400">Expiring Date</p>
-                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
-                            {batchExpirationDate || "—"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs uppercase tracking-wide text-gray-400">Reason</p>
-                          <p className={theme === "dark" ? "text-gray-200" : "text-gray-800"}>
-                            {reason === "Other" && otherReason.trim()
-                              ? `Other: ${otherReason.trim()}`
-                              : reason}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
-                          Quantities to Add
-                        </p>
-                        <div className="text-xs space-y-1">
-                          {hasSizes ? (
-                            selectedSizes.length > 0 ? (
-                              selectedSizes.map((size) => {
-                                if (hasVariants) {
-                                  const sizeVariantQtys = variantQuantities[size] || {};
-                                  const totalForSize = Object.values(sizeVariantQtys).reduce(
-                                    (sum, q) => sum + (parseInt(q) || 0),
-                                    0
-                                  );
-                                  if (totalForSize === 0) return null;
-                                  return (
-                                    <div key={size}>
-                                      <span className="font-semibold">{size}:</span>{" "}
-                                      {Object.entries(sizeVariantQtys)
-                                        .filter(([, q]) => (parseInt(q) || 0) > 0)
-                                        .map(([variant, q]) => `${variant} x ${q}`)
-                                        .join(", ")}
-                                    </div>
-                                  );
-                                }
-                                const qty = sizeQuantities[size] || 0;
-                                if (!qty) return null;
-                                return (
-                                  <div key={size}>
-                                    <span className="font-semibold">{size}:</span> {qty}
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <p className="text-gray-500">No sizes selected.</p>
-                            )
-                          ) : (
-                            <p>
-                              <span className="font-semibold">Quantity:</span>{" "}
-                              {parseInt(quantity) || 0}
-                            </p>
-                          )}
-                        </div>
+                {currentStep === 3 && (() => {
+                  const reviewRows = [];
+                  if (hasSizes && hasVariants) {
+                    const allCombos = [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos];
+                    allCombos.forEach(({ size, variant }) => {
+                      const key = `${size}|${variant}`;
+                      if (checkedCombos[key] === false) return;
+                      const qty = parseInt(variantQuantities[size]?.[variant]) || 0;
+                      if (qty <= 0) return;
+                      const sizeData = product.sizes?.[size];
+                      const existingStock = typeof sizeData?.variants?.[variant] === 'object' ? (sizeData.variants[variant].quantity || 0) : (typeof sizeData?.variants?.[variant] === 'number' ? sizeData.variants[variant] : 0);
+                      const cost = stockVariantPrices[size]?.[variant]?.costPrice || 0;
+                      const sell = stockVariantPrices[size]?.[variant]?.price || 0;
+                      reviewRows.push({ variant, size, stock: existingStock, qtyIn: qty, cost, sell });
+                    });
+                  } else if (hasSizes) {
+                    selectedSizes.forEach(size => {
+                      const qty = parseInt(sizeQuantities[size]) || 0;
+                      if (qty <= 0) return;
+                      const sizeData = product.sizes?.[size];
+                      const existingStock = sizeData?.quantity || 0;
+                      reviewRows.push({ variant: null, size, stock: existingStock, qtyIn: qty, cost: 0, sell: 0 });
+                    });
+                  } else {
+                    const qty = parseInt(quantity) || 0;
+                    if (qty > 0) reviewRows.push({ variant: null, size: null, stock: product.currentStock || 0, qtyIn: qty, cost: 0, sell: 0 });
+                  }
+
+                  return (
+                  <div className="space-y-3">
+                    <div>
+                      <h3 className={`text-sm font-bold uppercase tracking-wide ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Review Before Saving</h3>
+                      <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Double-check everything. Once confirmed, inventory will be updated immediately.</p>
+                    </div>
+
+                    <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                      <div className="overflow-y-auto" style={{ maxHeight: "340px" }}>
+                        <table className="w-full text-xs">
+                          <thead className={`sticky top-0 z-10 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}>
+                            <tr className={`border-b ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                              {hasVariants && <th className={`px-3 py-2 text-left font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>V1</th>}
+                              {hasVariants && <th className={`px-3 py-2 text-left font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>V2</th>}
+                              <th className={`px-3 py-2 text-center font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Stock</th>
+                              <th className={`px-3 py-2 text-center font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Qty In</th>
+                              <th className={`px-3 py-2 text-right font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Cost</th>
+                              <th className={`px-3 py-2 text-right font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Sell Price</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {reviewRows.map((row, i) => (
+                              <tr key={i} className={`border-b last:border-b-0 ${theme === "dark" ? "border-gray-700/50" : "border-gray-100"}`}>
+                                {hasVariants && (
+                                  <td className="px-3 py-2.5">
+                                    <span className={`inline-block px-2.5 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{row.variant}</span>
+                                  </td>
+                                )}
+                                {hasVariants && (
+                                  <td className="px-3 py-2.5">
+                                    {row.size && row.size !== VARIANT_ONLY_SIZE_KEY
+                                      ? <span className={`inline-block px-2.5 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-blue-500/15 text-blue-400" : "bg-blue-100 text-blue-700"}`}>{row.size}</span>
+                                      : <span className="text-gray-400">—</span>}
+                                  </td>
+                                )}
+                                <td className={`px-3 py-2.5 text-center ${theme === "dark" ? "text-blue-400" : "text-blue-600"}`}>{row.stock}</td>
+                                <td className="px-3 py-2.5 text-center font-semibold text-[#09A046]">+{row.qtyIn}</td>
+                                <td className={`px-3 py-2.5 text-right ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₱ {Number(row.cost).toLocaleString()}</td>
+                                <td className={`px-3 py-2.5 text-right ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>₱ {Number(row.sell).toLocaleString()}</td>
+                              </tr>
+                            ))}
+                            {reviewRows.length === 0 && (
+                              <tr><td colSpan={hasVariants ? 6 : 4} className="px-3 py-6 text-center text-gray-400 italic text-xs">No items to review</td></tr>
+                            )}
+                          </tbody>
+                        </table>
                       </div>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* Step 1: (moved above) */}
                 {false && (
@@ -1664,7 +1641,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                   <button type="submit" disabled={loading}
                     className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
                     style={{ background: "#09A046" }}>
-                    {loading ? "Adding..." : "Confirm Stock-In"}
+                    {loading ? "Adding..." : "Stock In"}
                   </button>
                 )}
               </div>
