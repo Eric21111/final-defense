@@ -557,7 +557,7 @@ const ProductDetailsModal = ({
 
         { }
         <div className="p-6">
-          <div className="flex gap-6">
+          <div className="flex gap-6" style={{ maxHeight: "calc(100vh - 240px)" }}>
             { }
             <div
               className={`relative w-72 h-72 rounded-xl overflow-hidden flex-shrink-0 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
@@ -606,7 +606,7 @@ const ProductDetailsModal = ({
             </div>
 
             { }
-            <div className="flex-1">
+            <div className="flex-1 overflow-y-auto pr-2">
               <p
                 className={`text-sm mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
 
