@@ -24,11 +24,34 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
 
   const batchList = useMemo(() => {
     if (!hasSizes || !hasVariants) return [];
+
+    const getVariantQty = (vData) => {
+      if (typeof vData === "number") return parseInt(vData, 10) || 0;
+      if (vData && typeof vData === "object") {
+        const qty =
+          vData.qty ??
+          vData.quantity ??
+          0;
+        return parseInt(qty, 10) || 0;
+      }
+      return 0;
+    };
+
     const batchMap = {};
+    const fallbackCombosMap = {}; // key: `${size}|${variant}` -> { size, variant, qty }
     Object.entries(product.sizes).forEach(([size, sd]) => {
       if (typeof sd !== "object" || !sd?.variants) return;
       Object.entries(sd.variants).forEach(([variant, vData]) => {
         const batches = typeof vData === "object" && Array.isArray(vData.batches) ? vData.batches : [];
+
+        // Track opening batch qty from whatever variant quantity is stored.
+        const fallbackQty = getVariantQty(vData);
+        if (fallbackQty > 0) {
+          const key = `${size}|${variant}`;
+          if (!fallbackCombosMap[key]) fallbackCombosMap[key] = { size, variant, qty: 0 };
+          fallbackCombosMap[key].qty += fallbackQty;
+        }
+
         batches.forEach(b => {
           const code = b.batchCode || "Default";
           if (!batchMap[code]) batchMap[code] = { code, totalQty: 0, combos: {} };
@@ -39,7 +62,24 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
         });
       });
     });
-    return Object.values(batchMap).filter(b => b.totalQty > 0);
+
+    const realBatches = Object.values(batchMap).filter(b => b.totalQty > 0);
+    if (realBatches.length > 0) return realBatches;
+
+    // Fallback: no "new batches" yet, but we still need a batch dropdown (opening batch / batch 1).
+    const openingBatchCode = product?.batchNumber || product?.openingBatchNumber || "B1";
+    const combosEntries = Object.entries(fallbackCombosMap).filter(([, c]) => c.qty > 0);
+    if (combosEntries.length === 0) return [];
+
+    const totalQty = combosEntries.reduce((sum, [, c]) => sum + (c.qty || 0), 0) || parseInt(product.currentStock, 10) || 0;
+    if (totalQty <= 0) return [];
+
+    const combos = {};
+    combosEntries.forEach(([key, combo]) => {
+      combos[key] = combo;
+    });
+
+    return [{ code: openingBatchCode, totalQty, combos }];
   }, [product, hasSizes, hasVariants]);
 
   const batchCombos = useMemo(() => {
