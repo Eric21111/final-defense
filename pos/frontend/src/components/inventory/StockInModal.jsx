@@ -1,6 +1,27 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "../../context/ThemeContext";
 
+// Matches Add Product / Inventory when product has only option group 1 (no sizes)
+const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
+
+const buildPickerCombos = (v1Tags, v2Tags, existingSet, addedSet) => {
+  const out = [];
+  if (v1Tags.length > 0 && v2Tags.length > 0) {
+    v1Tags.forEach((v1) => {
+      v2Tags.forEach((v2) => {
+        const key = `${v2}|${v1}`;
+        if (!existingSet.has(key) && !addedSet.has(key)) out.push({ size: v2, variant: v1 });
+      });
+    });
+  } else if (v1Tags.length > 0) {
+    v1Tags.forEach((v1) => {
+      const key = `${VARIANT_ONLY_SIZE_KEY}|${v1}`;
+      if (!existingSet.has(key) && !addedSet.has(key)) out.push({ size: VARIANT_ONLY_SIZE_KEY, variant: v1 });
+    });
+  }
+  return out;
+};
+
 const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const [selectedSizes, setSelectedSizes] = useState([]);
   const [sizeQuantities, setSizeQuantities] = useState({});
@@ -442,11 +463,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
   const handleAddNewCombosFromPicker = () => {
     const existingSet = new Set(existingCombos.map(c => `${c.size}|${c.variant}`));
     const addedSet = new Set(addedNewCombos.map(c => `${c.size}|${c.variant}`));
-    const previewCombos = [];
-    newV1Tags.forEach(v1 => { newV2Tags.forEach(v2 => {
-      const key = `${v2}|${v1}`;
-      if (!existingSet.has(key) && !addedSet.has(key)) previewCombos.push({ size: v2, variant: v1 });
-    }); });
+    const previewCombos = buildPickerCombos(newV1Tags, newV2Tags, existingSet, addedSet);
     if (previewCombos.length === 0) return;
 
     setAddedNewCombos(prev => [...prev, ...previewCombos]);
@@ -460,6 +477,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
     newV2Tags.filter(s => existingSizes.includes(s) && !selectedSizes.includes(s)).forEach(s => {
       setSelectedSizes(prev => prev.includes(s) ? prev : [...prev, s]);
     });
+    if (previewCombos.some((c) => c.size === VARIANT_ONLY_SIZE_KEY)) {
+      setSelectedSizes((prev) => (prev.includes(VARIANT_ONLY_SIZE_KEY) ? prev : [...prev, VARIANT_ONLY_SIZE_KEY]));
+    }
 
     const checkedUpdates = {};
     const priceUpdates = {};
@@ -734,7 +754,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                             <div key={key} className={`grid grid-cols-[28px_1fr_1fr_48px_68px_88px_88px] gap-1 items-center px-3 py-2 ${theme === "dark" ? "border-t border-gray-700" : "border-t border-gray-100"}`}>
                               <input type="checkbox" checked={checked} onChange={() => handleComboCheck(size, variant)} className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: "#09A046" }} />
                               <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{variant}</span>
-                              <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size}</span>
+                              <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium min-w-[1.25rem] ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size === VARIANT_ONLY_SIZE_KEY ? "—" : size}</span>
                               <span className="text-xs font-semibold text-[#09A046]">{stock}</span>
                               <input type="number" min="0" placeholder="qty" disabled={!checked} value={variantQuantities[size]?.[variant] || ""} onChange={(e) => handleVariantQuantityChange(size, variant, e.target.value)}
                                 className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
@@ -764,7 +784,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                               <div key={`new-${key}`} className={`grid grid-cols-[28px_1fr_1fr_48px_68px_88px_88px] gap-1 items-center px-3 py-2 ${theme === "dark" ? "border-t border-gray-700" : "border-t border-gray-100"}`}>
                                 <input type="checkbox" checked={checked} onChange={() => handleComboCheck(size, variant)} className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: "#09A046" }} />
                                 <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{variant}</span>
-                                <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size}</span>
+                                <span className={`inline-block w-fit px-2 py-0.5 text-[11px] rounded-full font-medium min-w-[1.25rem] ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size === VARIANT_ONLY_SIZE_KEY ? "—" : size}</span>
                                 <span className="text-xs text-gray-400">—</span>
                                 <input type="number" min="0" placeholder="qty" disabled={!checked} value={variantQuantities[size]?.[variant] || ""} onChange={(e) => handleVariantQuantityChange(size, variant, e.target.value)}
                                   className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${!checked ? "opacity-40" : ""} ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
@@ -825,7 +845,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                             </div>
                             {/* V2 - Size */}
                             <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-white"}`}>
-                              <p className={`text-xs font-bold mb-2 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>VARIANT 2 – Size</p>
+                              <p className={`text-xs font-bold mb-2 ${theme === "dark" ? "text-white" : "text-gray-800"}`}>VARIANT 2 – Size <span className="font-normal text-gray-400">(optional)</span></p>
                               <select value="" onChange={(e) => { if (e.target.value && !newV2Tags.includes(e.target.value)) setNewV2Tags(prev => [...prev, e.target.value]); }}
                                 className={`w-full px-2 py-1.5 text-xs border rounded-lg mb-2 appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`}>
                                 <option value="">Select size...</option>
@@ -847,8 +867,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                           {(() => {
                             const existingSet = new Set(existingCombos.map(c => `${c.size}|${c.variant}`));
                             const addedSet = new Set(addedNewCombos.map(c => `${c.size}|${c.variant}`));
-                            const previewCombos = [];
-                            newV1Tags.forEach(v1 => { newV2Tags.forEach(v2 => { const k = `${v2}|${v1}`; if (!existingSet.has(k) && !addedSet.has(k)) previewCombos.push({ size: v2, variant: v1 }); }); });
+                            const previewCombos = buildPickerCombos(newV1Tags, newV2Tags, existingSet, addedSet);
                             if (previewCombos.length === 0) return null;
                             return (<>
                               <div className="flex items-center justify-between">
@@ -868,8 +887,12 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                                   return (
                                     <div key={k} className={`grid grid-cols-[1fr_88px_88px_68px] gap-1 items-center px-3 py-2 ${theme === "dark" ? "border-t border-gray-700" : "border-t border-gray-100"}`}>
                                       <div className="flex items-center gap-1">
-                                        <span className={`px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size}</span>
-                                        <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>×</span>
+                                        {size !== VARIANT_ONLY_SIZE_KEY && (
+                                          <>
+                                            <span className={`px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/10 text-[#09A046]"}`}>{size}</span>
+                                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>×</span>
+                                          </>
+                                        )}
                                         <span className={`px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/15 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{variant}</span>
                                       </div>
                                       <div className="flex items-center">
