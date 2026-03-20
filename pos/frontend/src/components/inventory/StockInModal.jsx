@@ -729,7 +729,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                                 : theme === "dark" ? "border-gray-600 text-gray-400" : "border-gray-300 text-gray-400"
                           }`}>
                             {currentStep > s.id ? "✓" : s.id}
-                          </div>
+                        </div>
                           <span className={`text-[10px] mt-1 ${currentStep >= s.id ? "text-[#09A046] font-semibold" : "text-gray-400"}`}>{s.label}</span>
                         </div>
                         {idx < 2 && (
@@ -743,7 +743,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                 {/* Step 1: Add Items */}
                 {currentStep === 1 && (
                 <div className="space-y-3">
-                  <div>
+                <div>
                     <h4 className={`text-sm font-bold uppercase tracking-wide ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Items to Stock In</h4>
                     <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>check variants that arrived, unchecked = skip</p>
                   </div>
@@ -755,7 +755,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                     <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                       <div className={`grid grid-cols-[28px_1fr_1fr_48px_68px_88px_88px] gap-1 items-center px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${theme === "dark" ? "bg-[#2A2724] text-gray-400 border-b border-gray-700" : "bg-gray-50 text-gray-500 border-b border-gray-200"}`}>
                         <span></span><span>V1</span><span>V2</span><span>Stock</span><span>Qty In</span><span>Cost</span><span>Sell Price</span>
-                      </div>
+                </div>
                       <div className="max-h-72 overflow-y-auto">
                         {existingCombos.map(({ size, variant, stock }) => {
                           const key = `${size}|${variant}`;
@@ -851,7 +851,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                                 ))}
                                 <input type="text" value={newV1Input} onChange={(e) => setNewV1Input(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); const v = newV1Input.trim(); if (v && !newV1Tags.includes(v)) { setNewV1Tags(prev => [...prev, v]); setNewV1Input(""); } } }}
                                   placeholder="Add +" className={`w-16 px-1 py-0.5 text-[11px] border-b border-dashed outline-none ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-400 placeholder-gray-400"}`} />
-                              </div>
+                  </div>
                             </div>
                             {/* V2 - Size */}
                             <div className={`p-3 rounded-lg border ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-white"}`}>
@@ -937,10 +937,10 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                             <label key={size} className="flex items-center gap-2 cursor-pointer">
                               <input type="checkbox" checked={selectedSizes.includes(size)} onChange={() => handleSizeToggle(size)} className="w-4 h-4 rounded cursor-pointer" style={{ accentColor: "#09A046" }} />
                               <span className={`text-sm ${theme === "dark" ? "text-gray-200" : "text-gray-900"}`}>{size} <span className="text-xs text-gray-500">({currentQty})</span></span>
-                            </label>
+                    </label>
                           );
                         })}
-                      </div>
+                  </div>
                       {selectedSizes.length > 0 && (
                         <div className={`space-y-2 p-3 rounded-lg ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-50"}`}>
                           <label className={`block text-xs font-semibold mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Quantity per Size:</label>
@@ -975,7 +975,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                       <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
                           Brand Partner/Supplier <span className="text-red-500">*</span>
-                        </label>
+                      </label>
                         <div className="relative">
                           <select
                             value={stockInBrandPartner}
@@ -992,33 +992,33 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                           </div>
                         </div>
                       </div>
-                      <div>
+                        <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
                           Date Received <span className="text-red-500">*</span>
-                        </label>
-                        <input
+                          </label>
+                          <input
                           type="date"
                           value={dateReceived}
                           onChange={(e) => setDateReceived(e.target.value)}
                           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                        />
-                      </div>
+                          />
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
+                        <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch Number</label>
                         <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{batchCode || "—"}</p>
                       </div>
                       <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiring Date (if applicable)</label>
-                        <input
-                          type="date"
-                          value={batchExpirationDate}
-                          onChange={(e) => setBatchExpirationDate(e.target.value)}
+                          <input
+                            type="date"
+                            value={batchExpirationDate}
+                            onChange={(e) => setBatchExpirationDate(e.target.value)}
                           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                        />
-                      </div>
+                          />
+                        </div>
                     </div>
 
                     <div>
@@ -1080,12 +1080,12 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                     if (qty > 0) reviewRows.push({ variant: null, size: null, stock: product.currentStock || 0, qtyIn: qty, cost: 0, sell: 0 });
                   }
 
-                  return (
+                                return (
                   <div className="space-y-3">
                     <div>
                       <h3 className={`text-sm font-bold uppercase tracking-wide ${theme === "dark" ? "text-white" : "text-gray-900"}`}>Review Before Saving</h3>
                       <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Double-check everything. Once confirmed, inventory will be updated immediately.</p>
-                    </div>
+                                  </div>
 
                     <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                       <div className="overflow-y-auto" style={{ maxHeight: "340px" }}>
@@ -1126,9 +1126,9 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                             )}
                           </tbody>
                         </table>
+                        </div>
                       </div>
                     </div>
-                  </div>
                   );
                 })()}
 

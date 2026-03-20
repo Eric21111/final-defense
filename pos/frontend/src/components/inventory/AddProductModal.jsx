@@ -407,7 +407,7 @@ const AddProductModal = ({
     setShowDraftNotice(hasData);
     if (newProduct.variant) {
       setSelectedVariants(newProduct.variant.split(", ").filter((v) => v.trim()));
-    } else {
+      } else {
       setSelectedVariants([]);
     }
     setProductImages([]);
@@ -596,9 +596,9 @@ const AddProductModal = ({
                       if (e.target.value === "__add_new_brand__") { setShowBrandModal(true); return; }
                               handleInputChange(e);
                     }}
-                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.brandName || newProduct.brandName === "Default" ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.brandName ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
-                      <option value="Default" className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
+                      <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
                       {partnerNames.map((name) => (<option key={name} value={name} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{name}</option>))}
                       <option value="__add_new_brand__" className="font-semibold text-[#09A046]">+ Add Brand</option>
                       {legacyBrandSelected && <option value={newProduct.brandName}>{newProduct.brandName} (Inactive)</option>}
@@ -740,9 +740,9 @@ const AddProductModal = ({
                               if (e.target.value === "__add_new_brand__") { setShowBrandModal(true); return; }
                               handleInputChange(e);
                             }}
-                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.brandName || newProduct.brandName === "Default" ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.brandName ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
-                          <option value="Default" className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
+                          <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
                               {partnerNames.map((name) => (<option key={name} value={name} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{name}</option>))}
                           <option value="__add_new_brand__" className="font-semibold text-[#09A046]">+ Add Brand</option>
                               {legacyBrandSelected && <option value={newProduct.brandName}>{newProduct.brandName} (Inactive)</option>}
@@ -848,26 +848,26 @@ const AddProductModal = ({
                         <div className="flex-1 relative">
                           <div onClick={() => setShowVariantDropdown(!showVariantDropdown)}
                             className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white hover:border-[#09A046]" : "bg-white border-gray-300 hover:border-[#09A046]"}`}>
-                            <span className={selectedVariants.length === 0 ? "text-gray-400" : ""}>
+                                  <span className={selectedVariants.length === 0 ? "text-gray-400" : ""}>
                               {selectedVariants.length === 0 ? `Select ${optionGroup1Name.toLowerCase() || 'options'}...` : `${selectedVariants.length} selected`}
-                            </span>
-                            <svg className={`w-4 h-4 transition-transform ${showVariantDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                          {showVariantDropdown && (
-                            <div className={`absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
-                              {COMMON_COLORS.filter((c) => c !== "Custom").map((color) => (
-                                <div key={color} onClick={() => handleVariantToggle(color)}
-                                  className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${selectedVariants.includes(color) ? (theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/15 text-[#09A046]") : (theme === "dark" ? "hover:bg-[#09A046]/10" : "hover:bg-[#09A046]/10")}`}>
-                                  <span>{color}</span>
-                                  {selectedVariants.includes(color) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                  </span>
+                                  <svg className={`w-4 h-4 transition-transform ${showVariantDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                          {showVariantDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowVariantDropdown(false)} />}
-                        </div>
+                          {showVariantDropdown && (
+                                  <div className={`absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
+                                    {COMMON_COLORS.filter((c) => c !== "Custom").map((color) => (
+                                      <div key={color} onClick={() => handleVariantToggle(color)}
+                                  className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${selectedVariants.includes(color) ? (theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/15 text-[#09A046]") : (theme === "dark" ? "hover:bg-[#09A046]/10" : "hover:bg-[#09A046]/10")}`}>
+                                        <span>{color}</span>
+                                        {selectedVariants.includes(color) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {showVariantDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowVariantDropdown(false)} />}
+                          </div>
 
                         {/* Selected tags inline */}
                         <div className="flex flex-wrap gap-1.5 flex-1 min-h-[38px] items-center">
@@ -883,7 +883,7 @@ const AddProductModal = ({
                             className={`w-16 px-2 py-1 text-xs border-2 border-dashed rounded-full focus:outline-none focus:border-[#09A046] text-center ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-300 text-gray-700 placeholder-gray-400"}`} />
                         </div>
                       </div>
-                    </div>
+                        </div>
 
                     {/* Option Group 2 - Optional (Sizes) */}
                     <div className={`p-4 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
@@ -932,11 +932,11 @@ const AddProductModal = ({
                                     className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${newProduct.selectedSizes?.includes(size) ? (theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/15 text-[#09A046]") : (theme === "dark" ? "hover:bg-[#09A046]/10" : "hover:bg-[#09A046]/10")}`}>
                                     <span>{size}</span>
                                     <div className="flex items-center gap-1">
-                                      {customSizes.includes(size) && (
+                                    {customSizes.includes(size) && (
                                         <button type="button" title="Remove custom size"
                                           onClick={(e) => { e.stopPropagation(); setCustomSizes(prev => prev.filter(s => s !== size)); if (newProduct.selectedSizes?.includes(size)) { handleSizeToggle(size); } }}
                                           className="text-red-400 hover:text-red-600 text-xs px-1">×</button>
-                                      )}
+                                    )}
                                       {newProduct.selectedSizes?.includes(size) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
                                     </div>
                                   </div>
@@ -955,13 +955,13 @@ const AddProductModal = ({
                               <button type="button" onClick={(e) => { e.stopPropagation(); handleSizeToggle(size); }} className="hover:text-red-500 transition-colors">×</button>
                             </span>
                           ))}
-                          <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
+                                  <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
                             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); handleSizeToggle(trimmed); setCustomSizeValue(""); } } }}
                             placeholder="Add"
                             className={`w-16 px-2 py-1 text-xs border-2 border-dashed rounded-full focus:outline-none focus:border-[#09A046] text-center ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-300 text-gray-700 placeholder-gray-400"}`} />
-                        </div>
-                      </div>
-                    </div>
+                                </div>
+                            </div>
+                          </div>
                   </div>
                 )}
 

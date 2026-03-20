@@ -220,12 +220,12 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                   Product Name <span className="text-red-500">*</span>
                 </label>
                 <p className={`text-lg font-bold ${isDark ? "text-white" : "text-gray-900"}`}>{product.itemName}</p>
-              </div>
+                </div>
               {hasVariants && batchList.length > 0 && (
                 <div>
                   <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
                     Batch Number <span className="text-red-500">*</span>
-                  </label>
+                    </label>
                   <div className="relative">
                     <select
                       value={selectedBatch}
@@ -239,7 +239,7 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                       <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                    </div>
+                  </div>
                   </div>
                 </div>
               )}
@@ -254,7 +254,7 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                     const key = comboKey(c.size, c.variant);
                     const isSel = selectedCombos.includes(key);
                     const label = c.size !== VARIANT_ONLY_SIZE_KEY ? `${c.variant} x ${c.size}` : c.variant;
-                    return (
+                      return (
                       <button
                         key={key}
                         type="button"
@@ -268,9 +268,9 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                         {label}
                       </button>
                     );
-                  })}
-                </div>
-              </div>
+                    })}
+                    </div>
+                                  </div>
             )}
 
             {/* Qty inputs — scrollable table */}
@@ -305,10 +305,10 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                             </td>
                             <td className={`px-4 py-2.5 text-center font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>{maxQty}</td>
                             <td className="px-4 py-2.5 text-center">
-                              <input
-                                type="number"
-                                min="0"
-                                max={maxQty}
+                                <input
+                              type="number"
+                              min="0"
+                              max={maxQty}
                                 value={val}
                                 onChange={(e) => handleQtyChange(key, e.target.value)}
                                 placeholder="0"
@@ -320,78 +320,78 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                       })}
                     </tbody>
                   </table>
-                </div>
-              </div>
+                      </div>
+                    </div>
             )}
 
             {/* Simple qty for non-variant products */}
             {!hasVariants && (
-              <div>
+                <div>
                 <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${isDark ? "text-gray-300" : "text-gray-700"}`}>Quantity to Remove</label>
                 <p className={`text-xs mb-2 ${isDark ? "text-gray-500" : "text-gray-400"}`}>Current Stock: {product.currentStock || 0}</p>
-                <input
-                  type="number"
-                  min="1"
-                  max={product.currentStock || 0}
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
+                    <input
+                    type="number"
+                    min="1"
+                    max={product.currentStock || 0}
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
                   placeholder="Enter quantity"
                   className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 ${isDark ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
                 />
-              </div>
+                  </div>
             )}
 
             {/* Reason */}
-            <div>
+                <div>
               <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
                 Reason <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  value={reason}
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={reason}
                   onChange={(e) => { setReason(e.target.value); if (e.target.value !== "Other") setOtherReason(""); }}
                   className={inputCls}
                 >
                   <option value="" disabled style={{ color: '#9CA3AF' }}>EG. Damaged</option>
                   {reasons.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                   <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </div>
-              </div>
+                    </div>
+                  </div>
               {reason === "Other" && (
-                <input
-                  type="text"
-                  value={otherReason}
-                  onChange={(e) => setOtherReason(e.target.value)}
-                  placeholder="Please specify the reason"
+                  <input
+                    type="text"
+                    value={otherReason}
+                    onChange={(e) => setOtherReason(e.target.value)}
+                    placeholder="Please specify the reason"
                   className={`w-full mt-2 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 ${isDark ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 text-gray-900"}`}
                 />
               )}
             </div>
-          </div>
-        </div>
+                </div>
+              </div>
 
         {/* Footer */}
         <div className={`flex justify-between items-center px-6 py-4 border-t ${isDark ? "border-gray-700" : "border-gray-200"}`}>
-          <button
-            type="button"
-            onClick={handleClose}
+                <button
+                  type="button"
+                  onClick={handleClose}
             className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${isDark ? "text-gray-300 border-gray-600 hover:bg-gray-700" : "text-gray-600 border-gray-300 hover:bg-gray-100"}`}
           >
-            Cancel
-          </button>
-          <button
+                  Cancel
+                </button>
+                <button
             type="button"
             disabled={loading || !isValid()}
             onClick={handleSubmit}
             className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-red-600"
           >
             {loading ? "Removing..." : "Remove"}
-          </button>
-        </div>
-      </div>
-    </div>
+                </button>
+              </div>
+            </div>
+          </div>
   );
 };
 
