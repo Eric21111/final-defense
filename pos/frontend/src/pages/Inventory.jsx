@@ -1861,7 +1861,7 @@ const Inventory = () => {
 
   return (
     <div
-      className={`p-8 min-h-screen ${theme === "dark" ? "bg-[#1E1B18]" : "bg-[#F5F5F5]"}`}>
+      className={`p-8 min-h-screen ${theme === "dark" ? "bg-[#1E1B18]" : "bg-[#FFFFFF]"}`}>
 
       <Header pageName="Product & Stocks" showBorder={false} />
 

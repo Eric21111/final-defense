@@ -1028,7 +1028,7 @@ const Transaction = () => {
     return (
       <div
         className="p-6 min-h-screen flex items-center justify-center"
-        style={{ background: "#F5F5F5" }}>
+        style={{ background: "#FFFFFF" }}>
 
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#8B7355] mb-4"></div>
@@ -1040,7 +1040,7 @@ const Transaction = () => {
 
   return (
     <div
-      className={`p-6 min-h-screen ${theme === "dark" ? "bg-[#1E1B18]" : "bg-[#F5F5F5]"}`}>
+      className={`p-6 min-h-screen ${theme === "dark" ? "bg-[#1E1B18]" : "bg-[#FFFFFF]"}`}>
 
       <>
         <Header
