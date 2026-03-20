@@ -532,7 +532,7 @@ const ProductDetailsModal = ({
       onClick={onClose}>
 
       <div
-        className={`rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden mx-4 ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
+        className={`rounded-2xl w-full max-w-5xl shadow-2xl overflow-hidden mx-4 ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}
         onClick={(e) => e.stopPropagation()}>
 
         { }
@@ -560,7 +560,7 @@ const ProductDetailsModal = ({
           <div className="flex gap-6 h-full">
             { }
             <div
-              className={`relative w-72 h-72 rounded-xl overflow-hidden flex-shrink-0 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
+              className={`relative w-[420px] h-[420px] rounded-xl overflow-hidden flex-shrink-0 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-100"}`}>
 
               {productImages.length > 0 && productImages[productImgIdx] ? (
                 <>
