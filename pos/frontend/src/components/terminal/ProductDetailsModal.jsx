@@ -280,6 +280,42 @@ const ProductDetailsModal = ({
     return prices;
   };
 
+  // Strict pricing helpers:
+  // - only reads `sizeData.variantPrices[variant]`
+  // - never falls back to `sizeData.price`
+  // This prevents showing the shared size price when per-variant price exists.
+  const getAllSellingPricesStrict = () => {
+    if (!product?.sizes || typeof product.sizes !== "object") return [];
+    const prices = [];
+    Object.keys(product.sizes).forEach((sizeKey) => {
+      const sizeData = product.sizes[sizeKey];
+      if (!sizeData || typeof sizeData !== "object") return;
+      const vp = sizeData.variantPrices;
+      if (vp && typeof vp === "object") {
+        Object.values(vp).forEach((p) => {
+          const n = parseFloat(p);
+          if (Number.isFinite(n)) prices.push(n);
+        });
+      }
+    });
+    return prices;
+  };
+
+  const getSellingPricesForVariantStrict = (variant) => {
+    if (!product?.sizes || typeof product.sizes !== "object") return [];
+    const prices = [];
+    Object.keys(product.sizes).forEach((sizeKey) => {
+      const sizeData = product.sizes[sizeKey];
+      if (!sizeData || typeof sizeData !== "object") return;
+      const vp = sizeData.variantPrices;
+      if (vp && typeof vp === "object" && vp[variant] !== undefined) {
+        const n = parseFloat(vp[variant]);
+        if (Number.isFinite(n)) prices.push(n);
+      }
+    });
+    return prices;
+  };
+
   const formatPriceRangeText = (vals) => {
     const nums = (vals || []).map((v) => parseFloat(v)).filter((n) => Number.isFinite(n));
     if (nums.length === 0) return `PHP 0.00`;
@@ -293,10 +329,24 @@ const ProductDetailsModal = ({
     if (!productHasVariants) return `PHP ${Number(product.itemPrice || 0).toFixed(2)}`;
 
     if (!selectedVariant) {
+      const strictAll = getAllSellingPricesStrict();
+      if (strictAll.length > 0) return formatPriceRangeText(strictAll);
       return formatPriceRangeText(getAllSellingPrices());
     }
 
-    // If we effectively have a size (including variant-only), show exact price.
+    const strictForVariant = getSellingPricesForVariantStrict(selectedVariant);
+    if (strictForVariant.length > 0) {
+      const nums = strictForVariant.filter((v) => Number.isFinite(v));
+      if (nums.length > 0) {
+        const min = Math.min(...nums);
+        const max = Math.max(...nums);
+        if (min === max) return `PHP ${min.toFixed(2)}`;
+        return formatPriceRangeText(nums);
+      }
+    }
+
+    // Fallback (should be rare): if strict per-variant price isn't stored,
+    // fall back to existing lookup.
     if (effectiveSelectedSize) {
       const exact = getVariantPriceInSize(effectiveSelectedSize, selectedVariant);
       if (exact !== null && exact !== undefined) {
@@ -305,7 +355,6 @@ const ProductDetailsModal = ({
       }
     }
 
-    // Otherwise show price range across sizes for this variant.
     return formatPriceRangeText(getSellingPricesForVariant(selectedVariant));
   };
 
