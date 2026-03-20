@@ -107,7 +107,7 @@ const AddProductModal = ({
   const [selectedVariants, setSelectedVariants] = useState([]);
   const [showVariantDropdown, setShowVariantDropdown] = useState(false);
   const [customColorInput, setCustomColorInput] = useState("");
-  const [hasVariants, setHasVariants] = useState(false);
+  const hasVariants = selectedVariants.length > 0 || (newProduct.selectedSizes?.length > 0);
   const [optionGroup1Name, setOptionGroup1Name] = useState("Color");
   const [optionGroup2Name, setOptionGroup2Name] = useState("Size");
 
@@ -172,10 +172,10 @@ const AddProductModal = ({
         if (!newProduct.subCategory || newProduct.subCategory === "__add_new__") return false;
         return true;
       case 2:
-        if (hasVariants && selectedVariants.length === 0) return false;
+        if (selectedVariants.length === 0) return false;
         return true;
       case 3:
-        if (hasVariants && (selectedVariants.length > 0 || newProduct.selectedSizes?.length > 0)) {
+        if (selectedVariants.length > 0 || newProduct.selectedSizes?.length > 0) {
           return true;
         }
           if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) return false;
@@ -384,7 +384,6 @@ const AddProductModal = ({
       setCurrentStep(1);
       setProductImages([]);
       setImageUrlInput("");
-      setHasVariants(false);
       return;
     }
 
@@ -414,19 +413,7 @@ const AddProductModal = ({
     setProductImages([]);
   }, [showAddModal, editingProduct]);
 
-  useEffect(() => {
-    if (showAddModal && editingProduct) {
-      if (editingProduct.variant || (editingProduct.sizes && Object.keys(editingProduct.sizes).length > 0)) {
-        setHasVariants(true);
-      } else {
-        setHasVariants(false);
-      }
-    } else if (showAddModal && !editingProduct && !showDraftNotice) {
-      if (newProduct.variant || (newProduct.selectedSizes && newProduct.selectedSizes.length > 0)) {
-        setHasVariants(true);
-      }
-    }
-  }, [showAddModal, editingProduct, showDraftNotice]);
+  // `hasVariants` is derived from current selections now (no toggle).
 
   if (!showAddModal) return null;
 
@@ -848,101 +835,78 @@ const AddProductModal = ({
                 {/* ── Step 2: Variants ── */}
                 {currentStep === 2 && (
                   <div className="space-y-6">
-                    {/* Has Variants Toggle */}
-                    <div className={`p-4 rounded-xl border flex items-start gap-4 ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                      <div className="mt-1">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" checked={hasVariants} onChange={(e) => {
-                            setHasVariants(e.target.checked);
-                            if (!e.target.checked) {
-                              setNewProduct((prev) => ({ ...prev, selectedSizes: [], variant: "", differentVariantsPerSize: false }));
-                              setSelectedVariants([]);
-                              setVariantQuantities({});
-                            }
-                          }} />
-                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#09A046]"></div>
-                        </label>
+                    {/* Option Group 1 - Required */}
+                    <div className={`p-4 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className={`text-xs font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Option Group 1 – Required</label>
+                        <span className={`text-[10px] italic ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>e.g. Color · Flavor · Shade · Style</span>
                       </div>
-                      <div>
-                        <h4 className={`text-sm font-semibold mb-1 ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>This product has variants</h4>
-                        <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Turn on if it comes in different sizes, colors, flavors, shades, etc. Each combination gets its own SKU and individual stock tracking.</p>
+                      <input type="text" value={optionGroup1Name} onChange={(e) => setOptionGroup1Name(e.target.value)} placeholder="e.g. Color"
+                        className={`w-48 px-3 py-2 text-sm border-b-2 border-t-0 border-l-0 border-r-0 bg-transparent focus:outline-none focus:border-[#09A046] mb-3 font-medium ${theme === "dark" ? "border-gray-600 text-white placeholder-gray-500" : "border-gray-300 text-gray-800 placeholder-gray-400"}`} />
+
+                      <div className="relative flex items-start gap-3 mb-3">
+                        <div className="flex-1 relative">
+                          <div onClick={() => setShowVariantDropdown(!showVariantDropdown)}
+                            className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white hover:border-[#09A046]" : "bg-white border-gray-300 hover:border-[#09A046]"}`}>
+                            <span className={selectedVariants.length === 0 ? "text-gray-400" : ""}>
+                              {selectedVariants.length === 0 ? `Select ${optionGroup1Name.toLowerCase() || 'options'}...` : `${selectedVariants.length} selected`}
+                            </span>
+                            <svg className={`w-4 h-4 transition-transform ${showVariantDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </div>
+                          {showVariantDropdown && (
+                            <div className={`absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
+                              {COMMON_COLORS.filter((c) => c !== "Custom").map((color) => (
+                                <div key={color} onClick={() => handleVariantToggle(color)}
+                                  className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${selectedVariants.includes(color) ? (theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/15 text-[#09A046]") : (theme === "dark" ? "hover:bg-[#09A046]/10" : "hover:bg-[#09A046]/10")}`}>
+                                  <span>{color}</span>
+                                  {selectedVariants.includes(color) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {showVariantDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowVariantDropdown(false)} />}
+                        </div>
+
+                        {/* Selected tags inline */}
+                        <div className="flex flex-wrap gap-1.5 flex-1 min-h-[38px] items-center">
+                          {selectedVariants.map((variant) => (
+                            <span key={variant} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046] border border-[#09A046]/20" : "bg-[#09A046]/12 text-[#09A046] border border-[#09A046]/20"}`}>
+                              {variant}
+                              <button type="button" onClick={(e) => { e.stopPropagation(); removeVariant(variant); }} className="hover:text-red-500 transition-colors">×</button>
+                            </span>
+                          ))}
+                          <input type="text" value={customColorInput} onChange={(e) => setCustomColorInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomColor(); } }}
+                            placeholder="Add"
+                            className={`w-16 px-2 py-1 text-xs border-2 border-dashed rounded-full focus:outline-none focus:border-[#09A046] text-center ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-300 text-gray-700 placeholder-gray-400"}`} />
+                        </div>
                       </div>
                     </div>
 
-                    {hasVariants && (
-                      <>
-                        {/* Option Group 1 - Required */}
-                        <div className={`p-4 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                          <div className="flex items-center justify-between mb-3">
-                            <label className={`text-xs font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Option Group 1 – Required</label>
-                            <span className={`text-[10px] italic ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>e.g. Color · Flavor · Shade · Style</span>
-                                </div>
-                          <input type="text" value={optionGroup1Name} onChange={(e) => setOptionGroup1Name(e.target.value)} placeholder="e.g. Color"
-                            className={`w-48 px-3 py-2 text-sm border-b-2 border-t-0 border-l-0 border-r-0 bg-transparent focus:outline-none focus:border-[#09A046] mb-3 font-medium ${theme === "dark" ? "border-gray-600 text-white placeholder-gray-500" : "border-gray-300 text-gray-800 placeholder-gray-400"}`} />
+                    {/* Option Group 2 - Optional (Sizes) */}
+                    <div className={`p-4 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <label className={`text-xs font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Option Group 2</label>
+                        <span className={`text-[10px] italic ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>e.g. Size · Weight · Volume · Pack</span>
+                      </div>
+                      <input type="text" value={optionGroup2Name} onChange={(e) => setOptionGroup2Name(e.target.value)} placeholder="e.g. Size"
+                        className={`w-48 px-3 py-2 text-sm border-b-2 border-t-0 border-l-0 border-r-0 bg-transparent focus:outline-none focus:border-[#09A046] mb-3 font-medium ${theme === "dark" ? "border-gray-600 text-white placeholder-gray-500" : "border-gray-300 text-gray-800 placeholder-gray-400"}`} />
 
-                          <div className="relative flex items-start gap-3 mb-3">
-                            <div className="flex-1 relative">
-                              <div onClick={() => setShowVariantDropdown(!showVariantDropdown)}
-                                className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white hover:border-[#09A046]" : "bg-white border-gray-300 hover:border-[#09A046]"}`}>
-                                  <span className={selectedVariants.length === 0 ? "text-gray-400" : ""}>
-                                  {selectedVariants.length === 0 ? `Select ${optionGroup1Name.toLowerCase() || 'options'}...` : `${selectedVariants.length} selected`}
-                                  </span>
-                                  <svg className={`w-4 h-4 transition-transform ${showVariantDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                </div>
-                              {showVariantDropdown && (
-                                  <div className={`absolute z-50 w-full mt-1 max-h-48 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
-                                    {COMMON_COLORS.filter((c) => c !== "Custom").map((color) => (
-                                      <div key={color} onClick={() => handleVariantToggle(color)}
-                                      className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${selectedVariants.includes(color) ? (theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/15 text-[#09A046]") : (theme === "dark" ? "hover:bg-[#09A046]/10" : "hover:bg-[#09A046]/10")}`}>
-                                        <span>{color}</span>
-                                        {selectedVariants.includes(color) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                                {showVariantDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowVariantDropdown(false)} />}
+                      <div className="relative flex items-start gap-3 mb-3">
+                        <div className="flex-1 relative">
+                          <div onClick={() => setShowSizeDropdown(!showSizeDropdown)}
+                            className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white hover:border-[#09A046]" : "bg-white border-gray-300 hover:border-[#09A046]"}`}>
+                            <span className={(newProduct.selectedSizes?.length || 0) === 0 ? "text-gray-400" : ""}>
+                              {(newProduct.selectedSizes?.length || 0) === 0 ? `Select ${optionGroup2Name.toLowerCase() || 'options'}...` : `${newProduct.selectedSizes.length} selected`}
+                            </span>
+                            <svg className={`w-4 h-4 transition-transform ${showSizeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
                           </div>
-
-                            {/* Selected tags inline */}
-                            <div className="flex flex-wrap gap-1.5 flex-1 min-h-[38px] items-center">
-                              {selectedVariants.map((variant) => (
-                                <span key={variant} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046] border border-[#09A046]/20" : "bg-[#09A046]/12 text-[#09A046] border border-[#09A046]/20"}`}>
-                                  {variant}
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); removeVariant(variant); }} className="hover:text-red-500 transition-colors">×</button>
-                                </span>
-                              ))}
-                              <input type="text" value={customColorInput} onChange={(e) => setCustomColorInput(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomColor(); } }}
-                                placeholder="Add"
-                                className={`w-16 px-2 py-1 text-xs border-2 border-dashed rounded-full focus:outline-none focus:border-[#09A046] text-center ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-300 text-gray-700 placeholder-gray-400"}`} />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Option Group 2 - Optional (Sizes) */}
-                        <div className={`p-4 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
-                          <div className="flex items-center justify-between mb-3">
-                            <label className={`text-xs font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Option Group 2</label>
-                            <span className={`text-[10px] italic ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>e.g. Size · Weight · Volume · Pack</span>
-                          </div>
-                          <input type="text" value={optionGroup2Name} onChange={(e) => setOptionGroup2Name(e.target.value)} placeholder="e.g. Size"
-                            className={`w-48 px-3 py-2 text-sm border-b-2 border-t-0 border-l-0 border-r-0 bg-transparent focus:outline-none focus:border-[#09A046] mb-3 font-medium ${theme === "dark" ? "border-gray-600 text-white placeholder-gray-500" : "border-gray-300 text-gray-800 placeholder-gray-400"}`} />
-
-                          <div className="relative flex items-start gap-3 mb-3">
-                            <div className="flex-1 relative">
-                              <div onClick={() => setShowSizeDropdown(!showSizeDropdown)}
-                                className={`w-full px-3 py-2.5 text-sm border rounded-lg cursor-pointer flex items-center justify-between ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white hover:border-[#09A046]" : "bg-white border-gray-300 hover:border-[#09A046]"}`}>
-                                <span className={(newProduct.selectedSizes?.length || 0) === 0 ? "text-gray-400" : ""}>
-                                  {(newProduct.selectedSizes?.length || 0) === 0 ? `Select ${optionGroup2Name.toLowerCase() || 'options'}...` : `${newProduct.selectedSizes.length} selected`}
-                                </span>
-                                <svg className={`w-4 h-4 transition-transform ${showSizeDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </div>
-                              {showSizeDropdown && (
-                                <div className={`absolute z-50 w-full mt-1 max-h-40 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
+                          {showSizeDropdown && (
+                            <div className={`absolute z-50 w-full mt-1 max-h-40 overflow-y-auto border rounded-lg shadow-lg ${theme === "dark" ? "bg-[#2A2724] border-gray-600" : "bg-white border-gray-200"}`}>
                               {(() => {
                                 const category = newProduct.category;
                                 const subCategory = newProduct.subCategory || "";
@@ -959,47 +923,45 @@ const AddProductModal = ({
                                     default: sizes = ["Small", "Medium", "Large", "Free Size"];
                                   }
                                 } else if (["Tops", "Bottoms", "Dresses", "Outerwear"].includes(subCategory)) {
-                                      sizes = ["XS", "S", "M", "L", "XL", "XXL", "Free Size"];
-                                    } else if (category === "Shoes") { sizes = ["5", "6", "7", "8", "9", "10", "11", "12"]; }
+                                  sizes = ["XS", "S", "M", "L", "XL", "XXL", "Free Size"];
+                                } else if (category === "Shoes") { sizes = ["5", "6", "7", "8", "9", "10", "11", "12"]; }
                                 else if (category === "Accessories" || category === "Makeup") { sizes = ["Free Size"]; }
                                 else { sizes = ["Free Size"]; }
                                 return [...sizes, ...customSizes].map((size) => (
-                                      <div key={size} onClick={() => handleSizeToggle(size)}
-                                        className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${newProduct.selectedSizes?.includes(size) ? (theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/15 text-[#09A046]") : (theme === "dark" ? "hover:bg-[#09A046]/10" : "hover:bg-[#09A046]/10")}`}>
-                                        <span>{size}</span>
-                                        <div className="flex items-center gap-1">
-                                    {customSizes.includes(size) && (
-                                            <button type="button" title="Remove custom size"
-                                              onClick={(e) => { e.stopPropagation(); setCustomSizes(prev => prev.filter(s => s !== size)); if (newProduct.selectedSizes?.includes(size)) { handleSizeToggle(size); } }}
-                                              className="text-red-400 hover:text-red-600 text-xs px-1">×</button>
-                                    )}
-                                          {newProduct.selectedSizes?.includes(size) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
-                                        </div>
-                                      </div>
+                                  <div key={size} onClick={() => handleSizeToggle(size)}
+                                    className={`px-3 py-2 text-sm cursor-pointer flex items-center justify-between ${newProduct.selectedSizes?.includes(size) ? (theme === "dark" ? "bg-[#09A046]/15 text-[#09A046]" : "bg-[#09A046]/15 text-[#09A046]") : (theme === "dark" ? "hover:bg-[#09A046]/10" : "hover:bg-[#09A046]/10")}`}>
+                                    <span>{size}</span>
+                                    <div className="flex items-center gap-1">
+                                      {customSizes.includes(size) && (
+                                        <button type="button" title="Remove custom size"
+                                          onClick={(e) => { e.stopPropagation(); setCustomSizes(prev => prev.filter(s => s !== size)); if (newProduct.selectedSizes?.includes(size)) { handleSizeToggle(size); } }}
+                                          className="text-red-400 hover:text-red-600 text-xs px-1">×</button>
+                                      )}
+                                      {newProduct.selectedSizes?.includes(size) && <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>}
+                                    </div>
+                                  </div>
                                 ));
                               })()}
-                                </div>
-                              )}
-                              {showSizeDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowSizeDropdown(false)} />}
                             </div>
-
-                            {/* Selected tags + inline custom input */}
-                            <div className="flex flex-wrap gap-1.5 flex-1 min-h-[38px] items-center">
-                              {(newProduct.selectedSizes || []).map((size) => (
-                                <span key={size} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046] border border-[#09A046]/20" : "bg-[#09A046]/12 text-[#09A046] border border-[#09A046]/20"}`}>
-                                  {size}
-                                  <button type="button" onClick={(e) => { e.stopPropagation(); handleSizeToggle(size); }} className="hover:text-red-500 transition-colors">×</button>
-                                </span>
-                              ))}
-                              <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); handleSizeToggle(trimmed); setCustomSizeValue(""); } } }}
-                                placeholder="Add"
-                                className={`w-16 px-2 py-1 text-xs border-2 border-dashed rounded-full focus:outline-none focus:border-[#09A046] text-center ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-300 text-gray-700 placeholder-gray-400"}`} />
-                            </div>
-                          </div>
+                          )}
+                          {showSizeDropdown && <div className="fixed inset-0 z-40" onClick={() => setShowSizeDropdown(false)} />}
                         </div>
-                      </>
-                    )}
+
+                        {/* Selected tags + inline custom input */}
+                        <div className="flex flex-wrap gap-1.5 flex-1 min-h-[38px] items-center">
+                          {(newProduct.selectedSizes || []).map((size) => (
+                            <span key={size} className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full ${theme === "dark" ? "bg-[#09A046]/15 text-[#09A046] border border-[#09A046]/20" : "bg-[#09A046]/12 text-[#09A046] border border-[#09A046]/20"}`}>
+                              {size}
+                              <button type="button" onClick={(e) => { e.stopPropagation(); handleSizeToggle(size); }} className="hover:text-red-500 transition-colors">×</button>
+                            </span>
+                          ))}
+                          <input type="text" value={customSizeValue} onChange={(e) => setCustomSizeValue(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); const trimmed = customSizeValue.trim(); if (trimmed && !customSizes.includes(trimmed)) { setCustomSizes(prev => [...prev, trimmed]); handleSizeToggle(trimmed); setCustomSizeValue(""); } } }}
+                            placeholder="Add"
+                            className={`w-16 px-2 py-1 text-xs border-2 border-dashed rounded-full focus:outline-none focus:border-[#09A046] text-center ${theme === "dark" ? "bg-transparent border-gray-600 text-white placeholder-gray-500" : "bg-transparent border-gray-300 text-gray-700 placeholder-gray-400"}`} />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
 
