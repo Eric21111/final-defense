@@ -1834,10 +1834,10 @@ const Terminal = () => {
   return (
     <>
       <div
-        className={`relative flex flex-col h-screen ${theme === "dark" ? "bg-[#121212]" : "bg-[#F5F5F5]"}`}>
+        className={`relative flex flex-col h-screen ${theme === "dark" ? "bg-[#121212]" : "bg-[#F9F9F9]"}`}>
 
         <div
-          className={`absolute top-0 left-0 right-[420px] px-6 py-4 z-40 transition-colors duration-300 flex flex-col gap-4 ${theme === "dark" ? "bg-[#121212]" : "bg-[#F5F5F5]"}`}
+          className={`absolute top-0 left-0 right-[420px] px-6 py-4 z-40 transition-colors duration-300 flex flex-col gap-4 ${theme === "dark" ? "bg-[#121212]" : "bg-[#F9F9F9]"}`}
           style={{ paddingRight: "24px" }}>
 
           <Header
@@ -1863,12 +1863,13 @@ const Terminal = () => {
               <button
                 key={cat.name}
                 onClick={() => setSelectedCategory(cat.name)}
-                className={`flex items-center justify-center px-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 border truncate ${selectedCategory === cat.name ?
-                  "bg-[#AD7F65] text-white border-[#AD7F65] shadow-md" :
-                  theme === "dark" ?
-                    "bg-[#2A2724] text-gray-300 border-gray-600 hover:bg-[#352F2A]" :
-                    "bg-white text-gray-700 border-gray-200 hover:bg-gray-50"}`
-                }
+                className={`flex items-center justify-center px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200 border truncate ${
+                  selectedCategory === cat.name
+                    ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-md"
+                    : theme === "dark"
+                      ? "bg-[#2A2724] text-gray-300 border-gray-600 hover:border-[#09A046]"
+                      : "bg-white text-gray-700 border-gray-200 hover:border-[#09A046] hover:text-[#09A046]"
+                }`}
                 title={cat.name}>
 
                 <span className="truncate w-full text-center">{cat.name}</span>

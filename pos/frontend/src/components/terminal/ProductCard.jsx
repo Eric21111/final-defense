@@ -114,7 +114,7 @@ const ProductCard = memo(function ProductCard({ product, onToggleExpand }) {
 
   return (
     <div
-      className={`mb-4 rounded-2xl transition-all duration-300 ease-out overflow-hidden border-4 shadow hover:shadow-xl hover:border-[#AD7F65] cursor-pointer ${theme === "dark" ?
+      className={`mb-4 rounded-2xl transition-all duration-300 ease-out overflow-hidden border-4 shadow hover:shadow-xl hover:border-[#09A046] cursor-pointer ${theme === "dark" ?
       "bg-[#1E1B18] border-gray-700" :
       "bg-white border-gray-200"}`
       }
