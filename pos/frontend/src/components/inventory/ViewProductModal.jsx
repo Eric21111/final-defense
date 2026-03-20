@@ -55,6 +55,13 @@ const ViewProductModal = ({
       typeof viewingProduct.sizes === "object" &&
       Object.keys(viewingProduct.sizes).length > 0 ?
       Object.values(viewingProduct.sizes).reduce((sum, sizeData) => {
+        if (typeof sizeData === "object" && sizeData !== null && sizeData.variants && typeof sizeData.variants === "object" && Object.keys(sizeData.variants).length > 0) {
+          const vSum = Object.values(sizeData.variants).reduce((s, v) => {
+            const q = typeof v === "number" ? v : (v && typeof v === "object" ? (v.quantity ?? 0) : 0);
+            return s + (parseInt(q, 10) || 0);
+          }, 0);
+          return sum + vSum;
+        }
         const qty =
           typeof sizeData === "object" &&
             sizeData !== null &&
@@ -63,7 +70,7 @@ const ViewProductModal = ({
             typeof sizeData === "number" ?
               sizeData :
               0;
-        return sum + qty;
+        return sum + (parseInt(qty, 10) || 0);
       }, 0) :
       viewingProduct.currentStock || 0;
 

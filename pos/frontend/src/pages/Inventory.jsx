@@ -692,13 +692,24 @@ const Inventory = () => {
   const confirmAddProduct = async () => {
     setShowConfirmModal(false);
 
-    const totalStock =
-      newProduct.selectedSizes?.length > 0 ?
-        Object.values(newProduct.sizeQuantities || {}).reduce(
-          (sum, qty) => sum + (parseInt(qty) || 0),
+    const sumVariantQtyAll = () => {
+      if (!newProduct.variantQuantities || typeof newProduct.variantQuantities !== "object") return 0;
+      return Object.values(newProduct.variantQuantities).reduce((sum, perSize) => {
+        if (!perSize || typeof perSize !== "object") return sum;
+        return sum + Object.values(perSize).reduce((s, q) => s + (parseInt(q, 10) || 0), 0);
+      }, 0);
+    };
+    const totalStock = (() => {
+      const vSum = sumVariantQtyAll();
+      if (vSum > 0) return vSum;
+      if (newProduct.selectedSizes?.length > 0) {
+        return Object.values(newProduct.sizeQuantities || {}).reduce(
+          (sum, qty) => sum + (parseInt(qty, 10) || 0),
           0
-        ) :
-        parseInt(newProduct.currentStock) || 0;
+        );
+      }
+      return parseInt(newProduct.currentStock, 10) || 0;
+    })();
 
     try {
       setLoading(true);
@@ -785,8 +796,11 @@ const Inventory = () => {
                   variants: newProduct.variantQuantities[size]
                 };
 
-                if (hasVariantPrices && newProduct.differentPricesPerVariant?.[size] && newProduct.variantPrices[size]) {
+                if (hasVariantPrices && newProduct.variantPrices[size]) {
                   sizesWithPrices[size].variantPrices = newProduct.variantPrices[size];
+                  if (newProduct.variantCostPrices?.[size]) {
+                    sizesWithPrices[size].variantCostPrices = newProduct.variantCostPrices[size];
+                  }
                 }
               } else {
                 sizesWithPrices[size] = {
@@ -834,7 +848,7 @@ const Inventory = () => {
                   variants: newProduct.variantQuantities[size]
                 };
 
-                if (hasVariantPrices && newProduct.differentPricesPerVariant?.[size] && newProduct.variantPrices[size]) {
+                if (hasVariantPrices && newProduct.variantPrices[size]) {
                   sizesObject[size].variantPrices = newProduct.variantPrices[size];
 
                   if (hasVariantCostPrices && newProduct.variantCostPrices[size]) {
@@ -866,7 +880,61 @@ const Inventory = () => {
             payload.sizes = sizesObject;
           }
         } else {
-          payload.sizes = null;
+          const hasVariantQuantitiesNoSizes =
+            newProduct.variantQuantities &&
+            Object.keys(newProduct.variantQuantities).length > 0 &&
+            Object.values(newProduct.variantQuantities).some(
+              (sv) =>
+                sv &&
+                typeof sv === "object" &&
+                Object.values(sv).some((q) => parseInt(q, 10) > 0)
+            );
+
+          if (hasVariantQuantitiesNoSizes) {
+            const sizesObject = {};
+            const hasVariantPrices = newProduct.variantPrices &&
+              Object.keys(newProduct.variantPrices).length > 0;
+            const hasVariantCostPrices = newProduct.variantCostPrices &&
+              Object.keys(newProduct.variantCostPrices).length > 0;
+
+            Object.keys(newProduct.variantQuantities).forEach((size) => {
+              const vq = newProduct.variantQuantities[size];
+              if (!vq || typeof vq !== "object") return;
+
+              let variantValue = "";
+              if (newProduct.differentVariantsPerSize) {
+                if (newProduct.multipleVariantsPerSize?.[size]) {
+                  variantValue = newProduct.sizeMultiVariants?.[size] || [];
+                } else {
+                  variantValue = newProduct.sizeVariants?.[size] || "";
+                }
+              } else {
+                variantValue = newProduct.variant || "";
+              }
+
+              const sizePrice = parseFloat(newProduct.sizePrices?.[size]) || 0;
+              const sizeCostPrice = parseFloat(newProduct.sizeCostPrices?.[size]) || 0;
+
+              sizesObject[size] = {
+                quantity: Object.values(vq).reduce((sum, q) => sum + (parseInt(q, 10) || 0), 0),
+                variant: variantValue,
+                variants: vq
+              };
+
+              if (hasVariantPrices && newProduct.variantPrices[size]) {
+                sizesObject[size].variantPrices = newProduct.variantPrices[size];
+                if (hasVariantCostPrices && newProduct.variantCostPrices[size]) {
+                  sizesObject[size].variantCostPrices = newProduct.variantCostPrices[size];
+                }
+              } else {
+                if (sizePrice > 0) sizesObject[size].price = sizePrice;
+                if (sizeCostPrice > 0) sizesObject[size].costPrice = sizeCostPrice;
+              }
+            });
+            payload.sizes = sizesObject;
+          } else {
+            payload.sizes = null;
+          }
         }
       }
 
