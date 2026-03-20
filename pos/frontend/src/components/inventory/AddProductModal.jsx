@@ -392,9 +392,14 @@ const AddProductModal = ({
         setSelectedVariants([]);
       }
 
-      // Initialize multi-image gallery with existing image
-      if (editingProduct && editingProduct.itemImage) {
-        setProductImages([editingProduct.itemImage]);
+      if (editingProduct) {
+        if (Array.isArray(editingProduct.productImages) && editingProduct.productImages.length > 0) {
+          setProductImages(editingProduct.productImages);
+        } else if (editingProduct.itemImage) {
+          setProductImages([editingProduct.itemImage]);
+        } else {
+          setProductImages([]);
+        }
       } else {
         setProductImages([]);
       }
@@ -448,6 +453,7 @@ const AddProductModal = ({
 
     const completeProductData = {
       ...newProduct,
+      productImages: productImages,
 
       ...(newProduct.variant === "Custom" && { variant: "Custom" }),
 
