@@ -569,421 +569,135 @@ const AddProductModal = ({
           {/* Scrollable content area */}
           <div className={`flex-1 px-8 pb-4 ${currentStep === 5 ? "flex flex-col overflow-hidden" : "overflow-y-auto"}`}>
 
-            {/* ══════════ EDITING MODE: show everything at once ══════════ */}
+            {/* ══════════ EDITING MODE: same layout as Add Step 1 ══════════ */}
             {editingProduct && (
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
+              <div className="space-y-5">
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Product Name <span className="text-red-500">*</span></label>
+                  <input type="text" name="itemName" value={newProduct.itemName} onChange={handleInputChange} required placeholder="Product name"
+                    className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-300" : "bg-white border-gray-300 placeholder-gray-400"}`} />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h3 className="text-base font-semibold mb-3">Basic Info</h3>
-                    <div className="space-y-3">
-                      <div>
-                        <label
-                          className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                          Product Name
-                        </label>
-                        <input
-                          type="text"
-                          name="itemName"
-                          value={newProduct.itemName}
-                          onChange={handleInputChange}
-                          required
-                          placeholder="Product name"
-                          className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ?
-                            "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-300" :
-                            "bg-gray-50 border-gray-300 placeholder-gray-400"}`
-                          } />
-
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            Category
-                          </label>
-                          <select
-                            name="category"
-                            value={newProduct.category || ""}
-                            onChange={(e) => {
-                              handleInputChange(e);
-                              setNewProduct(prev => ({ ...prev, subCategory: "" }));
-                            }}
-                            required
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-300"}`}
-                          >
-                            <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""}>Select Category</option>
-                            {parentCategories.map(cat => (
-                              <option key={cat} value={cat} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{cat}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label
-                            className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-
-                            Brand Partner
-                          </label>
-                          <select
-                            name="brandName"
-                            value={newProduct.brandName || "Default"}
-                            onChange={(e) => {
-                              if (e.target.value === "__add_new_brand__") {
-                                setShowBrandModal(true);
-
-                                return;
-                              }
-                              handleInputChange(e);
-                            }}
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ?
-                              "bg-[#1E1B18] border-gray-600 text-white" :
-                              "bg-gray-50 border-gray-300"}`
-                            }>
-
-                            <option
-                              value="Default"
-                              className={theme === "dark" ? "bg-[#2A2724]" : ""}>
-
-                              Default
-                            </option>
-                            {partnerNames.map((name) =>
-                              <option
-                                key={name}
-                                value={name}
-                                className={theme === "dark" ? "bg-[#2A2724]" : ""}>
-
-                                {name}
-                              </option>
-                            )}
-                            <option
-                              value="__add_new_brand__"
-                              className="font-semibold text-[#AD7F65]">
-
-                              + Add Brand
-                            </option>
-                            {legacyBrandSelected &&
-                              <option value={newProduct.brandName}>
-                                {newProduct.brandName} (Inactive)
-                              </option>
-                            }
-                          </select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 mt-3">
-                        <div>
-                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            SubCategory
-                          </label>
-                          <select
-                            name="subCategory"
-                            value={newProduct.subCategory || ""}
-                            onChange={(e) => {
-                              if (e.target.value === "__add_new__") {
-                                setShowCategoryModal(true);
-                                return;
-                              }
-                              handleInputChange(e);
-                              setSelectedVariants([]);
-                              setCustomColorInput("");
-                              setVariantQuantities({});
-                              setVariantPrices({});
-                              setVariantCostPrices({});
-                              setDifferentPricesPerVariant({});
-                            }}
-                            required
-                            disabled={!newProduct.category}
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-300"} ${!newProduct.category ? "opacity-50 cursor-not-allowed" : ""}`}
-                          >
-                            <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""}>Select SubCategory</option>
-                            {getSubcategories(newProduct.category).map(sub => (
-                              <option key={sub} value={sub} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{sub}</option>
-                            ))}
-                            <option value="__add_new__" className="font-semibold text-[#AD7F65]">+ Add Subcategory</option>
-                          </select>
-                        </div>
-                        <div>
-                          <label className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            Unit of Measure
-                          </label>
-                          <select
-                            name="unitOfMeasure"
-                            value={newProduct.unitOfMeasure || "pcs"}
-                            onChange={handleInputChange}
-                            required
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-300"}`}
-                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}
-                          >
-                            <option value="pcs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Pieces (pcs)</option>
-                            <option value="kg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Kilograms (kg)</option>
-                            <option value="g" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Grams (g)</option>
-                            <option value="L" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Liters (L)</option>
-                            <option value="ml" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milliliters (ml)</option>
-                            <option value="mg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milligrams (mg)</option>
-                            <option value="packs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Packs</option>
-                            <option value="boxes" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Boxes</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
+                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Category <span className="text-red-500">*</span></label>
+                    <select name="category" value={newProduct.category || ""} onChange={(e) => { handleInputChange(e); setNewProduct(prev => ({ ...prev, subCategory: "" })); }} required
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.category ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
+                      <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""}>Select Category</option>
+                      {parentCategories.map(cat => (<option key={cat} value={cat} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{cat}</option>))}
+                    </select>
                   </div>
-
-                  {!editingProduct && (
-                    <div>
-                      <h3 className="text-base font-semibold mb-3">Pricing</h3>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label
-                            className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            Cost Price
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            name="costPrice"
-                            value={newProduct.costPrice}
-                            onChange={handleInputChange}
-                            placeholder="Enter cost price"
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ?
-                              "bg-[#1E1B18] border-gray-600 text-white" :
-                              "bg-gray-50 border-gray-300"}`
-                            } />
-                        </div>
-                        <div>
-                          <label
-                            className={`block text-xs mb-1 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                            Selling Price
-                          </label>
-                          <input
-                            type="number"
-                            step="0.01"
-                            name="itemPrice"
-                            value={newProduct.itemPrice}
-                            onChange={handleInputChange}
-                            required
-                            placeholder="Enter selling price"
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === "dark" ?
-                              "bg-[#1E1B18] border-gray-600 text-white" :
-                              "bg-gray-50 border-gray-300"}`
-                            } />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
                   <div>
-                    <h3 className="text-base font-semibold mb-3">
-                      Display Settings
-                    </h3>
-                    <div className="space-y-3">
-                      {(() => {
+                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Sub Category <span className="text-red-500">*</span></label>
+                    <select name="subCategory" value={newProduct.subCategory || ""} onChange={(e) => {
+                      if (e.target.value === "__add_new__") { setShowCategoryModal(true); return; }
+                      handleInputChange(e); setSelectedVariants([]); setCustomColorInput(""); setVariantQuantities({}); setVariantPrices({}); setVariantCostPrices({}); setDifferentPricesPerVariant({});
+                    }} required disabled={!newProduct.category}
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"} ${!newProduct.category ? "opacity-50 cursor-not-allowed" : ""}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
+                      <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""}>Select SubCategory</option>
+                      {getSubcategories(newProduct.category).map(sub => (<option key={sub} value={sub} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{sub}</option>))}
+                      <option value="__add_new__" className="font-semibold text-[#09A046]">+ Add Subcategory</option>
+                    </select>
+                  </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Brand Partner <span className="text-red-500">*</span></label>
+                    <select name="brandName" value={newProduct.brandName || ""} onChange={(e) => {
+                      if (e.target.value === "__add_new_brand__") { setShowBrandModal(true); return; }
+                      handleInputChange(e);
+                    }}
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.brandName || newProduct.brandName === "Default" ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
+                      <option value="Default" className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
+                      {partnerNames.map((name) => (<option key={name} value={name} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{name}</option>))}
+                      <option value="__add_new_brand__" className="font-semibold text-[#09A046]">+ Add Brand</option>
+                      {legacyBrandSelected && <option value={newProduct.brandName}>{newProduct.brandName} (Inactive)</option>}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Unit of Measure <span className="text-red-500">*</span></label>
+                    <select name="unitOfMeasure" value={newProduct.unitOfMeasure || "pcs"} onChange={handleInputChange} required
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                      style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
+                      <option value="pcs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Pieces (pcs)</option>
+                      <option value="kg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Kilograms (kg)</option>
+                      <option value="g" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Grams (g)</option>
+                      <option value="L" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Liters (L)</option>
+                      <option value="ml" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milliliters (ml)</option>
+                      <option value="mg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milligrams (mg)</option>
+                      <option value="packs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Packs</option>
+                      <option value="boxes" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Boxes</option>
+                    </select>
+                  </div>
+                </div>
 
-                        const hasZeroStock = () => {
-                          if (editingProduct) {
-
-                            if (
-                              editingProduct.sizes &&
-                              typeof editingProduct.sizes === "object" &&
-                              Object.keys(editingProduct.sizes).length > 0) {
-
-                              const allSizesZero = Object.values(
-                                editingProduct.sizes
-                              ).every((sizeData) => {
-                                if (
-                                  typeof sizeData === "object" &&
-                                  sizeData !== null &&
-                                  sizeData.quantity !== undefined) {
-                                  return (sizeData.quantity || 0) === 0;
-                                }
-                                return (
-                                  (typeof sizeData === "number" ?
-                                    sizeData :
-                                    0) === 0);
-
-                              });
-                              return allSizesZero;
-                            }
-
-                            return (editingProduct.currentStock || 0) === 0;
-                          } else {
-
-                            if (
-                              newProduct.selectedSizes &&
-                              newProduct.selectedSizes.length > 0 &&
-                              newProduct.sizeQuantities) {
-
-                              const allSizesZero = newProduct.selectedSizes.every(
-                                (size) => {
-                                  const qty =
-                                    newProduct.sizeQuantities[size] || 0;
-                                  return parseInt(qty) === 0;
-                                }
-                              );
-                              return allSizesZero;
-                            }
-
-                            return parseInt(newProduct.currentStock || 0) === 0;
-                          }
-                        };
-
-                        const isStockZero = hasZeroStock();
-                        const isDisabled = editingProduct && isStockZero;
-
-                        return (
-                          <label
-                            className={`flex items-center gap-3 ${isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
-
-                            <div className="relative">
-                              <input
-                                type="checkbox"
-                                name="displayInTerminal"
-                                checked={newProduct.displayInTerminal !== false}
-                                onChange={handleInputChange}
-                                disabled={isDisabled}
-                                className="sr-only" />
-
-                              <div
-                                className={`w-14 h-7 rounded-full transition-colors duration-200 ${newProduct.displayInTerminal !== false ?
-                                  "bg-[#AD7F65]" :
-                                  "bg-gray-300"} ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}>
-
-                                <div
-                                  className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-200 ${newProduct.displayInTerminal !== false ?
-                                    "translate-x-7" :
-                                    "translate-x-1"} mt-0.5`
-                                  }>
-                                </div>
-                              </div>
-                            </div>
-                            <div>
-                              <span
-                                className={`text-sm font-medium ${isDisabled ? "text-gray-400 opacity-60" : theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-
-                                Display in Terminal
-                              </span>
-                              <p
-                                className={`text-xs ${isDisabled ? "text-gray-500 opacity-60" : theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-
-                                {isDisabled ?
-                                  "Add stock to enable this option" :
-                                  "Show this product in POS/terminal"}
-                              </p>
-                            </div>
-                          </label>);
-
-                      })()}
+                {/* Product Image — same as Add Step 1 */}
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-wide mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Product Image</label>
+                  <div className="flex gap-3 items-start flex-wrap">
+                    {productImages.map((img, index) => (
+                      <div key={index} className={`relative group rounded-xl overflow-hidden border-2 border-dashed flex-shrink-0 ${index === 0 ? 'ring-2 ring-[#09A046]' : ''} ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`} style={{ width: '120px', height: '120px' }}>
+                        <img src={img} alt={`Product ${index + 1}`} className="w-full h-full object-cover" />
+                        {index === 0 && <span className="absolute top-1 left-1 bg-[#BAE4CB] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">Main</span>}
+                        <button type="button"
+                          onClick={(e) => { e.stopPropagation(); setProductImages(prev => { const updated = prev.filter((_, i) => i !== index); setNewProduct(p => ({ ...p, itemImage: updated[0] || '' })); return updated; }); }}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold hover:bg-red-600"
+                        >×</button>
+                      </div>
+                    ))}
+                    <div
+                      onClick={() => document.getElementById("editFileInput").click()}
+                      className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all flex-shrink-0 ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 hover:border-[#09A046]" : "bg-gray-50 border-gray-300 hover:border-[#09A046]"}`}
+                      style={{ width: '120px', height: '120px' }}>
+                      <input id="editFileInput" type="file" accept="image/*" multiple onChange={(e) => {
+                        const files = Array.from(e.target.files);
+                        files.forEach(file => {
+                          const reader = new FileReader();
+                          reader.onloadend = () => { setProductImages(prev => { const updated = [...prev, reader.result]; setNewProduct(p => ({ ...p, itemImage: updated[0] })); return updated; }); };
+                          reader.readAsDataURL(file);
+                        });
+                        e.target.value = '';
+                      }} className="hidden" />
+                      <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                      <p className={`text-[10px] text-center ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Upload an image</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col px-8 mt-6 pb-6">
-                  <div>
-                    {/* Image Upload - Multiple Images */}
-                    <div className="flex flex-col">
-                      {/* Image thumbnails grid */}
-                      {productImages.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2 mb-3">
-                          {productImages.map((img, index) => (
-                            <div key={index} className={`relative group rounded-lg overflow-hidden border ${index === 0 ? 'ring-2 ring-[#AD7F65]' : ''} ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`} style={{ aspectRatio: '1' }}>
-                              <img src={img} alt={`Product ${index + 1}`} className="w-full h-full object-cover" />
-                              {index === 0 && (
-                                <span className="absolute top-1 left-1 bg-[#AD7F65] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">Main</span>
-                              )}
-                              <button type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setProductImages(prev => {
-                                    const updated = prev.filter((_, i) => i !== index);
-                                    setNewProduct(p => ({ ...p, itemImage: updated[0] || '' }));
-                                    return updated;
-                                  });
-                                }}
-                                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold hover:bg-red-600"
-                              >×</button>
-                            </div>
-                          ))}
+                {/* Display Settings */}
+                <div>
+                  <label className={`block text-xs font-bold uppercase tracking-wide mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Display Settings</label>
+                  {(() => {
+                    const hasZeroStock = () => {
+                      if (editingProduct.sizes && typeof editingProduct.sizes === "object" && Object.keys(editingProduct.sizes).length > 0) {
+                        return Object.values(editingProduct.sizes).every(sd => {
+                          if (typeof sd === "object" && sd !== null && sd.quantity !== undefined) return (sd.quantity || 0) === 0;
+                          return (typeof sd === "number" ? sd : 0) === 0;
+                        });
+                      }
+                      return (editingProduct.currentStock || 0) === 0;
+                    };
+                    const isStockZero = hasZeroStock();
+                    const isDisabled = isStockZero;
+                    return (
+                      <label className={`flex items-center gap-3 ${isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+                        <div className="relative">
+                          <input type="checkbox" name="displayInTerminal" checked={newProduct.displayInTerminal !== false} onChange={handleInputChange} disabled={isDisabled} className="sr-only" />
+                          <div className={`w-14 h-7 rounded-full transition-colors duration-200 ${newProduct.displayInTerminal !== false ? "bg-[#09A046]" : "bg-gray-300"} ${isDisabled ? "opacity-50" : ""}`}>
+                            <div className={`w-6 h-6 bg-white rounded-full shadow-md transform transition-transform duration-200 ${newProduct.displayInTerminal !== false ? "translate-x-7" : "translate-x-1"} mt-0.5`} />
+                          </div>
                         </div>
-                      )}
-
-                      {/* Warning for 3+ images */}
-                      {productImages.length > 3 && (
-                        <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
-                          <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                          </svg>
-                          <span className="text-xs font-medium">Adding more than 3 photos may slow down the system.</span>
+                        <div>
+                          <span className={`text-sm font-medium ${isDisabled ? "text-gray-400" : theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Display in Terminal</span>
+                          <p className={`text-xs ${isDisabled ? "text-gray-500" : "text-gray-500"}`}>{isDisabled ? "Add stock to enable this option" : "Show this product in POS/terminal"}</p>
                         </div>
-                      )}
-
-                      {/* Upload area */}
-                      <div
-                        onClick={() => document.getElementById("editFileInput").click()}
-                        className={`w-full border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-6 cursor-pointer transition-all ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 hover:bg-[#2A2724] hover:border-[#AD7F65]" : "bg-gray-50 border-gray-300 hover:bg-gray-100 hover:border-[#AD7F65]"}`}
-                        style={{ height: productImages.length > 0 ? '120px' : '200px' }}>
-                        <input id="editFileInput" type="file" accept="image/*" multiple onChange={(e) => {
-                          const files = Array.from(e.target.files);
-                          files.forEach(file => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setProductImages(prev => {
-                                const updated = [...prev, reader.result];
-                                setNewProduct(p => ({ ...p, itemImage: updated[0] }));
-                                return updated;
-                              });
-                            };
-                            reader.readAsDataURL(file);
-                          });
-                          e.target.value = '';
-                        }} className="hidden" />
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center mb-2 ${theme === "dark" ? "bg-[#2A2724]" : "bg-gray-200"}`}>
-                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                          </svg>
-                        </div>
-                        <p className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                          {productImages.length > 0 ? 'Add more images' : 'Upload Images'}
-                        </p>
-                        <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Click to browse (multiple files)</p>
-                      </div>
-
-                      {/* URL input */}
-                      <div className="mt-3 flex gap-2">
-                        <input type="text" value={imageUrlInput} onChange={(e) => setImageUrlInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const url = imageUrlInput.trim();
-                              if (url) {
-                                setProductImages(prev => {
-                                  const updated = [...prev, url];
-                                  setNewProduct(p => ({ ...p, itemImage: updated[0] }));
-                                  return updated;
-                                });
-                                setImageUrlInput('');
-                              }
-                            }
-                          }}
-                          placeholder="Or paste image URL and press Enter"
-                          className={`flex-1 px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-300" : "bg-white border-gray-300 placeholder-gray-400"}`} />
-                        <button type="button"
-                          onClick={() => {
-                            const url = imageUrlInput.trim();
-                            if (url) {
-                              setProductImages(prev => {
-                                const updated = [...prev, url];
-                                setNewProduct(p => ({ ...p, itemImage: updated[0] }));
-                                return updated;
-                              });
-                              setImageUrlInput('');
-                            }
-                          }}
-                          disabled={!imageUrlInput.trim()}
-                          className={`px-4 py-2 text-sm rounded-lg font-medium transition-colors ${imageUrlInput.trim() ? 'bg-[#AD7F65] text-white hover:bg-[#8B6553]' : (theme === 'dark' ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-gray-200 text-gray-400 cursor-not-allowed')}`}
-                        >Add</button>
-                      </div>
-                      {productImages.length > 0 && (
-                        <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{productImages.length} image{productImages.length > 1 ? 's' : ''} added. First image will be the main display image.</p>
-                      )}
-                    </div>
-                  </div>
+                      </label>
+                    );
+                  })()}
                 </div>
               </div>
             )}
@@ -1639,10 +1353,14 @@ const AddProductModal = ({
               )}
             </div>
           ) : (
-            <div className="px-8 py-4 flex justify-center flex-shrink-0">
+            <div className={`px-8 py-4 flex justify-between items-center border-t flex-shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+              <button type="button" onClick={() => setShowAddModal(false)}
+                className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${theme === "dark" ? "text-gray-300 border-gray-600 hover:bg-gray-700" : "text-gray-600 border-gray-300 hover:bg-gray-100"}`}>
+                Cancel
+              </button>
               <button type="submit" disabled={loading}
-                className="px-12 py-3 text-white rounded-xl font-medium hover:opacity-90 disabled:opacity-50 transition-all shadow-lg"
-                style={{ background: "linear-gradient(135deg, #10B981 0%, #059669 100%)" }}>
+                className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
+                style={{ background: "#09A046" }}>
                 {loading ? "Updating..." : "Update Product"}
               </button>
             </div>
