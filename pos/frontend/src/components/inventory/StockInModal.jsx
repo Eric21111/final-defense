@@ -522,25 +522,33 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
 
   const handleFillAllSI = () => {
     const allCombosList = [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos];
-    if (fillAllCostSI || fillAllSellSI) {
+    const qFill = String(fillAllQtySI ?? "").trim();
+    const cFill = String(fillAllCostSI ?? "").trim();
+    const sFill = String(fillAllSellSI ?? "").trim();
+
+    if (cFill !== "" || sFill !== "") {
       setStockVariantPrices(prev => {
         const u = { ...prev };
         allCombosList.forEach(({ size, variant }) => {
           if (checkedCombos[`${size}|${variant}`] !== false) {
             if (!u[size]) u[size] = {};
-            u[size][variant] = { ...(u[size]?.[variant] || {}), ...(fillAllCostSI ? { costPrice: fillAllCostSI } : {}), ...(fillAllSellSI ? { price: fillAllSellSI } : {}) };
+            u[size][variant] = {
+              ...(u[size]?.[variant] || {}),
+              ...(cFill !== "" ? { costPrice: cFill } : {}),
+              ...(sFill !== "" ? { price: sFill } : {}),
+            };
           }
         });
         return u;
       });
     }
-    if (fillAllQtySI) {
+    if (qFill !== "") {
       setVariantQuantities(prev => {
         const u = { ...prev };
         allCombosList.forEach(({ size, variant }) => {
           if (checkedCombos[`${size}|${variant}`] !== false) {
             if (!u[size]) u[size] = {};
-            u[size][variant] = fillAllQtySI;
+            u[size][variant] = qFill;
           }
         });
         return u;
@@ -813,17 +821,50 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                           })}
                         </>)}
                       </div>
-                    </div>
 
-                    {/* Fill all prices */}
-                    <div className="flex items-center gap-2 justify-end flex-wrap">
-                      <input type="number" min="0" step="0.01" value={fillAllCostSI} onChange={(e) => setFillAllCostSI(e.target.value)} placeholder="Cost"
-                        className={`w-20 px-2 py-1 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
-                      <input type="number" min="0" step="0.01" value={fillAllSellSI} onChange={(e) => setFillAllSellSI(e.target.value)} placeholder="Sell"
-                        className={`w-20 px-2 py-1 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
-                      <input type="number" min="0" value={fillAllQtySI} onChange={(e) => setFillAllQtySI(e.target.value)} placeholder="Qty"
-                        className={`w-16 px-2 py-1 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`} />
-                      <button type="button" onClick={handleFillAllSI} className="text-xs font-semibold text-[#09A046] hover:underline">Fill All</button>
+                      {/* Fill row: same column order as table → Qty In | Cost | Sell Price */}
+                      <div className={`px-3 py-2 border-t ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]/80" : "border-gray-200 bg-gray-50/80"}`}>
+                        <div className="grid grid-cols-[28px_1fr_1fr_48px_68px_88px_88px] gap-1 items-center">
+                          <span className="text-[9px] font-semibold uppercase text-[#09A046] col-span-4 text-right pr-1">Fill</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={fillAllQtySI}
+                            onChange={(e) => setFillAllQtySI(e.target.value)}
+                            placeholder="Qty"
+                            className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`}
+                          />
+                          <div className="flex items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={fillAllCostSI}
+                              onChange={(e) => setFillAllCostSI(e.target.value)}
+                              placeholder="Cost"
+                              className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`}
+                            />
+                            <span className="text-[10px] text-gray-400 ml-0.5 shrink-0">₱</span>
+                          </div>
+                          <div className="flex items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={fillAllSellSI}
+                              onChange={(e) => setFillAllSellSI(e.target.value)}
+                              placeholder="Sell"
+                              className={`w-full px-2 py-1.5 text-xs border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-700 text-white" : "bg-white border-gray-300"}`}
+                            />
+                            <span className="text-[10px] text-gray-400 ml-0.5 shrink-0">₱</span>
+                          </div>
+                        </div>
+                        <div className="flex justify-end mt-1.5">
+                          <button type="button" onClick={handleFillAllSI} className="text-xs font-semibold text-[#09A046] hover:underline">
+                            Fill All
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     {/* + add NEW Variants */}
@@ -883,8 +924,19 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                               <div className="flex items-center justify-between">
                                 <span className={`text-xs font-semibold ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>{previewCombos.length} COMBINATIONS GENERATED</span>
                                 <span className="text-xs text-gray-400 cursor-pointer hover:underline" onClick={() => {
+                                  const qFill = String(fillAllQtySI ?? "").trim();
+                                  const cFill = String(fillAllCostSI ?? "").trim();
+                                  const sFill = String(fillAllSellSI ?? "").trim();
                                   const u = { ...newComboData };
-                                  previewCombos.forEach(({ size, variant }) => { const k = `${size}|${variant}`; u[k] = { ...(u[k] || {}), ...(fillAllCostSI ? { cost: fillAllCostSI } : {}), ...(fillAllSellSI ? { sell: fillAllSellSI } : {}), ...(fillAllQtySI ? { qty: fillAllQtySI } : {}) }; });
+                                  previewCombos.forEach(({ size, variant }) => {
+                                    const k = `${size}|${variant}`;
+                                    u[k] = {
+                                      ...(u[k] || {}),
+                                      ...(cFill !== "" ? { cost: cFill } : {}),
+                                      ...(sFill !== "" ? { sell: sFill } : {}),
+                                      ...(qFill !== "" ? { qty: qFill } : {}),
+                                    };
+                                  });
                                   setNewComboData(u);
                                 }}>Fill all Prices</span>
                               </div>
