@@ -442,6 +442,21 @@ const addBatch = (batches, addQty, price, costPrice, meta = {}) => {
   return next;
 };
 
+/** Zero-qty placeholders so every variant/size in the same stock-in gets the new lot at the same batch index */
+const padBatchesToLengthBeforeAdd = (batches, targetLenBeforePush, price, costPrice) => {
+  const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+  while (next.length < targetLenBeforePush) {
+    next.push({
+      qty: 0,
+      price: safeNum(price, 0),
+      costPrice: safeNum(costPrice, 0),
+      createdAt: nowIso(),
+      batchSlotPadding: true,
+    });
+  }
+  return next;
+};
+
 const consumeBatches = (batches, removeQty) => {
   let remaining = safeNum(removeQty, 0);
   const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
@@ -450,7 +465,7 @@ const consumeBatches = (batches, removeQty) => {
     next[i].qty = safeNum(next[i].qty, 0) - take;
     remaining -= take;
   }
-  return next.filter((b) => safeNum(b.qty, 0) > 0);
+  return next.filter((b) => safeNum(b.qty, 0) > 0 || b.batchSlotPadding === true);
 };
 
 const sumBatchesQty = (batches) =>
@@ -528,6 +543,17 @@ exports.stockInProduct = async (req, res) => {
         const addVariantQtys = stockData.variantQuantities?.[size] || {};
         const newVariants = { ...currentVariants };
 
+        let maxBatchLenBeforeAdd = 0;
+        Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
+          if (safeNum(addQty, 0) <= 0) return;
+          const fallbackExistingPrice =
+            safeNum(currentSizeData.variantPrices?.[variant], safeNum(currentSizeData.price, product.itemPrice || 0));
+          const fallbackExistingCost =
+            safeNum(currentSizeData.variantCostPrices?.[variant], safeNum(currentSizeData.costPrice, product.costPrice || 0));
+          const normalized = ensureBatches(currentVariants[variant] || {}, fallbackExistingPrice, fallbackExistingCost);
+          maxBatchLenBeforeAdd = Math.max(maxBatchLenBeforeAdd, normalized.batches.length);
+        });
+
         Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
           const qty = safeNum(addQty, 0);
           if (qty <= 0) return;
@@ -554,7 +580,13 @@ exports.stockInProduct = async (req, res) => {
             incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
           }
 
-          const nextBatches = addBatch(normalizedVariant.batches, qty, incomingPrice, incomingCost, batchMeta);
+          const alignedBatches = padBatchesToLengthBeforeAdd(
+            normalizedVariant.batches,
+            maxBatchLenBeforeAdd,
+            incomingPrice,
+            incomingCost,
+          );
+          const nextBatches = addBatch(alignedBatches, qty, incomingPrice, incomingCost, batchMeta);
           newVariants[variant] = {
             ...normalizedVariant,
             batches: nextBatches,
@@ -587,6 +619,18 @@ exports.stockInProduct = async (req, res) => {
         if (totalForSize > 0) sizeQuantitiesAdded[size] = totalForSize;
       });
     } else {
+      let maxBatchLenBeforeAddNoVar = 0;
+      selectedSizes.forEach((size) => {
+        const addQty = safeNum(stockData.sizes?.[size], 0);
+        if (addQty <= 0) return;
+        const cur = ensureBatches(
+          toSizeObject(updatedSizes[size] || {}, product.itemPrice || 0, product.costPrice || 0),
+          product.itemPrice || 0,
+          product.costPrice || 0,
+        );
+        maxBatchLenBeforeAddNoVar = Math.max(maxBatchLenBeforeAddNoVar, cur.batches.length);
+      });
+
       selectedSizes.forEach((size) => {
         const addQty = safeNum(stockData.sizes?.[size], 0);
         if (addQty <= 0) return;
@@ -604,7 +648,13 @@ exports.stockInProduct = async (req, res) => {
           incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
         }
 
-        const nextBatches = addBatch(currentSizeData.batches, addQty, incomingPrice, incomingCost, batchMeta);
+        const alignedBatches = padBatchesToLengthBeforeAdd(
+          currentSizeData.batches,
+          maxBatchLenBeforeAddNoVar,
+          incomingPrice,
+          incomingCost,
+        );
+        const nextBatches = addBatch(alignedBatches, addQty, incomingPrice, incomingCost, batchMeta);
         const nextQty = sumBatchesQty(nextBatches);
         updatedSizes[size] = {
           ...currentSizeData,
@@ -1143,7 +1193,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
         next[i].qty = safeNum(next[i].qty, 0) - take;
         remaining -= take;
       }
-      return next.filter((b) => safeNum(b.qty, 0) > 0);
+      return next.filter((b) => safeNum(b.qty, 0) > 0 || b.batchSlotPadding === true);
     };
 
     // Process items sequentially to prevent race conditions when multiple

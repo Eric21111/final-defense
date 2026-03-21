@@ -69,6 +69,9 @@ const ViewProductModal = ({
     if (!batch) {
       return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
     }
+    if (batch.batchSlotPadding && toNum(batch.qty) === 0) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
     const qty = toNum(batch.qty);
     const isZero = qty === 0;
     const pillClass =
