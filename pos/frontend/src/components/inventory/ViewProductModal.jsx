@@ -11,7 +11,8 @@ const ViewProductModal = ({
   formatDate
 }) => {
   const { theme } = useTheme();
-  const [showBatchView, setShowBatchView] = useState(false);
+  /** 'totals' = aggregate stock/price/exp; number = batch slot index (0 = oldest / current FIFO) */
+  const [batchTab, setBatchTab] = useState("totals");
 
   const toNum = (v) => {
     const n = typeof v === "number" ? v : parseInt(v);
@@ -23,30 +24,125 @@ const ViewProductModal = ({
     return Array.isArray(data.batches) ? data.batches : [];
   };
 
-  const hasBatch2 = useMemo(() => {
-    if (!viewingProduct) return false;
-    const sizes = viewingProduct.sizes;
-    if (!sizes || typeof sizes !== "object") return false;
-    return Object.values(sizes).some((sizeData) => {
-      if (sizeData && typeof sizeData === "object") {
-        if (Array.isArray(sizeData.batches) && sizeData.batches.length > 1) return true;
-        if (sizeData.variants && typeof sizeData.variants === "object") {
-          return Object.values(sizeData.variants).some((variantData) => {
-            if (variantData && typeof variantData === "object") {
-              return Array.isArray(variantData.batches) && variantData.batches.length > 1;
-            }
-            return false;
-          });
-        }
+  /** Single "Expiration" column: do not show one batch's date if another batch with stock has no expiry */
+  const renderAggregateExpiration = (batches) => {
+    const active = (Array.isArray(batches) ? batches : []).filter((b) => toNum(b?.qty) > 0);
+    if (active.length === 0) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    const withExp = active.filter((b) => b?.expirationDate);
+    const withoutExp = active.filter((b) => !b?.expirationDate);
+    if (withExp.length > 0 && withoutExp.length > 0) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    if (withExp.length === 0) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    const dates = [...new Set(withExp.map((b) => String(b.expirationDate).slice(0, 10)))].sort();
+    const nearest = dates[0];
+    const now = new Date();
+    const expDate = new Date(nearest);
+    const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+    const colorClass = daysUntil < 0 ? "text-red-500 font-semibold" : daysUntil <= 30 ? "text-yellow-500 font-semibold" : (theme === "dark" ? "text-gray-300" : "text-gray-600");
+    return (
+      <div className="space-y-0.5">
+        <div className={`text-xs ${colorClass}`}>{nearest}</div>
+        {dates.length > 1 && (
+          <div className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Multiple expiration dates</div>
+        )}
+        {dates.length === 1 && daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
+        {dates.length === 1 && daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
+      </div>
+    );
+  };
+
+  const renderBatchSlotCell = (batch, slotIndex) => {
+    if (!batch) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    const qty = toNum(batch.qty);
+    const isZero = qty === 0;
+    const pillClass =
+      slotIndex === 0
+        ? isZero
+          ? "bg-red-100 text-red-700"
+          : "bg-green-100 text-green-700"
+        : slotIndex === 1
+          ? isZero
+            ? "bg-red-100 text-red-700"
+            : "bg-blue-100 text-blue-700"
+          : isZero
+            ? "bg-red-100 text-red-700"
+            : theme === "dark"
+              ? "bg-violet-900/50 text-violet-200"
+              : "bg-violet-100 text-violet-900";
+
+    return (
+      <div className="space-y-0.5">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${pillClass}`}>
+          {qty} {viewingProduct?.unitOfMeasure || "pcs"}
+        </span>
+        <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+          Sell: ₱{(batch.price ?? 0).toFixed ? batch.price.toFixed(2) : Number(batch.price || 0).toFixed(2)} · Buy: ₱
+          {(batch.costPrice ?? 0).toFixed ? batch.costPrice.toFixed(2) : Number(batch.costPrice || 0).toFixed(2)}
+          {(batch.batchCode || batch.expirationDate) && (
+            <span className="ml-2">
+              {batch.batchCode ? `· Lot: ${batch.batchCode}` : ""}
+              {batch.expirationDate ? ` · Exp: ${String(batch.expirationDate).slice(0, 10)}` : ""}
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const maxBatchDepth = useMemo(() => {
+    if (!viewingProduct?.sizes || typeof viewingProduct.sizes !== "object") return 0;
+    let max = 0;
+    Object.values(viewingProduct.sizes).forEach((sizeData) => {
+      if (!sizeData || typeof sizeData !== "object") return;
+      if (sizeData.variants && typeof sizeData.variants === "object") {
+        Object.values(sizeData.variants).forEach((variantData) => {
+          if (variantData && typeof variantData === "object" && Array.isArray(variantData.batches)) {
+            max = Math.max(max, variantData.batches.length);
+          }
+        });
       }
-      return false;
+      if (Array.isArray(sizeData.batches)) {
+        max = Math.max(max, sizeData.batches.length);
+      }
     });
+    return max;
   }, [viewingProduct]);
 
-  // If the user opens a different product, reset back to normal view
-  // (prevents batch view “sticking” across products)
+  /** Sum of qty in the selected batch slot across all options; null when viewing totals */
+  const selectedBatchSlotTotal = useMemo(() => {
+    if (!viewingProduct?.sizes || typeof viewingProduct.sizes !== "object") return null;
+    if (batchTab === "totals" || typeof batchTab !== "number") return null;
+    const slot = batchTab;
+    let sum = 0;
+    Object.values(viewingProduct.sizes).forEach((sizeData) => {
+      if (!sizeData || typeof sizeData !== "object") return;
+      if (sizeData.variants && typeof sizeData.variants === "object") {
+        Object.values(sizeData.variants).forEach((variantData) => {
+          if (variantData && typeof variantData === "object" && Array.isArray(variantData.batches)) {
+            const b = variantData.batches[slot];
+            if (b) sum += toNum(b.qty);
+          }
+        });
+        return;
+      }
+      if (Array.isArray(sizeData.batches)) {
+        const b = sizeData.batches[slot];
+        if (b) sum += toNum(b.qty);
+      }
+    });
+    return sum;
+  }, [viewingProduct, batchTab]);
+
+  // If the user opens a different product, reset back to totals view
   useEffect(() => {
-    setShowBatchView(false);
+    setBatchTab("totals");
   }, [viewingProduct?._id]);
 
   if (!showViewModal || !viewingProduct) return null;
@@ -76,6 +172,11 @@ const ViewProductModal = ({
         return sum + qty;
       }, 0) :
       viewingProduct.currentStock || 0;
+
+  const showPerBatchColumn = maxBatchDepth > 0 && typeof batchTab === "number";
+  const tableFooterTotal = selectedBatchSlotTotal !== null ? selectedBatchSlotTotal : totalStock;
+  const tableFooterLabel =
+    selectedBatchSlotTotal !== null ? "Stock in this batch:" : "Total Options Stock:";
 
   return (
     <div
@@ -111,27 +212,6 @@ const ViewProductModal = ({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {hasBatch2 && (
-                <button
-                  type="button"
-                  onClick={() => setShowBatchView((v) => !v)}
-                  className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border transition-all duration-200 active:scale-[0.98] ${showBatchView
-                    ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-md"
-                    : theme === "dark"
-                      ? "bg-[#2A2724] text-gray-200 border-gray-700 hover:border-[#AD7F65] hover:text-white"
-                      : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65] hover:text-[#76462B]"
-                    }`}
-                >
-                  <span
-                    className={`inline-flex items-center justify-center w-6 h-6 rounded-lg transition-transform duration-200 ${showBatchView ? "bg-white/15 rotate-180" : theme === "dark" ? "bg-white/5" : "bg-gray-100"}`}
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
-                  </span>
-                  {showBatchView ? "Batches: ON" : "Batches: OFF"}
-                </button>
-              )}
               <button
                 onClick={() => setShowViewModal(false)}
                 className={`w-10 h-10 rounded-xl flex items-center justify-center border transition-colors ${theme === "dark"
@@ -310,16 +390,51 @@ const ViewProductModal = ({
 
             {/* Stock Table — Full Width */}
             <div className={`rounded-2xl border ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
-              <div className="px-5 py-4 border-b flex items-center justify-between gap-3" style={{ borderColor: theme === "dark" ? "#374151" : "#E5E7EB" }}>
-                <div>
+              <div
+                className="px-5 py-4 border-b flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+                style={{ borderColor: theme === "dark" ? "#374151" : "#E5E7EB" }}
+              >
+                <div className="min-w-0">
                   <div className={`text-xs font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Stock</div>
                   <div className={`mt-0.5 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                    Showing {showBatchView ? "by batches" : "total + price"} per option
+                    {maxBatchDepth > 0
+                      ? showPerBatchColumn
+                        ? batchTab === 0
+                          ? "Showing oldest batch (FIFO) per option"
+                          : `Showing batch ${batchTab + 1} per option`
+                        : "Showing total + price per option"
+                      : "Showing total + price per option"}
                   </div>
                 </div>
-                {!hasBatch2 && (
-                  <div className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                    No batch 2 found
+                {maxBatchDepth > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => setBatchTab("totals")}
+                      className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-200 active:scale-[0.98] ${batchTab === "totals"
+                        ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-sm"
+                        : theme === "dark"
+                          ? "bg-[#1E1B18] text-gray-300 border-gray-600 hover:border-[#AD7F65]"
+                          : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65]"
+                        }`}
+                    >
+                      Totals
+                    </button>
+                    {Array.from({ length: maxBatchDepth }, (_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setBatchTab(i)}
+                        className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-200 active:scale-[0.98] ${batchTab === i
+                          ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-sm"
+                          : theme === "dark"
+                            ? "bg-[#1E1B18] text-gray-300 border-gray-600 hover:border-[#AD7F65]"
+                            : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65]"
+                          }`}
+                      >
+                        {i === 0 ? "Batch 1 (current stock)" : `Batch ${i + 1}`}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -334,11 +449,10 @@ const ViewProductModal = ({
                         <tr>
                           <th className="px-4 py-3 font-semibold">SKU</th>
                           <th className="px-4 py-3 font-semibold">Variant / Size</th>
-                          {showBatchView ? (
-                            <>
-                              <th className="px-4 py-3 font-semibold">Batch 1</th>
-                              <th className="px-4 py-3 font-semibold">Batch 2</th>
-                            </>
+                          {showPerBatchColumn ? (
+                            <th className="px-4 py-3 font-semibold">
+                              {batchTab === 0 ? "Batch 1 (current stock)" : `Batch ${batchTab + 1}`}
+                            </th>
                           ) : (
                             <>
                               <th className="px-4 py-3 font-semibold">Stock</th>
@@ -380,49 +494,10 @@ const ViewProductModal = ({
                                     <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                                       {size === VARIANT_ONLY_SIZE_KEY ? variantName : `${variantName} / ${size}`}
                                     </td>
-                                    {showBatchView ? (
-                                      <>
-                                        <td className="px-4 py-3">
-                                          {b1 ? (
-                                            <div className="space-y-0.5">
-                                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b1.qty) === 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                                                {toNum(b1.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
-                                              </span>
-                                              <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                                                Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
-                                                {(b1.batchCode || b1.expirationDate) && (
-                                                  <span className="ml-2">
-                                                    {b1.batchCode ? `· Lot: ${b1.batchCode}` : ""}
-                                                    {b1.expirationDate ? ` · Exp: ${String(b1.expirationDate).slice(0, 10)}` : ""}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
-                                          )}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                          {b2 ? (
-                                            <div className="space-y-0.5">
-                                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b2.qty) === 0 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
-                                                {toNum(b2.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
-                                              </span>
-                                              <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                                                Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
-                                                {(b2.batchCode || b2.expirationDate) && (
-                                                  <span className="ml-2">
-                                                    {b2.batchCode ? `· Lot: ${b2.batchCode}` : ""}
-                                                    {b2.expirationDate ? ` · Exp: ${String(b2.expirationDate).slice(0, 10)}` : ""}
-                                                  </span>
-                                                )}
-                                              </div>
-                                            </div>
-                                          ) : (
-                                            <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
-                                          )}
-                                        </td>
-                                      </>
+                                    {showPerBatchColumn ? (
+                                      <td className="px-4 py-3">
+                                        {renderBatchSlotCell(batches[batchTab] ?? null, batchTab)}
+                                      </td>
                                     ) : (
                                       <>
                                         <td className="px-4 py-3">
@@ -444,25 +519,7 @@ const ViewProductModal = ({
                                           </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                          {(() => {
-                                            const expDates = batches
-                                              .filter(b => b.expirationDate)
-                                              .map(b => String(b.expirationDate).slice(0, 10))
-                                              .sort();
-                                            if (expDates.length === 0) return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
-                                            const nearest = expDates[0];
-                                            const now = new Date();
-                                            const expDate = new Date(nearest);
-                                            const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
-                                            const colorClass = daysUntil < 0 ? "text-red-500 font-semibold" : daysUntil <= 30 ? "text-yellow-500 font-semibold" : (theme === "dark" ? "text-gray-300" : "text-gray-600");
-                                            return (
-                                              <div className="space-y-0.5">
-                                                <div className={`text-xs ${colorClass}`}>{nearest}</div>
-                                                {daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
-                                                {daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
-                                              </div>
-                                            );
-                                          })()}
+                                          {renderAggregateExpiration(batches)}
                                         </td>
                                       </>
                                     )}
@@ -472,8 +529,6 @@ const ViewProductModal = ({
                             } else {
                               const stock = typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined ? sizeData.quantity : (typeof sizeData === "number" ? sizeData : 0);
                               const batches = getBatchList(typeof sizeData === "object" && sizeData !== null ? sizeData : null);
-                              const b1 = batches[0] || null;
-                              const b2 = batches[1] || null;
                               const dynamicSku = generateDynamicSku(baseSku, null, size);
 
                               rows.push(
@@ -482,49 +537,10 @@ const ViewProductModal = ({
                                   <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
                                     {size}
                                   </td>
-                                  {showBatchView ? (
-                                    <>
-                                      <td className="px-4 py-3">
-                                        {b1 ? (
-                                          <div className="space-y-0.5">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b1.qty) === 0 ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
-                                              {toNum(b1.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
-                                            </span>
-                                            <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                                              Sell: ₱{(b1.price ?? 0).toFixed ? b1.price.toFixed(2) : Number(b1.price || 0).toFixed(2)} · Buy: ₱{(b1.costPrice ?? 0).toFixed ? b1.costPrice.toFixed(2) : Number(b1.costPrice || 0).toFixed(2)}
-                                              {(b1.batchCode || b1.expirationDate) && (
-                                                <span className="ml-2">
-                                                  {b1.batchCode ? `· Lot: ${b1.batchCode}` : ""}
-                                                  {b1.expirationDate ? ` · Exp: ${String(b1.expirationDate).slice(0, 10)}` : ""}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
-                                        )}
-                                      </td>
-                                      <td className="px-4 py-3">
-                                        {b2 ? (
-                                          <div className="space-y-0.5">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${toNum(b2.qty) === 0 ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"}`}>
-                                              {toNum(b2.qty)} {viewingProduct.unitOfMeasure || 'pcs'}
-                                            </span>
-                                            <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                                              Sell: ₱{(b2.price ?? 0).toFixed ? b2.price.toFixed(2) : Number(b2.price || 0).toFixed(2)} · Buy: ₱{(b2.costPrice ?? 0).toFixed ? b2.costPrice.toFixed(2) : Number(b2.costPrice || 0).toFixed(2)}
-                                              {(b2.batchCode || b2.expirationDate) && (
-                                                <span className="ml-2">
-                                                  {b2.batchCode ? `· Lot: ${b2.batchCode}` : ""}
-                                                  {b2.expirationDate ? ` · Exp: ${String(b2.expirationDate).slice(0, 10)}` : ""}
-                                                </span>
-                                              )}
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>
-                                        )}
-                                      </td>
-                                    </>
+                                  {showPerBatchColumn ? (
+                                    <td className="px-4 py-3">
+                                      {renderBatchSlotCell(batches[batchTab] ?? null, batchTab)}
+                                    </td>
                                   ) : (
                                     <>
                                       <td className="px-4 py-3">
@@ -546,25 +562,7 @@ const ViewProductModal = ({
                                         </div>
                                       </td>
                                       <td className="px-4 py-3">
-                                        {(() => {
-                                          const expDates = batches
-                                            .filter(b => b.expirationDate)
-                                            .map(b => String(b.expirationDate).slice(0, 10))
-                                            .sort();
-                                          if (expDates.length === 0) return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
-                                          const nearest = expDates[0];
-                                          const now = new Date();
-                                          const expDate = new Date(nearest);
-                                          const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
-                                          const colorClass = daysUntil < 0 ? "text-red-500 font-semibold" : daysUntil <= 30 ? "text-yellow-500 font-semibold" : (theme === "dark" ? "text-gray-300" : "text-gray-600");
-                                          return (
-                                            <div className="space-y-0.5">
-                                              <div className={`text-xs ${colorClass}`}>{nearest}</div>
-                                              {daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
-                                              {daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
-                                            </div>
-                                          );
-                                        })()}
+                                        {renderAggregateExpiration(batches)}
                                       </td>
                                     </>
                                   )}
@@ -579,8 +577,8 @@ const ViewProductModal = ({
                     </table>
 
                     <div className={`px-4 py-3 border-t text-right flex justify-end items-center gap-2 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
-                      <span className={`text-xs uppercase tracking-wider font-semibold ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Total Options Stock:</span>
-                      <span className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{totalStock}</span>
+                      <span className={`text-xs uppercase tracking-wider font-semibold ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>{tableFooterLabel}</span>
+                      <span className={`text-sm font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{tableFooterTotal}</span>
                     </div>
                   </div>
                 ) : (

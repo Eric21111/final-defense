@@ -414,6 +414,9 @@ const toSizeObject = (sizeData, fallbackPrice, fallbackCostPrice) => {
 
 const ensureBatches = (obj, fallbackPrice, fallbackCostPrice) => {
   const next = typeof obj === "object" && obj !== null ? { ...obj } : { ...toSizeObject(obj, fallbackPrice, fallbackCostPrice) };
+  // Lot/exp live only on each batch entry — never on the variant/size root (avoids leaking one batch's meta to siblings)
+  delete next.expirationDate;
+  delete next.batchCode;
   next.quantity = safeNum(next.quantity, 0);
   next.price = safeNum(next.price, safeNum(fallbackPrice, 0));
   next.costPrice = safeNum(next.costPrice, safeNum(fallbackCostPrice, 0));
@@ -425,7 +428,7 @@ const ensureBatches = (obj, fallbackPrice, fallbackCostPrice) => {
 
 const addBatch = (batches, addQty, price, costPrice, meta = {}) => {
   const qty = safeNum(addQty, 0);
-  const next = Array.isArray(batches) ? [...batches] : [];
+  const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
   if (qty > 0) {
     next.push({
       qty,
@@ -1105,6 +1108,8 @@ exports.updateStockAfterTransaction = async (req, res) => {
       const price = safeNum(obj?.price, safeNum(fallbackPrice, 0));
       const costPrice = safeNum(obj?.costPrice, safeNum(fallbackCostPrice, 0));
       const next = typeof obj === "object" && obj !== null ? { ...obj } : { quantity, price, costPrice };
+      delete next.expirationDate;
+      delete next.batchCode;
       next.quantity = quantity;
       next.price = price;
       next.costPrice = costPrice;
@@ -1117,7 +1122,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
     };
     const addBatch = (batches, addQty, price, costPrice, meta = {}) => {
       const qty = safeNum(addQty, 0);
-      const next = Array.isArray(batches) ? [...batches] : [];
+      const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
       if (qty > 0) {
         next.push({
           qty,
