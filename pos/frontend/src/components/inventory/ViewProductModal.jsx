@@ -64,7 +64,8 @@ const ViewProductModal = ({
     );
   };
 
-  const renderBatchSlotCell = (batch, slotIndex) => {
+  /** When expirationInOwnColumn, Exp is shown in a separate table column (lot stays with price line). */
+  const renderBatchSlotCell = (batch, slotIndex, expirationInOwnColumn = false) => {
     if (!batch) {
       return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
     }
@@ -85,6 +86,9 @@ const ViewProductModal = ({
               ? "bg-violet-900/50 text-violet-200"
               : "bg-violet-100 text-violet-900";
 
+    const showLotOrInlineExp =
+      batch.batchCode || (!expirationInOwnColumn && batch.expirationDate);
+
     return (
       <div className="space-y-0.5">
         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${pillClass}`}>
@@ -93,13 +97,38 @@ const ViewProductModal = ({
         <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
           Sell: ₱{(batch.price ?? 0).toFixed ? batch.price.toFixed(2) : Number(batch.price || 0).toFixed(2)} · Buy: ₱
           {(batch.costPrice ?? 0).toFixed ? batch.costPrice.toFixed(2) : Number(batch.costPrice || 0).toFixed(2)}
-          {(batch.batchCode || batch.expirationDate) && (
+          {showLotOrInlineExp && (
             <span className="ml-2">
               {batch.batchCode ? `· Lot: ${batch.batchCode}` : ""}
-              {batch.expirationDate ? ` · Exp: ${String(batch.expirationDate).slice(0, 10)}` : ""}
+              {!expirationInOwnColumn && batch.expirationDate ? ` · Exp: ${String(batch.expirationDate).slice(0, 10)}` : ""}
             </span>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderSingleBatchExpirationCell = (batch) => {
+    if (!batch || !batch.expirationDate) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    const dateStr = String(batch.expirationDate).slice(0, 10);
+    const now = new Date();
+    const expDate = new Date(dateStr);
+    const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+    const colorClass =
+      daysUntil < 0
+        ? "text-red-500 font-semibold"
+        : daysUntil <= 30
+          ? "text-yellow-500 font-semibold"
+          : theme === "dark"
+            ? "text-gray-300"
+            : "text-gray-600";
+    return (
+      <div className="space-y-0.5">
+        <div className={`text-xs ${colorClass}`}>{dateStr}</div>
+        {daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
+        {daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
       </div>
     );
   };
@@ -567,9 +596,12 @@ const ViewProductModal = ({
                           <th className="px-4 py-3 font-semibold">SKU</th>
                           <th className="px-4 py-3 font-semibold">Variant / Size</th>
                           {showPerBatchColumn ? (
-                            <th className="px-4 py-3 font-semibold">
-                              {batchTab === 0 ? "Batch 1 (current stock)" : `Batch ${batchTab + 1}`}
-                            </th>
+                            <>
+                              <th className="px-4 py-3 font-semibold">
+                                {batchTab === 0 ? "Batch 1 (current stock)" : `Batch ${batchTab + 1}`}
+                              </th>
+                              <th className="px-4 py-3 font-semibold">Expiration</th>
+                            </>
                           ) : (
                             <>
                               <th className="px-4 py-3 font-semibold">Stock</th>
@@ -610,9 +642,14 @@ const ViewProductModal = ({
                                       {size === VARIANT_ONLY_SIZE_KEY ? variantName : `${variantName} / ${size}`}
                                     </td>
                                     {showPerBatchColumn ? (
-                                      <td className="px-4 py-3">
-                                        {renderBatchSlotCell(batches[batchTab] ?? null, batchTab)}
-                                      </td>
+                                      <>
+                                        <td className="px-4 py-3">
+                                          {renderBatchSlotCell(batches[batchTab] ?? null, batchTab, true)}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
+                                        </td>
+                                      </>
                                     ) : (
                                       <>
                                         <td className="px-4 py-3">
@@ -653,9 +690,14 @@ const ViewProductModal = ({
                                     {size}
                                   </td>
                                   {showPerBatchColumn ? (
-                                    <td className="px-4 py-3">
-                                      {renderBatchSlotCell(batches[batchTab] ?? null, batchTab)}
-                                    </td>
+                                    <>
+                                      <td className="px-4 py-3">
+                                        {renderBatchSlotCell(batches[batchTab] ?? null, batchTab, true)}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
+                                      </td>
+                                    </>
                                   ) : (
                                     <>
                                       <td className="px-4 py-3">
