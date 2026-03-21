@@ -1,6 +1,14 @@
 const Remittance = require('../models/Remittance');
 const SalesTransaction = require('../models/SalesTransaction');
 
+const buildTodayRemittanceQuery = (employeeId, startOfDay, endOfDay) => ({
+    employeeId,
+    $or: [
+        { submittedAt: { $gte: startOfDay, $lt: endOfDay } },
+        { shiftDate: { $gte: startOfDay, $lt: endOfDay } }
+    ]
+});
+
 // GET /api/remittances/summary?employeeId=xxx
 exports.getRemittanceSummary = async (req, res) => {
     try {
@@ -30,10 +38,9 @@ exports.getRemittanceSummary = async (req, res) => {
             checkedOutAt: { $gte: startOfDay, $lt: endOfDay }
         }).lean();
 
-        const existingTodayRemittance = await Remittance.findOne({
-            employeeId,
-            submittedAt: { $gte: startOfDay, $lt: endOfDay }
-        })
+        const existingTodayRemittance = await Remittance.findOne(
+            buildTodayRemittanceQuery(employeeId, startOfDay, endOfDay)
+        )
             .sort({ submittedAt: -1 })
             .lean();
 
@@ -91,10 +98,9 @@ exports.createRemittance = async (req, res) => {
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-        const existingToday = await Remittance.findOne({
-            employeeId,
-            submittedAt: { $gte: startOfDay, $lt: endOfDay }
-        })
+        const existingToday = await Remittance.findOne(
+            buildTodayRemittanceQuery(employeeId, startOfDay, endOfDay)
+        )
             .sort({ submittedAt: -1 })
             .lean();
 
