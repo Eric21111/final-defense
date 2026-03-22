@@ -108,6 +108,35 @@ const AddProductModal = ({
   const [showVariantDropdown, setShowVariantDropdown] = useState(false);
   const [customColorInput, setCustomColorInput] = useState("");
   const hasVariants = selectedVariants.length > 0 || (newProduct.selectedSizes?.length > 0);
+
+  const formatStockInStyleBatchCode = (d = new Date()) => {
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const h = String(d.getHours()).padStart(2, "0");
+    const min = String(d.getMinutes()).padStart(2, "0");
+    return `B${y}${mo}${day}-${h}${min}`;
+  };
+
+  const getOpeningStockTotal = () => {
+    const combos = [];
+    const rvariants = selectedVariants.length > 0 ? selectedVariants : [null];
+    const rsizes = (newProduct.selectedSizes?.length > 0) ? newProduct.selectedSizes : [VARIANT_ONLY_KEY];
+    rvariants.forEach((v) => { rsizes.forEach((s) => { combos.push({ variant: v, size: s }); }); });
+    const hasAnyCombos = hasVariants && combos.length > 0 && (combos[0].variant || combos[0].size);
+    let total = 0;
+    if (hasAnyCombos) {
+      combos.forEach(({ variant: v, size: s }) => {
+        if (v && s) total += parseInt(newProduct.variantQuantities?.[s]?.[v], 10) || 0;
+        else if (s) total += parseInt(newProduct.sizeQuantities?.[s], 10) || 0;
+        else total += parseInt(newProduct.currentStock, 10) || 0;
+      });
+    } else {
+      total = parseInt(newProduct.currentStock, 10) || 0;
+    }
+    return total;
+  };
+
   const [optionGroup1Name, setOptionGroup1Name] = useState("Color");
   const [optionGroup2Name, setOptionGroup2Name] = useState("Size");
 
@@ -178,7 +207,7 @@ const AddProductModal = ({
         if (selectedVariants.length > 0 || newProduct.selectedSizes?.length > 0) {
           return true;
         }
-        if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) return false;
+          if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) return false;
         return true;
       case 4:
         return true;
@@ -1138,33 +1167,39 @@ const AddProductModal = ({
 
                     <div className={`h-px w-full ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
 
-                    {/* Opening Batch */}
-                            <div>
-                      <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Opening Batch</label>
-                      <p className={`text-[10px] mb-3 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>First batch for all SKUs. Add more later via Stock In on the Inventory page.</p>
-                            </div>
+                    {(() => {
+                      const openingStockTotal = getOpeningStockTotal();
+                      const hasOpeningStock = openingStockTotal > 0;
+                      return (
+                        <>
+                          <div>
+                            <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Initial stock batch</label>
+                            <p className={`text-[10px] mb-3 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                              {hasOpeningStock
+                                ? "Batch 1 for this opening stock (same code style as Stock In). Add more lots via Stock In."
+                                : "No batch until you receive stock — use Stock In."}
+                            </p>
+                          </div>
 
+                          {hasOpeningStock ? (
                             <div>
-                      <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch Number</label>
-                      <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                        {(() => {
-                          const now = new Date();
-                          const y = now.getFullYear();
-                          const m = String(now.getMonth() + 1).padStart(2, '0');
-                          const generated = `B${y}${m} – 001`;
-                          if (!newProduct.batchNumber || newProduct.batchNumber !== generated) {
-                            setTimeout(() => setNewProduct(p => ({ ...p, batchNumber: generated })), 0);
-                          }
-                          return generated;
-                        })()}
-                      </p>
+                              <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch number (preview)</label>
+                              <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                                {formatStockInStyleBatchCode(new Date())}
+                              </p>
                             </div>
+                          ) : null}
 
+                          {hasOpeningStock ? (
                             <div>
-                      <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiring Date</label>
-                      <input type="date" name="expiryDate" value={newProduct.expiryDate || ""} onChange={handleInputChange}
-                        className={`w-full max-w-xs px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
+                              <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiring Date</label>
+                              <input type="date" name="expiryDate" value={newProduct.expiryDate || ""} onChange={handleInputChange}
+                                className={`w-full max-w-xs px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
                             </div>
+                          ) : null}
+                        </>
+                      );
+                    })()}
                           </div>
                 )}
 
@@ -1235,8 +1270,12 @@ const AddProductModal = ({
                               <p className={`text-[10px] uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Total SKUs</p>
                           </div>
                           <div>
-                              <p className={`text-sm font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>{newProduct.batchNumber || "—"}</p>
-                              <p className={`text-[10px] uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Batch Number</p>
+                              <p className={`text-sm font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                                {totalStock > 0 ? formatStockInStyleBatchCode(new Date()) : (
+                                  <span className={`text-xs font-normal ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>No batch until you receive stock — use Stock In</span>
+                                )}
+                              </p>
+                              <p className={`text-[10px] uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Initial stock batch</p>
                           </div>
                             <div>
                               <p className={`text-sm font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>{totalStock}</p>
