@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "../../context/ThemeContext";
 
 // Matches Add Product / Inventory when product has only option group 1 (no sizes)
@@ -54,6 +54,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
   const [fillAllQtySI, setFillAllQtySI] = useState("");
   const [stockInBrandPartner, setStockInBrandPartner] = useState("");
   const [dateReceived, setDateReceived] = useState("");
+  /** "new" = create a new lot; otherwise FIFO slot index string ("0", "1", …) */
+  const [stockInBatchChoice, setStockInBatchChoice] = useState("new");
   const { theme } = useTheme();
 
   const reasons = ["Restock", "Returned Item", "Exchange", "Other"];
@@ -104,6 +106,121 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
 
   const allVariants = getAllVariants();
   const hasVariants = allVariants.length > 0;
+
+  const stockInBatchList = useMemo(() => {
+    if (!hasSizes || !product) return [];
+
+    const getVariantQty = (vData) => {
+      if (typeof vData === "number") return parseInt(vData, 10) || 0;
+      if (vData && typeof vData === "object") {
+        const q = vData.qty ?? vData.quantity ?? 0;
+        return parseInt(q, 10) || 0;
+      }
+      return 0;
+    };
+
+    if (hasVariants) {
+      const maxBatchDepth = (() => {
+        let max = 0;
+        Object.values(product.sizes).forEach((sd) => {
+          if (!sd || typeof sd !== "object" || !sd?.variants) return;
+          Object.values(sd.variants).forEach((vData) => {
+            const batches = typeof vData === "object" && Array.isArray(vData.batches) ? vData.batches : [];
+            max = Math.max(max, batches.length);
+          });
+        });
+        return max;
+      })();
+
+      if (maxBatchDepth <= 0) {
+        const openingBatchCode = product?.batchNumber || product?.openingBatchNumber || "B1";
+        let totalQty = 0;
+        Object.entries(product.sizes).forEach(([_, sd]) => {
+          if (!sd || typeof sd !== "object" || !sd?.variants) return;
+          Object.entries(sd.variants).forEach(([__, vData]) => {
+            totalQty += getVariantQty(vData);
+          });
+        });
+        if (totalQty <= 0) return [];
+        return [{ slotIndex: 0, code: openingBatchCode, totalQty }];
+      }
+
+      const slots = Array.from({ length: maxBatchDepth }, (_, slotIndex) => ({
+        slotIndex,
+        code: "",
+        totalQty: 0,
+      }));
+
+      Object.entries(product.sizes).forEach(([_, sd]) => {
+        if (!sd || typeof sd !== "object" || !sd?.variants) return;
+        Object.entries(sd.variants).forEach(([__, vData]) => {
+          const batches = typeof vData === "object" && Array.isArray(vData.batches) ? vData.batches : [];
+          const fallbackQty = (idx) => (idx === 0 ? getVariantQty(vData) : 0);
+          for (let slotIndex = 0; slotIndex < maxBatchDepth; slotIndex++) {
+            const b = batches[slotIndex];
+            const qty = b ? (parseInt(b.qty, 10) || 0) : fallbackQty(slotIndex);
+            if (qty <= 0) continue;
+            const slot = slots[slotIndex];
+            slot.totalQty += qty;
+            if (!slot.code) {
+              slot.code =
+                b?.batchCode ||
+                (slotIndex === 0 ? (product?.batchNumber || product?.openingBatchNumber || "") : "");
+            }
+          }
+        });
+      });
+
+      return slots.filter((s) => s.totalQty > 0);
+    }
+
+    const maxBatchDepth = Math.max(
+      0,
+      ...Object.values(product.sizes).map((sd) => {
+        if (!sd || typeof sd !== "object") return 0;
+        return Array.isArray(sd.batches) ? sd.batches.length : 0;
+      }),
+    );
+
+    if (maxBatchDepth <= 0) {
+      const openingBatchCode = product?.batchNumber || product?.openingBatchNumber || "B1";
+      let totalQty = 0;
+      Object.values(product.sizes).forEach((sd) => {
+        if (typeof sd === "object" && sd !== null) totalQty += getSizeQuantity(sd);
+      });
+      if (totalQty <= 0) return [];
+      return [{ slotIndex: 0, code: openingBatchCode, totalQty }];
+    }
+
+    const slots = Array.from({ length: maxBatchDepth }, (_, slotIndex) => ({
+      slotIndex,
+      code: "",
+      totalQty: 0,
+    }));
+
+    Object.values(product.sizes).forEach((sd) => {
+      if (!sd || typeof sd !== "object") return;
+      const batches = Array.isArray(sd.batches) ? sd.batches : [];
+      for (let slotIndex = 0; slotIndex < maxBatchDepth; slotIndex++) {
+        const b = batches[slotIndex];
+        const qty = b
+          ? parseInt(b.qty, 10) || 0
+          : slotIndex === 0
+            ? getSizeQuantity(sd)
+            : 0;
+        if (qty <= 0) continue;
+        const slot = slots[slotIndex];
+        slot.totalQty += qty;
+        if (!slot.code) {
+          slot.code =
+            b?.batchCode ||
+            (slotIndex === 0 ? (product?.batchNumber || product?.openingBatchNumber || "") : "");
+        }
+      }
+    });
+
+    return slots.filter((s) => s.totalQty > 0);
+  }, [product, hasSizes, hasVariants]);
 
   const existingSizes = hasSizes ? Object.keys(product.sizes) : [];
   const availableSizes = [...existingSizes, ...addedNewSizes];
@@ -194,6 +311,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
       setFillAllCostSI(""); setFillAllSellSI(""); setFillAllQtySI("");
       setStockInBrandPartner("");
       setDateReceived(new Date().toISOString().split('T')[0]);
+      setStockInBatchChoice("new");
 
       const initChecked = {};
       const initPrices = {};
@@ -234,6 +352,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
     setBatchExpirationDate("");
     setStockInBrandPartner("");
     setDateReceived("");
+    setStockInBatchChoice("new");
     setReason("Restock");
     setOtherReason("");
     setNewVariantInputs({});
@@ -589,6 +708,22 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
     const finalReason =
       reason === "Other" ? `Other: ${otherReason.trim()}` : reason;
 
+    const stockInBatchPayload =
+      !hasSizes
+        ? {
+            ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
+            ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+          }
+        : stockInBatchChoice !== "new"
+          ? {
+              targetBatchSlotIndex: parseInt(stockInBatchChoice, 10),
+              ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+            }
+          : {
+              ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
+              ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+            };
+
     if (!hasSizes) {
 
       const qty = parseInt(quantity) || 0;
@@ -600,8 +735,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
         quantity: qty,
         noSizes: true,
         reason: finalReason,
-        ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
-        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+        ...stockInBatchPayload,
         ...(stockInBrandPartner ? { brandPartner: stockInBrandPartner } : {}),
         ...(dateReceived ? { dateReceived } : {}),
       });
@@ -645,8 +779,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
         newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null,
         diffPricesPerVariant: Object.keys(diffPricesPerVariant).some(k => diffPricesPerVariant[k]) ? diffPricesPerVariant : null,
         stockVariantPrices: Object.keys(stockVariantPrices).length > 0 ? stockVariantPrices : null,
-        ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
-        ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+        ...stockInBatchPayload,
         ...(stockInBrandPartner ? { brandPartner: stockInBrandPartner } : {}),
         ...(dateReceived ? { dateReceived } : {}),
       });
@@ -669,8 +802,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
       selectedSizes: selectedSizes,
       reason: finalReason,
       newSizePrices: addedNewSizes.length > 0 ? newSizePrices : null,
-      ...(batchCode.trim() ? { batchCode: batchCode.trim() } : {}),
-      ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
+      ...stockInBatchPayload,
       ...(stockInBrandPartner ? { brandPartner: stockInBrandPartner } : {}),
       ...(dateReceived ? { dateReceived } : {}),
     });
@@ -1060,7 +1192,45 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch Number</label>
-                        <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{batchCode || "—"}</p>
+                        {hasSizes ? (
+                          <div className="relative">
+                            <select
+                              value={stockInBatchChoice}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setStockInBatchChoice(v);
+                                if (v === "new") {
+                                  const now = new Date();
+                                  const y = now.getFullYear();
+                                  const mo = String(now.getMonth() + 1).padStart(2, "0");
+                                  const d = String(now.getDate()).padStart(2, "0");
+                                  const h = String(now.getHours()).padStart(2, "0");
+                                  const min = String(now.getMinutes()).padStart(2, "0");
+                                  setBatchCode(`B${y}${mo}${d}-${h}${min}`);
+                                } else {
+                                  const slot = stockInBatchList.find((b) => String(b.slotIndex) === v);
+                                  setBatchCode(slot?.code || "");
+                                }
+                              }}
+                              className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                            >
+                              <option value="new">
+                                New batch{stockInBatchChoice === "new" && batchCode ? ` (${batchCode})` : ""}
+                              </option>
+                              {stockInBatchList.map((b) => (
+                                <option key={b.slotIndex} value={String(b.slotIndex)}>
+                                  Batch {b.slotIndex + 1}
+                                  {b.code ? ` (${b.code})` : ""} · {b.totalQty} pcs
+                                </option>
+                              ))}
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>{batchCode || "—"}</p>
+                        )}
                       </div>
                       <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiring Date (if applicable)</label>

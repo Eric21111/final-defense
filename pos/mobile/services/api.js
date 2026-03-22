@@ -262,6 +262,11 @@ export const employeeAPI = {
     return apiCall('/employees');
   },
 
+  /** Same source as web dashboard: staff with isOnline + recent heartbeat; Owner excluded server-side */
+  getOnline: async () => {
+    return apiCall('/employees/online');
+  },
+
   // Get employee by ID
   getById: async (id) => {
     return apiCall(`/employees/${id}`);

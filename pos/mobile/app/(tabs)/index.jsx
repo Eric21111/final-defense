@@ -17,11 +17,28 @@ import {
 } from "react-native";
 import { BarChart } from "react-native-chart-kit";
 import Svg, { Circle, G } from "react-native-svg";
-import { transactionAPI } from "../../services/api";
+import { employeeAPI, transactionAPI } from "../../services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
 const PIE_COLORS = ["#F4A6C1", "#A7C7E7", "#FAD02E", "#98FB98", "#FFB7B2", "#C3B1E1"];
+
+const ONLINE_AVATAR_BACKGROUNDS = ["#EDE8E4", "#E8EDF2", "#E6EDE8", "#EEE6F0", "#EAF0E6"];
+
+function initialsFromName(name) {
+  if (!name || typeof name !== "string") return "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function avatarBgForName(name) {
+  let h = 0;
+  const s = String(name || "");
+  for (let i = 0; i < s.length; i++) h = (h + s.charCodeAt(i) * (i + 1)) % 997;
+  return ONLINE_AVATAR_BACKGROUNDS[h % ONLINE_AVATAR_BACKGROUNDS.length];
+}
 
 // Pie chart using react-native-svg
 function SimplePieChart({ data }) {
@@ -116,6 +133,7 @@ export default function Dashboard() {
   const [salesOverTimeData, setSalesOverTimeData] = useState([]);
   const [salesByCategoryData, setSalesByCategoryData] = useState([]);
   const [topSellingProducts, setTopSellingProducts] = useState([]);
+  const [teamOnline, setTeamOnline] = useState([]);
 
   const toastTranslate = useRef(new Animated.Value(-60)).current;
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -132,11 +150,12 @@ export default function Dashboard() {
       if (showLoader) setLoading(true);
       const apiTf = timeframeApiMap[tf] || "daily";
 
-      const [statsRes, sotRes, catRes, topRes] = await Promise.allSettled([
+      const [statsRes, sotRes, catRes, topRes, onlineRes] = await Promise.allSettled([
         transactionAPI.getDashboardStats(apiTf),
         transactionAPI.getSalesOverTime(apiTf),
         transactionAPI.getSalesByCategory(),
         transactionAPI.getTopSelling({ sort: "most", limit: 10, period: apiTf }),
+        employeeAPI.getOnline(),
       ]);
 
       if (statsRes.status === "fulfilled" && statsRes.value?.success) {
@@ -163,6 +182,12 @@ export default function Dashboard() {
 
       if (topRes.status === "fulfilled" && topRes.value?.success) {
         setTopSellingProducts(topRes.value.data || []);
+      }
+
+      if (onlineRes.status === "fulfilled" && onlineRes.value?.success) {
+        setTeamOnline(onlineRes.value.data || []);
+      } else {
+        setTeamOnline([]);
       }
     } catch (err) {
       console.warn("Dashboard fetch error:", err?.message);
@@ -343,6 +368,48 @@ export default function Dashboard() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+
+          {/* Same as web dashboard: GET /employees/online (heartbeat + isOnline; Owner excluded) */}
+          <View style={styles.onlineSection}>
+            <View style={styles.onlineHeader}>
+              <Text style={styles.onlineTitle}>Online now</Text>
+              {teamOnline.length > 0 ? (
+                <View style={styles.onlineCountPill}>
+                  <View style={styles.onlineDot} />
+                  <Text style={styles.onlineCountText}>{teamOnline.length}</Text>
+                </View>
+              ) : null}
+            </View>
+            {teamOnline.length === 0 ? (
+              <Text style={styles.onlineEmpty}>No active employees online right now.</Text>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.onlineScroll}
+              >
+                {teamOnline.map((member) => {
+                  const displayName = member.name || member.firstName || "Member";
+                  const shortName = displayName.split(/\s+/)[0];
+                  const ini = initialsFromName(displayName);
+                  const bg = avatarBgForName(displayName);
+                  return (
+                    <View key={String(member._id || member.id)} style={styles.onlinePerson}>
+                      <View style={styles.onlineAvatarWrap}>
+                        <View style={[styles.onlineAvatar, { backgroundColor: bg }]}>
+                          <Text style={styles.onlineAvatarText}>{ini}</Text>
+                        </View>
+                        <View style={styles.onlineStatusDot} />
+                      </View>
+                      <Text style={styles.onlineName} numberOfLines={1}>
+                        {shortName}
+                      </Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
           </View>
 
           {/* KPI Cards */}
@@ -534,6 +601,68 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: "#1f1f1f" },
   tabText: { fontSize: 13, fontWeight: "600", color: "#6b7280" },
   tabTextActive: { color: "#fff" },
+
+  // Online team
+  onlineSection: {
+    marginBottom: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: "#fafafa",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#f0f0f0",
+  },
+  onlineHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  onlineTitle: { fontSize: 13, fontWeight: "700", color: "#1a1a1a" },
+  onlineCountPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  onlineDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#22c55e",
+    marginRight: 6,
+  },
+  onlineCountText: { fontSize: 12, fontWeight: "700", color: "#374151" },
+  onlineEmpty: { fontSize: 12, color: "#9ca3af", lineHeight: 17 },
+  onlineScroll: { flexDirection: "row", alignItems: "flex-start", paddingRight: 4 },
+  onlinePerson: { alignItems: "center", marginRight: 14, maxWidth: 72 },
+  onlineAvatarWrap: { position: "relative", marginBottom: 4 },
+  onlineAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#fff",
+  },
+  onlineAvatarText: { fontSize: 14, fontWeight: "800", color: "#53321c" },
+  onlineStatusDot: {
+    position: "absolute",
+    right: -1,
+    bottom: -1,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: "#22c55e",
+    borderWidth: 2,
+    borderColor: "#fafafa",
+  },
+  onlineName: { fontSize: 11, fontWeight: "600", color: "#6b7280", textAlign: "center", width: 72 },
 
   // Loading
   loadingBox: { padding: 40, alignItems: "center", justifyContent: "center" },

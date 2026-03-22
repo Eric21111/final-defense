@@ -442,6 +442,33 @@ const addBatch = (batches, addQty, price, costPrice, meta = {}) => {
   return next;
 };
 
+/** Add qty to an existing FIFO batch slot; preserves lot code and pricing on that entry. */
+const addToExistingBatchSlot = (batches, slotIndex, addQty, meta, padPrice, padCost) => {
+  const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+  const S = Math.floor(safeNum(slotIndex, -1));
+  const q = safeNum(addQty, 0);
+  if (S < 0 || q <= 0) return next;
+  while (next.length <= S) {
+    next.push({
+      qty: 0,
+      price: safeNum(padPrice, 0),
+      costPrice: safeNum(padCost, 0),
+      createdAt: nowIso(),
+      batchSlotPadding: true,
+    });
+  }
+  const entry = { ...next[S] };
+  entry.qty = safeNum(entry.qty, 0) + q;
+  if (entry.batchSlotPadding && entry.qty > 0) {
+    delete entry.batchSlotPadding;
+  }
+  if (meta.expirationDate) {
+    entry.expirationDate = String(meta.expirationDate);
+  }
+  next[S] = entry;
+  return next;
+};
+
 /** Zero-qty placeholders so every variant/size in the same stock-in gets the new lot at the same batch index */
 const padBatchesToLengthBeforeAdd = (batches, targetLenBeforePush, price, costPrice) => {
   const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
@@ -488,6 +515,18 @@ exports.stockInProduct = async (req, res) => {
     const batchMeta = {
       batchCode: stockData.batchCode ? String(stockData.batchCode).trim() : "",
       expirationDate: stockData.expirationDate ? String(stockData.expirationDate) : "",
+    };
+
+    const rawTargetSlot = stockData.targetBatchSlotIndex;
+    const parsedTargetSlot = parseInt(rawTargetSlot, 10);
+    const useExistingBatchSlot =
+      rawTargetSlot !== undefined &&
+      rawTargetSlot !== null &&
+      rawTargetSlot !== "" &&
+      Number.isInteger(parsedTargetSlot) &&
+      parsedTargetSlot >= 0;
+    const existingSlotMeta = {
+      expirationDate: batchMeta.expirationDate,
     };
 
     if (!product.sizes || typeof product.sizes !== "object" || Object.keys(product.sizes).length === 0) {
@@ -580,13 +619,25 @@ exports.stockInProduct = async (req, res) => {
             incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
           }
 
+          const padLen = useExistingBatchSlot
+            ? Math.max(maxBatchLenBeforeAdd, parsedTargetSlot + 1)
+            : maxBatchLenBeforeAdd;
           const alignedBatches = padBatchesToLengthBeforeAdd(
             normalizedVariant.batches,
-            maxBatchLenBeforeAdd,
+            padLen,
             incomingPrice,
             incomingCost,
           );
-          const nextBatches = addBatch(alignedBatches, qty, incomingPrice, incomingCost, batchMeta);
+          const nextBatches = useExistingBatchSlot
+            ? addToExistingBatchSlot(
+                alignedBatches,
+                parsedTargetSlot,
+                qty,
+                existingSlotMeta,
+                incomingPrice,
+                incomingCost,
+              )
+            : addBatch(alignedBatches, qty, incomingPrice, incomingCost, batchMeta);
           newVariants[variant] = {
             ...normalizedVariant,
             batches: nextBatches,
@@ -648,13 +699,25 @@ exports.stockInProduct = async (req, res) => {
           incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
         }
 
+        const padLenNoVar = useExistingBatchSlot
+          ? Math.max(maxBatchLenBeforeAddNoVar, parsedTargetSlot + 1)
+          : maxBatchLenBeforeAddNoVar;
         const alignedBatches = padBatchesToLengthBeforeAdd(
           currentSizeData.batches,
-          maxBatchLenBeforeAddNoVar,
+          padLenNoVar,
           incomingPrice,
           incomingCost,
         );
-        const nextBatches = addBatch(alignedBatches, addQty, incomingPrice, incomingCost, batchMeta);
+        const nextBatches = useExistingBatchSlot
+          ? addToExistingBatchSlot(
+              alignedBatches,
+              parsedTargetSlot,
+              addQty,
+              existingSlotMeta,
+              incomingPrice,
+              incomingCost,
+            )
+          : addBatch(alignedBatches, addQty, incomingPrice, incomingCost, batchMeta);
         const nextQty = sumBatchesQty(nextBatches);
         updatedSizes[size] = {
           ...currentSizeData,
