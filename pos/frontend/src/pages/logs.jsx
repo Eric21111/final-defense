@@ -416,7 +416,7 @@ const Logs = () => {
   selectedMovements.some((sm) => sm._id === m._id)
   );
 
-  const movementTableColumnCount = isMovementExportMode ? 8 : 7;
+  const movementTableColumnCount = isMovementExportMode ? 10 : 9;
 
   useEffect(() => {
     if (selectAllMovementsRef.current) {
@@ -656,6 +656,8 @@ const Logs = () => {
                         </svg>
                       </div>
                     </th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>SKU</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Product Name</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Type</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Quantity</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Before</th>
@@ -695,6 +697,10 @@ const Logs = () => {
                           </td>
                   }
                         <td className={`px-4 py-3 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>{formatDateTime(movement.createdAt)}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-mono ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>{movement.sku || '—'}</td>
+                        <td className={`px-4 py-3 text-sm max-w-[220px] ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`} title={movement.itemName || ''}>
+                          <span className="line-clamp-2 break-words">{movement.itemName || '—'}</span>
+                        </td>
                         <td className="px-4 py-3 whitespace-nowrap">{getTypeBadge(movement.type)}</td>
                         <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getQuantityColor(movement.type, movement.quantity)}`}>
                           {movement.type === 'Stock-In' ? '+' : '-'}{movement.quantity}
