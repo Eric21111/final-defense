@@ -231,17 +231,14 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
 
                 <div>
                   <label className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">Status:</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className={`inline-block px-3 py-1 rounded-lg text-xs font-bold border-none focus:ring-2 focus:ring-offset-1 focus:ring-[#AD7F65] cursor-pointer ${status === 'Active' ?
-                    'bg-green-100 text-green-700' :
-                    'bg-red-100 text-red-700'}`
-                    }>
-                    
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
-                  </select>
+                  <span
+                    className={`inline-block px-3 py-1 rounded-lg text-xs font-bold ${
+                      status === "Active"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}>
+                    {status}
+                  </span>
                 </div>
               </div>
             </div>
@@ -251,7 +248,7 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
           <h4 className="text-base font-bold text-gray-800 mb-6">Personal Details</h4>
           <div className="grid grid-cols-2 gap-x-8 gap-y-6 mb-10">
             <div>
-              <label className="text-sm font-medium text-gray-500 mb-1 block">First Name</label>
+              <label className="text-sm font-medium text-gray-500 mb-1 block">First Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="firstName"
@@ -274,7 +271,7 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
                 />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 mb-1 block">Last Name</label>
+              <label className="text-sm font-medium text-gray-500 mb-1 block">Last Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="lastName"
@@ -294,7 +291,7 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
                 placeholder="09123456789" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 mb-1 block">Email</label>
+              <label className="text-sm font-medium text-gray-500 mb-1 block">Email <span className="text-red-500">*</span></label>
               <input
                 type="email"
                 name="email"
@@ -304,7 +301,7 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
                 placeholder="email@example.com" />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-500 mb-1 block">Date Joined</label>
+              <label className="text-sm font-medium text-gray-500 mb-1 block">Date Joined <span className="text-red-500">*</span></label>
               <input
                 type="date"
                 name="dateJoined"
@@ -313,7 +310,7 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
                 className="w-full text-lg font-bold text-gray-800 border-b border-gray-200 focus:border-[#AD7F65] focus:outline-none py-1" />
             </div>
             <div className="col-span-2">
-              <label className="text-sm font-medium text-gray-500 mb-1 block">Position</label>
+              <label className="text-sm font-medium text-gray-500 mb-1 block">Position <span className="text-red-500">*</span></label>
               <div className="text-base font-semibold text-gray-800 flex items-center gap-2">
                 <span>Employee - </span>
                 <select

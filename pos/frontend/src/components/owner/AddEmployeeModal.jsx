@@ -355,14 +355,16 @@ const AddEmployeeModal = ({ isOpen, onClose, onEmployeeAdded, onEmployeeCreated 
               {profilePreview ?
               <>
                   <img src={profilePreview} alt="Preview" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                    <FaCamera className="text-white w-8 h-8" />
+                  <div className="absolute bottom-4 right-4 w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-md border border-gray-200">
+                    <img src={cameraIcon} alt="Camera" className="w-7 h-7 opacity-80" />
                   </div>
                 </> :
 
               <>
                   <img src={circleIcon} alt="Circle background" className="w-full h-full object-cover" />
-                  <img src={cameraIcon} alt="Camera" className="absolute w-16 h-16 opacity-80" />
+                <div className="absolute bottom-4 right-4 w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-md border border-gray-200">
+                  <img src={cameraIcon} alt="Camera" className="w-7 h-7 opacity-80" />
+                </div>
                 </>
               }
               <input
@@ -381,7 +383,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onEmployeeAdded, onEmployeeCreated 
             {}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-sm text-gray-500 mb-1 block">First Name</label>
+                <label className="text-sm text-gray-500 mb-1 block">First Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="firstName"
@@ -405,7 +407,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onEmployeeAdded, onEmployeeCreated 
                 
               </div>
               <div className="col-span-2">
-                <label className="text-sm text-gray-500 mb-1 block">Last Name</label>
+                <label className="text-sm text-gray-500 mb-1 block">Last Name <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="lastName"
@@ -419,7 +421,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onEmployeeAdded, onEmployeeCreated 
 
             {}
             <div>
-              <label className="text-sm text-gray-500 mb-1 block">Email</label>
+              <label className="text-sm text-gray-500 mb-1 block">Email <span className="text-red-500">*</span></label>
               <div className="grid grid-cols-2 gap-4">
                 <input
                   type="email"
@@ -501,7 +503,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onEmployeeAdded, onEmployeeCreated 
                 
               </div>
               <div>
-                <label className="text-sm text-gray-500 mb-1 block">Date Joined</label>
+                <label className="text-sm text-gray-500 mb-1 block">Date Joined <span className="text-red-500">*</span></label>
                 <input
                   type="date"
                   name="dateJoined"
@@ -514,7 +516,7 @@ const AddEmployeeModal = ({ isOpen, onClose, onEmployeeAdded, onEmployeeCreated 
 
             {}
             <div>
-              <label className="text-sm text-gray-500 mb-1 block">Position</label>
+              <label className="text-sm text-gray-500 mb-1 block">Position <span className="text-red-500">*</span></label>
               <select
                 name="role"
                 value={formData.role}
