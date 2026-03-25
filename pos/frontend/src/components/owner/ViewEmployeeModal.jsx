@@ -8,6 +8,7 @@ import {
   FaUndo,
   FaUser } from
 "react-icons/fa";
+import defaultAvatar from "../../assets/default.jpeg";
 
 const ViewEmployeeModal = ({
   isOpen,
@@ -49,9 +50,13 @@ const ViewEmployeeModal = ({
             <div className="shrink-0 relative">
               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg">
                 <img
-                  src={employee.image}
+                  src={employee.image || defaultAvatar}
                   alt={employee.name}
-                  className="w-full h-full object-cover" />
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = defaultAvatar;
+                  }} />
                 
               </div>
             </div>

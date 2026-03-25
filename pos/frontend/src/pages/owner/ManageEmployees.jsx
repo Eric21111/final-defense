@@ -20,6 +20,7 @@ import ViewEmployeeModal from "../../components/owner/ViewEmployeeModal";
 import Header from "../../components/shared/header";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
+import { API_BASE_URL } from "../../config/api";
 
 const ManageEmployees = () => {
   const { theme } = useTheme();
@@ -67,7 +68,7 @@ const ManageEmployees = () => {
 
   const fetchOnlineEmployees = async () => {
     try {
-      const response = await fetch("http://localhost:5000/api/employees/online");
+      const response = await fetch(`${API_BASE_URL}/api/employees/online`);
       const data = await response.json();
 
       if (data?.success && Array.isArray(data?.data)) {
@@ -89,7 +90,7 @@ const ManageEmployees = () => {
   const fetchEmployees = async (showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
-      const response = await fetch("http://localhost:5000/api/employees");
+      const response = await fetch(`${API_BASE_URL}/api/employees`);
       const data = await response.json();
 
       if (data.success) {
@@ -97,7 +98,7 @@ const ManageEmployees = () => {
         const timestamp = new Date().getTime();
         const employeesWithImages = data.data.map((emp) => ({
           ...emp,
-          image: `http://localhost:5000/api/employees/${emp._id}/image?t=${timestamp}`,
+          image: `${API_BASE_URL}/api/employees/${emp._id}/image?t=${timestamp}`,
           id: emp._id,
           contactNumber: emp.contactNo || emp.contactNumber || ''
         }));
