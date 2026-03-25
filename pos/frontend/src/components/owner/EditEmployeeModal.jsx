@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { FaCamera, FaTimes, FaUserEdit } from 'react-icons/fa';
 import defaultAvatar from '../../assets/default.jpeg';
+import { API_BASE_URL } from '../../config/api';
 
 const buildEmployeeName = (firstName, middleInitial, lastName) => {
   const parts = [firstName, middleInitial, lastName]
@@ -53,7 +54,8 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
         generateReports: employee.permissions?.generateReports ?? false
       });
 
-      setProfilePreview(employee._id ? `http://localhost:5000/api/employees/${employee._id}/image?t=${new Date().getTime()}` : defaultAvatar);
+      // Use API base URL and avoid cache-busting on every open (faster + less network load).
+      setProfilePreview(employee._id ? `${API_BASE_URL}/api/employees/${employee._id}/image` : defaultAvatar);
       setMessage('');
       setError('');
     }
@@ -119,7 +121,7 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
         payload.profileImage = profilePreview;
       }
 
-      const response = await fetch(`http://localhost:5000/api/employees/${employee._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/employees/${employee._id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -172,9 +174,13 @@ const EditEmployeeProfile = ({ isOpen, onClose, employee, onEmployeeUpdated }) =
             <div className="shrink-0 relative group cursor-pointer" onClick={handlePhotoClick}>
               <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg relative">
                 <img
-                  src={profilePreview}
+                  src={profilePreview || defaultAvatar}
                   alt={employeeDisplayName}
-                  className="w-full h-full object-cover transition-opacity group-hover:opacity-75" />
+                  className="w-full h-full object-cover transition-opacity group-hover:opacity-75"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    setProfilePreview(defaultAvatar);
+                  }} />
                 
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
                   <FaCamera className="text-white w-8 h-8" />
