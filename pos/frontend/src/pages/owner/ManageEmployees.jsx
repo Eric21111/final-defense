@@ -19,9 +19,11 @@ import TemporaryPinModal from "../../components/owner/TemporaryPinModal";
 import ViewEmployeeModal from "../../components/owner/ViewEmployeeModal";
 import Header from "../../components/shared/header";
 import { useTheme } from "../../context/ThemeContext";
+import { useAuth } from "../../context/AuthContext";
 
 const ManageEmployees = () => {
   const { theme } = useTheme();
+  const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [filterStatus, setFilterStatus] = useState("All");
@@ -410,11 +412,13 @@ const ManageEmployees = () => {
                 
                   </div>
                   <div
-                className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white ${
+                className={`absolute bottom-1 right-1 w-4 h-4 rounded-full border-2 border-white ${
                   employee.status !== "Active"
                     ? "bg-gray-400"
                     : employee.role === "Owner"
                       ? employee.isOnline
+                        || (currentUser?.role === "Owner" &&
+                          (employee.id === currentUser?._id || employee._id === currentUser?._id))
                         ? "bg-green-500"
                         : "bg-red-500"
                       : onlineEmployeeIds.has(employee.id)
