@@ -1172,14 +1172,14 @@ const AddProductModal = ({
                       const hasOpeningStock = openingStockTotal > 0;
                       return (
                         <>
-                          <div>
+                            <div>
                             <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Initial stock batch</label>
                             <p className={`text-[10px] mb-3 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
                               {hasOpeningStock
                                 ? "Batch 1 for this opening stock (same code style as Stock In). Add more lots via Stock In."
                                 : "No batch until you receive stock — use Stock In."}
                             </p>
-                          </div>
+                            </div>
 
                           {hasOpeningStock ? (
                             <div>

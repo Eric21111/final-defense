@@ -842,7 +842,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
             <h2
               className={`text-xl font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
 
-              Stock In
+              {product?.itemName || "Stock In"}
             </h2>
           </div>
           <button

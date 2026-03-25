@@ -657,7 +657,7 @@ const Logs = () => {
                       </div>
                     </th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>SKU</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Product Name</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Product name</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Type</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Quantity</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Before</th>
@@ -697,9 +697,9 @@ const Logs = () => {
                           </td>
                   }
                         <td className={`px-4 py-3 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>{formatDateTime(movement.createdAt)}</td>
-                        <td className={`px-4 py-3 whitespace-nowrap text-sm font-mono ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>{movement.sku || '—'}</td>
-                        <td className={`px-4 py-3 text-sm max-w-[220px] ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`} title={movement.itemName || ''}>
-                          <span className="line-clamp-2 break-words">{movement.itemName || '—'}</span>
+                        <td className={`px-4 py-3 text-sm font-mono max-w-[140px] truncate ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`} title={movement.sku || ''}>{movement.sku || '—'}</td>
+                        <td className={`px-4 py-3 text-sm max-w-[220px] ${theme === 'dark' ? 'text-gray-200' : 'text-gray-900'}`}>
+                          <span className="line-clamp-2" title={movement.itemName || ''}>{movement.itemName || '—'}</span>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">{getTypeBadge(movement.type)}</td>
                         <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getQuantityColor(movement.type, movement.quantity)}`}>

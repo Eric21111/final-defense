@@ -19,6 +19,7 @@ import TemporaryPinModal from "../../components/owner/TemporaryPinModal";
 import ViewEmployeeModal from "../../components/owner/ViewEmployeeModal";
 import Header from "../../components/shared/header";
 import { useTheme } from "../../context/ThemeContext";
+import { API_ENDPOINTS } from "../../config/api";
 
 const ManageEmployees = () => {
   const { theme } = useTheme();
@@ -58,6 +59,7 @@ const ManageEmployees = () => {
   }, [openDropdown]);
 
   const [employees, setEmployees] = useState([]);
+  const [onlineEmployeeIdSet, setOnlineEmployeeIdSet] = useState(new Set());
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 12;
 
@@ -91,6 +93,24 @@ const ManageEmployees = () => {
 
   useEffect(() => {
     fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    const fetchOnlineEmployees = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.employeesOnline);
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.data)) {
+          const ids = data.data.map((emp) => emp._id || emp.id).filter(Boolean);
+          setOnlineEmployeeIdSet(new Set(ids));
+        }
+      } catch (error) {
+        console.error("Error fetching online employees:", error);
+      }
+    };
+
+    fetchOnlineEmployees();
   }, []);
 
   const filteredEmployees = employees.filter((employee) => {
@@ -363,10 +383,14 @@ const ManageEmployees = () => {
           </div> :
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-4">
-            {paginatedEmployees.map((employee) =>
+            {paginatedEmployees.map((employee) => {
+              const isInactive = employee.status !== "Active";
+              const isOnline = !isInactive && onlineEmployeeIdSet.has(employee.id || employee._id);
+
+              return (
           <div
             key={employee.id}
-            className={`rounded-xl shadow-md p-4 flex gap-4 items-center relative transition-all ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}`}>
+            className={`rounded-xl shadow-md p-4 flex gap-4 items-center relative transition-all ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"} ${isInactive ? "opacity-50 grayscale" : ""}`}>
             
                 {}
                 <div className="relative shrink-0">
@@ -382,10 +406,10 @@ const ManageEmployees = () => {
                 
                   </div>
                   <div
-                className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white ${employee.status === "Active" ?
-                "bg-green-500" :
-                "bg-red-500"}`
-                }>
+                className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-white ${isOnline ? "bg-green-500" : "bg-gray-400"}`
+                }
+                title={isInactive ? "Archived/Disabled" : isOnline ? "Online" : "Offline"}
+                >
               </div>
                 </div>
 
@@ -509,8 +533,9 @@ const ManageEmployees = () => {
                     </div>
               }
                 </div>
-              </div>
-          )}
+          </div>
+          );
+            })}
           </div>
         }
 

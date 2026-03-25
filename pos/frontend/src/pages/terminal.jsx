@@ -1869,8 +1869,8 @@ const Terminal = () => {
                       theme === "dark" ? "bg-[#2A2724]" : "bg-white"
                     }`
                     : theme === "dark"
-                      ? "bg-[#2A2724] text-gray-300 border border-gray-700 hover:border-[#AD7F65]"
-                      : "bg-white text-gray-800 border border-gray-200 hover:border-[#AD7F65]"
+                      ? "bg-[#2A2724] text-gray-300 border border-gray-700 hover:border-gray"
+                      : "bg-white text-gray-800 border border-gray-200 hover:border-gray"
                 }`}
                 title={cat.name}>
 
