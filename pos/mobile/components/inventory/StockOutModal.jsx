@@ -1,25 +1,26 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Picker } from "@react-native-picker/picker";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
+const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
+
 const StockOutModal = ({ visible, onClose, product, onConfirm, loading }) => {
-  const [selectedSizes, setSelectedSizes] = useState([]);
-  const [sizeQuantities, setSizeQuantities] = useState({});
-  const [variantQuantities, setVariantQuantities] = useState({}); // { "S": { "Blue": 5, "White": 3 } }
+  const [selectedBatch, setSelectedBatch] = useState("");
+  const [selectedCombos, setSelectedCombos] = useState([]);
+  const [comboQuantities, setComboQuantities] = useState({});
   const [quantity, setQuantity] = useState("");
-  const [reason, setReason] = useState("Sold");
+  const [reason, setReason] = useState("");
   const [otherReason, setOtherReason] = useState("");
 
   const reasons = [
@@ -32,497 +33,432 @@ const StockOutModal = ({ visible, onClose, product, onConfirm, loading }) => {
     "Other",
   ];
 
+  const displayName = product?.itemName || product?.name || "";
+
   const hasSizes =
     product?.sizes &&
     typeof product.sizes === "object" &&
     Object.keys(product.sizes).length > 0;
 
-  // Helper to get quantity from size data
-  const getSizeQuantity = (sizeData) => {
-    if (
-      typeof sizeData === "object" &&
-      sizeData !== null &&
-      sizeData.quantity !== undefined
-    ) {
-      return sizeData.quantity;
-    }
-    return typeof sizeData === "number" ? sizeData : 0;
-  };
+  const hasVariants = useMemo(() => {
+    if (!hasSizes) return false;
+    return Object.values(product.sizes).some(
+      (sd) =>
+        typeof sd === "object" &&
+        sd?.variants &&
+        Object.keys(sd.variants).length > 0,
+    );
+  }, [product, hasSizes]);
 
-  // Helper to check if a size has variants
-  const getSizeVariants = (size) => {
-    if (
-      hasSizes &&
-      product.sizes[size] &&
-      typeof product.sizes[size] === "object" &&
-      product.sizes[size].variants
-    ) {
-      return product.sizes[size].variants;
-    }
-    return null;
-  };
+  const batchList = useMemo(() => {
+    if (!hasSizes || !hasVariants) return [];
 
-  // Get all unique variants from the product
-  const getAllVariants = () => {
-    const variantSet = new Set();
-    if (hasSizes) {
-      Object.values(product.sizes).forEach((sizeData) => {
-        if (typeof sizeData === "object" && sizeData?.variants) {
-          Object.keys(sizeData.variants).forEach((v) => variantSet.add(v));
+    const getVariantQty = (vData) => {
+      if (typeof vData === "number") return parseInt(vData, 10) || 0;
+      if (vData && typeof vData === "object") {
+        const qty = vData.qty ?? vData.quantity ?? 0;
+        return parseInt(qty, 10) || 0;
+      }
+      return 0;
+    };
+
+    const maxBatchDepth = (() => {
+      let max = 0;
+      Object.entries(product.sizes).forEach(([_, sd]) => {
+        if (!sd || typeof sd !== "object" || !sd?.variants) return;
+        Object.values(sd.variants).forEach((vData) => {
+          const batches =
+            typeof vData === "object" && Array.isArray(vData.batches)
+              ? vData.batches
+              : [];
+          max = Math.max(max, batches.length);
+        });
+      });
+      return max;
+    })();
+
+    if (maxBatchDepth <= 0) {
+      const openingBatchCode =
+        product?.batchNumber || product?.openingBatchNumber || "B1";
+      const combos = {};
+      Object.entries(product.sizes).forEach(([size, sd]) => {
+        if (!sd || typeof sd !== "object" || !sd?.variants) return;
+        Object.entries(sd.variants).forEach(([variant, vData]) => {
+          const qty = getVariantQty(vData);
+          if (qty > 0) combos[`${size}|${variant}`] = { size, variant, qty };
+        });
+      });
+      const comboArr = Object.values(combos);
+      const totalQty = comboArr.reduce((sum, c) => sum + (c.qty || 0), 0);
+      if (totalQty <= 0) return [];
+      return [{ slotIndex: 0, code: openingBatchCode, totalQty, combos }];
+    }
+
+    const slots = Array.from({ length: maxBatchDepth }, (_, slotIndex) => ({
+      slotIndex,
+      code: "",
+      totalQty: 0,
+      combos: {},
+    }));
+
+    Object.entries(product.sizes).forEach(([size, sd]) => {
+      if (!sd || typeof sd !== "object" || !sd?.variants) return;
+      Object.entries(sd.variants).forEach(([variant, vData]) => {
+        const batches =
+          typeof vData === "object" && Array.isArray(vData.batches)
+            ? vData.batches
+            : [];
+        const fallbackQty = (slotIndexForFallback) =>
+          slotIndexForFallback === 0 ? getVariantQty(vData) : 0;
+
+        for (let slotIndex = 0; slotIndex < maxBatchDepth; slotIndex++) {
+          const b = batches[slotIndex];
+          const qty = b ? parseInt(b.qty, 10) || 0 : fallbackQty(slotIndex);
+          if (qty <= 0) continue;
+
+          const slot = slots[slotIndex];
+          const key = `${size}|${variant}`;
+          if (!slot.combos[key]) slot.combos[key] = { size, variant, qty: 0 };
+          slot.combos[key].qty += qty;
+          slot.totalQty += qty;
+
+          if (!slot.code) {
+            slot.code =
+              b?.batchCode ||
+              (slotIndex === 0
+                ? product?.batchNumber || product?.openingBatchNumber || "B1"
+                : "");
+          }
         }
       });
-    }
-    return Array.from(variantSet);
-  };
+    });
 
-  const allVariants = hasSizes ? getAllVariants() : [];
-  const hasVariants = allVariants.length > 0;
+    return slots.filter((s) => s.totalQty > 0);
+  }, [product, hasSizes, hasVariants]);
 
-  const availableSizes = hasSizes
-    ? Object.keys(product.sizes).filter(
-        (size) => getSizeQuantity(product.sizes[size]) > 0,
-      )
-    : [];
-
-  // Get current variant quantity for a size
-  const getVariantCurrentQty = (size, variant) => {
-    const variants = getSizeVariants(size);
-    if (variants && variants[variant]) {
-      return variants[variant].quantity || 0;
-    }
-    return 0;
-  };
+  const batchCombos = useMemo(() => {
+    if (!selectedBatch) return [];
+    const slot = batchList.find((b) => String(b.slotIndex) === selectedBatch);
+    if (!slot) return [];
+    return Object.values(slot.combos).filter((c) => c.qty > 0);
+  }, [selectedBatch, batchList]);
 
   useEffect(() => {
     if (visible && product) {
-      setSelectedSizes([]);
-      setSizeQuantities({});
-      setVariantQuantities({});
+      setSelectedBatch("");
+      setSelectedCombos([]);
+      setComboQuantities({});
       setQuantity("");
-      setReason("Sold");
+      setReason("");
       setOtherReason("");
     }
-  }, [visible, product]);
+  }, [visible, product?._id, product?.id]);
 
   if (!visible || !product) return null;
 
-  const toggleSize = (size) => {
-    if (selectedSizes.includes(size)) {
-      setSelectedSizes((prev) => prev.filter((s) => s !== size));
-      const newQuantities = { ...sizeQuantities };
-      delete newQuantities[size];
-      setSizeQuantities(newQuantities);
-      const newVariantQtys = { ...variantQuantities };
-      delete newVariantQtys[size];
-      setVariantQuantities(newVariantQtys);
+  const handleClose = () => {
+    setSelectedBatch("");
+    setSelectedCombos([]);
+    setComboQuantities({});
+    setQuantity("");
+    setReason("");
+    setOtherReason("");
+    onClose();
+  };
+
+  const comboKey = (size, variant) => `${size}|${variant}`;
+
+  const toggleCombo = (size, variant) => {
+    const key = comboKey(size, variant);
+    const isSelected = selectedCombos.includes(key);
+    if (isSelected) {
+      setSelectedCombos((prev) => prev.filter((k) => k !== key));
+      setComboQuantities((prev) => {
+        const n = { ...prev };
+        delete n[key];
+        return n;
+      });
     } else {
-      setSelectedSizes((prev) => [...prev, size]);
-      setSizeQuantities((prev) => ({ ...prev, [size]: "" }));
-      if (hasVariants) {
-        setVariantQuantities((prev) => ({ ...prev, [size]: {} }));
-      }
+      setSelectedCombos((prev) => [...prev, key]);
     }
   };
 
-  const handleQuantityChange = (size, qty) => {
-    const numericQty = qty.replace(/[^0-9]/g, "");
-    setSizeQuantities((prev) => ({
-      ...prev,
-      [size]: numericQty ? parseInt(numericQty) : "",
-    }));
+  const handleQtyChange = (key, val) => {
+    setComboQuantities((prev) => ({ ...prev, [key]: val }));
   };
 
-  const handleVariantQuantityChange = (size, variant, qty) => {
-    const numericQty = qty.replace(/[^0-9]/g, "");
-    setVariantQuantities((prev) => ({
-      ...prev,
-      [size]: {
-        ...(prev[size] || {}),
-        [variant]: numericQty ? parseInt(numericQty) : "",
-      },
-    }));
+  const isValid = () => {
+    if (!reason) return false;
+    if (reason === "Other" && !otherReason.trim()) return false;
+    if (!hasSizes) return (parseInt(quantity, 10) || 0) > 0;
+    if (hasVariants) {
+      if (!selectedBatch) return false;
+      return selectedCombos.some((key) => (comboQuantities[key] || 0) > 0);
+    }
+    return (parseInt(quantity, 10) || 0) > 0;
   };
 
   const handleSubmit = () => {
-    if (reason === "Other" && !otherReason.trim()) {
-      Alert.alert("Error", "Please specify the reason");
-      return;
-    }
-
     const finalReason =
       reason === "Other" ? `Other: ${otherReason.trim()}` : reason;
 
-    if (!hasSizes) {
-      // Product without sizes - simple quantity
-      const qty = parseInt(quantity) || 0;
-      if (qty <= 0) {
-        Alert.alert("Error", "Please enter a valid quantity");
-        return;
-      }
+    if (!hasSizes || !hasVariants) {
+      const qty = parseInt(quantity, 10) || 0;
       if (qty > (product.currentStock || 0)) {
         Alert.alert(
-          "Error",
+          "Cannot remove stock",
           `Cannot remove more than available stock (${product.currentStock || 0})`,
         );
         return;
       }
-      onConfirm({
-        quantity: qty,
-        noSizes: true,
-        reason: finalReason,
-      });
+      onConfirm({ quantity: qty, noSizes: true, reason: finalReason });
       return;
     }
 
-    // Product with sizes
-    if (selectedSizes.length === 0) {
-      Alert.alert("Error", "Please select at least one size");
-      return;
-    }
+    const variantQuantities = {};
+    const selectedSizesSet = new Set();
+    const overLimitItems = [];
 
-    // Check if product has variants - validate variant quantities
-    if (hasVariants) {
-      const hasValidVariantQuantities = selectedSizes.some((size) => {
-        const sizeVariantQtys = variantQuantities[size] || {};
-        return Object.values(sizeVariantQtys).some((qty) => qty > 0);
-      });
-
-      if (!hasValidVariantQuantities) {
-        Alert.alert("Error", "Please enter quantities for at least one variant");
-        return;
-      }
-
-      // Validate variant quantities don't exceed available stock
-      const invalidVariants = [];
-      selectedSizes.forEach((size) => {
-        const sizeVariantQtys = variantQuantities[size] || {};
-        Object.entries(sizeVariantQtys).forEach(([variant, qty]) => {
-          if (qty > 0) {
-            const availableQty = getVariantCurrentQty(size, variant);
-            if (qty > availableQty) {
-              invalidVariants.push(`${size} - ${variant} (max: ${availableQty})`);
-            }
-          }
-        });
-      });
-
-      if (invalidVariants.length > 0) {
-        Alert.alert(
-          "Error",
-          `Cannot remove more than available stock for:\n${invalidVariants.join("\n")}`,
+    selectedCombos.forEach((key) => {
+      const qty = parseInt(comboQuantities[key], 10) || 0;
+      if (qty <= 0) return;
+      const [size, variant] = key.split("|");
+      const combo = batchCombos.find(
+        (c) => c.size === size && c.variant === variant,
+      );
+      if (combo && qty > combo.qty) {
+        overLimitItems.push(
+          `${variant}${
+            size !== VARIANT_ONLY_SIZE_KEY ? ` × ${size}` : ""
+          } (max: ${combo.qty})`,
         );
-        return;
       }
-
-      onConfirm({
-        sizes: sizeQuantities,
-        variantQuantities: variantQuantities,
-        selectedSizes: selectedSizes,
-        reason: finalReason,
-        hasVariants: true,
-      });
-      return;
-    }
-
-    // Product with sizes but no variants
-    const hasValidQuantities = selectedSizes.some((size) => {
-      const qty = sizeQuantities[size];
-      return typeof qty === "number" && qty > 0;
+      if (!variantQuantities[size]) variantQuantities[size] = {};
+      variantQuantities[size][variant] = qty;
+      selectedSizesSet.add(size);
     });
 
-    if (!hasValidQuantities) {
+    if (overLimitItems.length > 0) {
       Alert.alert(
-        "Error",
-        "Please enter quantities for at least one selected size",
+        "Cannot remove stock",
+        `Cannot remove more than available stock for:\n${overLimitItems.join("\n")}`,
       );
       return;
     }
-
-    const invalidSizes = selectedSizes.filter((size) => {
-      const requestedQty = sizeQuantities[size] || 0;
-      const availableQty =
-        product.sizes && product.sizes[size]
-          ? getSizeQuantity(product.sizes[size])
-          : 0;
-      return requestedQty > availableQty;
-    });
-
-    if (invalidSizes.length > 0) {
-      Alert.alert(
-        "Error",
-        `Cannot remove more than available stock for: ${invalidSizes.join(", ")}`,
-      );
-      return;
-    }
-
-    const finalQuantities = {};
-    selectedSizes.forEach((size) => {
-      if (sizeQuantities[size]) {
-        finalQuantities[size] = parseInt(sizeQuantities[size]);
-      }
-    });
 
     onConfirm({
-      sizes: finalQuantities,
-      selectedSizes: selectedSizes,
+      sizes: {},
+      variantQuantities,
+      selectedSizes: Array.from(selectedSizesSet),
       reason: finalReason,
+      hasVariants: true,
     });
   };
 
   return (
     <Modal
       visible={visible}
-      transparent={true}
+      transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <View style={styles.headerTitleContainer}>
-              <View
-                style={[styles.iconContainer, { backgroundColor: "#e74c3c" }]}
-              >
-                <Ionicons name="remove" size={20} color="#fff" />
+      <View style={styles.overlay}>
+        <View style={styles.card}>
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <View style={styles.headerIconWrap}>
+                <Ionicons name="cube-outline" size={18} color="#111" />
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>−</Text>
+                </View>
               </View>
-              <Text style={styles.modalTitle}>Stock Out</Text>
+              <Text style={styles.title}>Stock Out</Text>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="#666" />
+            <TouchableOpacity onPress={handleClose} hitSlop={12}>
+              <Text style={styles.close}>×</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView
-            style={styles.modalContent}
+            style={styles.body}
+            keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* Product Info */}
-            <View style={styles.productInfo}>
-              {product.itemImage ? (
-                <Image
-                  source={{ uri: product.itemImage }}
-                  style={styles.productImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={[styles.productImage, styles.placeholderImage]}>
-                  <Ionicons name="image-outline" size={40} color="#ccc" />
+            <View style={styles.row2}>
+              <View style={styles.col}>
+                <Text style={styles.label}>
+                  PRODUCT NAME <Text style={styles.req}>*</Text>
+                </Text>
+                <Text style={styles.productName}>{displayName}</Text>
+              </View>
+              {hasVariants && batchList.length > 0 && (
+                <View style={styles.col}>
+                  <Text style={styles.label}>
+                    BATCH NUMBER <Text style={styles.req}>*</Text>
+                  </Text>
+                  <View style={styles.pickerWrap}>
+                    <Picker
+                      selectedValue={selectedBatch}
+                      onValueChange={(v) => {
+                        setSelectedBatch(v);
+                        setSelectedCombos([]);
+                        setComboQuantities({});
+                      }}
+                    >
+                      <Picker.Item label="Select Batch" value="" color="#9CA3AF" />
+                      {batchList.map((b) => (
+                        <Picker.Item
+                          key={b.slotIndex}
+                          label={`Batch ${b.slotIndex + 1}${b.code ? ` (${b.code})` : ""} (${b.totalQty})`}
+                          value={String(b.slotIndex)}
+                        />
+                      ))}
+                    </Picker>
+                  </View>
                 </View>
               )}
-              <View style={styles.productDetails}>
-                <Text style={styles.productName}>{product.name}</Text>
-                <Text style={styles.productSku}>SKU: {product.sku || "-"}</Text>
-                <Text style={styles.productBrand}>
-                  {product.brand || "No Brand"}
-                </Text>
-              </View>
             </View>
 
-            {/* Sizes Selection or Simple Quantity */}
-            {hasSizes ? (
-              <>
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>
-                    Select Sizes to Remove
-                  </Text>
-                  {availableSizes.length > 0 ? (
-                    <View style={styles.sizesGrid}>
-                      {availableSizes.map((size) => {
-                        const currentQty =
-                          product.sizes && product.sizes[size]
-                            ? getSizeQuantity(product.sizes[size])
-                            : 0;
-                        const isSelected = selectedSizes.includes(size);
-
-                        return (
-                          <TouchableOpacity
-                            key={size}
-                            style={[
-                              styles.sizeChip,
-                              isSelected && styles.sizeChipSelected,
-                            ]}
-                            onPress={() => toggleSize(size)}
-                          >
-                            <Text
-                              style={[
-                                styles.sizeChipText,
-                                isSelected && styles.sizeChipTextSelected,
-                              ]}
-                            >
-                              {size}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.sizeChipStock,
-                                isSelected && styles.sizeChipTextSelected,
-                              ]}
-                            >
-                              ({currentQty})
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  ) : (
-                    <Text style={styles.noStockText}>
-                      No sizes available with stock.
-                    </Text>
-                  )}
+            {hasVariants && selectedBatch && batchCombos.length > 0 && (
+              <View style={styles.chipSection}>
+                <Text style={styles.chipSectionTitle}>
+                  SELECT VARIANTS TO REMOVE
+                </Text>
+                <View style={styles.chipRow}>
+                  {batchCombos.map((c) => {
+                    const key = comboKey(c.size, c.variant);
+                    const isSel = selectedCombos.includes(key);
+                    const label =
+                      c.size !== VARIANT_ONLY_SIZE_KEY
+                        ? `${c.variant} x ${c.size}`
+                        : c.variant;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[styles.chip, isSel && styles.chipSel]}
+                        onPress={() => toggleCombo(c.size, c.variant)}
+                      >
+                        <Text style={[styles.chipTxt, isSel && styles.chipTxtSel]}>
+                          {label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
+              </View>
+            )}
 
-                {selectedSizes.length > 0 && (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>
-                      {hasVariants ? "Quantity per Variant" : "Quantity to Remove"}
-                    </Text>
-                    {selectedSizes.map((size) => {
-                      const maxQty =
-                        product.sizes && product.sizes[size]
-                          ? getSizeQuantity(product.sizes[size])
-                          : 0;
-                      const sizeVariants = getSizeVariants(size);
-
-                      // If product has variants, show variant inputs
-                      if (hasVariants && sizeVariants) {
-                        return (
-                          <View key={size} style={styles.variantSizeContainer}>
-                            <Text style={styles.variantSizeTitle}>
-                              {size} <Text style={styles.variantSizeStock}>(Total: {maxQty})</Text>
-                            </Text>
-                            <View style={styles.variantGrid}>
-                              {Object.keys(sizeVariants).map((variant) => {
-                                const currentVariantQty = getVariantCurrentQty(size, variant);
-                                const requestedQty = variantQuantities[size]?.[variant] || 0;
-                                const isError = requestedQty > currentVariantQty;
-                                return (
-                                  <View key={`${size}-${variant}`} style={styles.variantInputContainer}>
-                                    <Text style={styles.variantLabel}>
-                                      {variant}{" "}
-                                      <Text style={styles.variantStock}>({currentVariantQty})</Text>
-                                    </Text>
-                                    <TextInput
-                                      style={[
-                                        styles.variantInput,
-                                        isError && styles.inputError,
-                                      ]}
-                                      value={variantQuantities[size]?.[variant]?.toString() || ""}
-                                      onChangeText={(text) =>
-                                        handleVariantQuantityChange(size, variant, text)
-                                      }
-                                      placeholder="0"
-                                      keyboardType="numeric"
-                                    />
-                                    {isError && (
-                                      <Text style={styles.variantErrorText}>
-                                        Max: {currentVariantQty}
-                                      </Text>
-                                    )}
-                                  </View>
-                                );
-                              })}
-                            </View>
-                          </View>
-                        );
-                      }
-
-                      // No variants - show simple quantity input
-                      const enteredQty = sizeQuantities[size];
-                      const isError = enteredQty > maxQty;
-
-                      return (
-                        <View key={size} style={styles.quantityRowContainer}>
-                          <View style={styles.quantityRow}>
-                            <Text style={styles.quantityLabel}>{size}</Text>
-                            <TextInput
-                              style={[
-                                styles.quantityInput,
-                                isError && styles.inputError,
-                              ]}
-                              value={sizeQuantities[size]?.toString() || ""}
-                              onChangeText={(text) =>
-                                handleQuantityChange(size, text)
-                              }
-                              placeholder="0"
-                              keyboardType="numeric"
-                            />
-                          </View>
-                          {isError && (
-                            <Text style={styles.errorText}>
-                              Cannot exceed {maxQty}
-                            </Text>
+            {hasVariants && selectedCombos.length > 0 && (
+              <View style={styles.tableWrap}>
+                <View style={styles.tableHead}>
+                  <Text style={[styles.th, { flex: 1.4 }]}>VARIANT</Text>
+                  <Text style={[styles.th, { flex: 0.5, textAlign: "center" }]}>
+                    STOCK
+                  </Text>
+                  <Text style={[styles.th, { flex: 0.55, textAlign: "center" }]}>
+                    QTY OUT
+                  </Text>
+                </View>
+                <ScrollView style={styles.tableBody} nestedScrollEnabled>
+                  {selectedCombos.map((key) => {
+                    const combo = batchCombos.find(
+                      (c) => comboKey(c.size, c.variant) === key,
+                    );
+                    if (!combo) return null;
+                    const [size, variant] = key.split("|");
+                    const maxQty = combo.qty;
+                    const val = comboQuantities[key] || "";
+                    return (
+                      <View key={key} style={styles.tr}>
+                        <View style={[styles.td, { flex: 1.4, flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4 }]}>
+                          {size !== VARIANT_ONLY_SIZE_KEY && (
+                            <Text style={styles.badgeSize}>{size}</Text>
                           )}
+                          {size !== VARIANT_ONLY_SIZE_KEY && (
+                            <Text style={styles.mul}>×</Text>
+                          )}
+                          <Text style={styles.badgeVar}>{variant}</Text>
                         </View>
-                      );
-                    })}
-                  </View>
-                )}
-              </>
-            ) : (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Quantity to Remove</Text>
-                <Text style={styles.currentStockText}>
+                        <Text style={[styles.td, { flex: 0.5, textAlign: "center" }]}>
+                          {maxQty}
+                        </Text>
+                        <View style={[styles.td, { flex: 0.55 }]}>
+                          <TextInput
+                            style={styles.qtyIn}
+                            keyboardType="number-pad"
+                            value={val}
+                            onChangeText={(t) => handleQtyChange(key, t)}
+                            placeholder="0"
+                            placeholderTextColor="#9CA3AF"
+                          />
+                        </View>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {!hasVariants && (
+              <View style={styles.block}>
+                <Text style={styles.label}>QUANTITY TO REMOVE</Text>
+                <Text style={styles.hint}>
                   Current Stock: {product.currentStock || 0}
                 </Text>
                 <TextInput
                   style={styles.input}
+                  keyboardType="number-pad"
                   value={quantity}
-                  onChangeText={(text) =>
-                    setQuantity(text.replace(/[^0-9]/g, ""))
-                  }
-                  placeholder="Enter quantity to remove"
-                  keyboardType="numeric"
+                  onChangeText={setQuantity}
+                  placeholder="Enter quantity"
+                  placeholderTextColor="#9CA3AF"
                 />
-                {parseInt(quantity) > (product.currentStock || 0) && (
-                  <Text style={styles.errorText}>
-                    Cannot exceed current stock ({product.currentStock || 0})
-                  </Text>
-                )}
               </View>
             )}
 
-            {/* Reason */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Reason</Text>
-              <View style={styles.pickerContainer}>
+            <View style={styles.block}>
+              <Text style={styles.label}>
+                REASON <Text style={styles.req}>*</Text>
+              </Text>
+              <View style={styles.pickerWrap}>
                 <Picker
                   selectedValue={reason}
-                  onValueChange={(itemValue) => setReason(itemValue)}
+                  onValueChange={(v) => {
+                    setReason(v);
+                    if (v !== "Other") setOtherReason("");
+                  }}
                 >
+                  <Picker.Item label="EG. Damaged" value="" color="#9CA3AF" />
                   {reasons.map((r) => (
                     <Picker.Item key={r} label={r} value={r} />
                   ))}
                 </Picker>
               </View>
-
               {reason === "Other" && (
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, { marginTop: 8 }]}
                   value={otherReason}
                   onChangeText={setOtherReason}
-                  placeholder="Specify reason"
+                  placeholder="Please specify the reason"
+                  placeholderTextColor="#9CA3AF"
                 />
               )}
             </View>
           </ScrollView>
 
-          <View style={styles.modalFooter}>
-            <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
-              onPress={onClose}
-              disabled={loading}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.btnCancel} onPress={handleClose}>
+              <Text style={styles.btnCancelTxt}>Cancel</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
-              style={[styles.button, styles.confirmButton]}
+              style={[styles.btnGo, (!isValid() || loading) && styles.btnDisabled]}
+              disabled={loading || !isValid()}
               onPress={handleSubmit}
-              disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.confirmButtonText}>Remove Stocks</Text>
+                <Text style={styles.btnGoTxt}>Remove</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -533,271 +469,209 @@ const StockOutModal = ({ visible, onClose, product, onConfirm, loading }) => {
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.45)",
     justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
+    padding: 14,
   },
-  modalContainer: {
-    width: "100%",
-    maxWidth: 600,
-    maxHeight: "90%",
+  card: {
     backgroundColor: "#fff",
     borderRadius: 16,
+    maxHeight: "88%",
     overflow: "hidden",
-    elevation: 5,
+    elevation: 8,
   },
-  modalHeader: {
+  header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
   },
-  headerTitleContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  iconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  headerIconWrap: {
+    width: 28,
+    height: 28,
     justifyContent: "center",
     alignItems: "center",
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  closeButton: {
-    padding: 4,
-  },
-  modalContent: {
-    padding: 20,
-  },
-  productInfo: {
-    flexDirection: "row",
+  headerBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#ef4444",
+    borderWidth: 2,
+    borderColor: "#fff",
     alignItems: "center",
-    marginBottom: 24,
-    backgroundColor: "#f9f9f9",
-    padding: 12,
-    borderRadius: 12,
-  },
-  productImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  placeholderImage: {
     justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#eee",
   },
-  productDetails: {
-    marginLeft: 16,
-    flex: 1,
-  },
-  productName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: 4,
-  },
-  productSku: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 2,
-  },
-  productBrand: {
-    fontSize: 14,
-    color: "#888",
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 12,
-  },
-  sizesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  sizeChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "#fff",
-    minWidth: 70,
-    alignItems: "center",
-  },
-  sizeChipSelected: {
-    backgroundColor: "#e74c3c",
-    borderColor: "#e74c3c",
-  },
-  sizeChipText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
-  },
-  sizeChipTextSelected: {
+  headerBadgeText: {
     color: "#fff",
+    fontSize: 8,
+    fontWeight: "800",
+    marginTop: -1,
   },
-  sizeChipStock: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 2,
+  title: { fontSize: 17, fontWeight: "700", color: "#111" },
+  close: { fontSize: 26, color: "#9ca3af", fontWeight: "300" },
+  body: { paddingHorizontal: 16, paddingTop: 12, maxHeight: 420 },
+  row2: { flexDirection: "row", gap: 12, marginBottom: 14 },
+  col: { flex: 1 },
+  label: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+    color: "#374151",
+    marginBottom: 6,
   },
-  noStockText: {
-    color: "#888",
-    fontStyle: "italic",
-  },
-  currentStockText: {
-    fontSize: 14,
-    color: "#888",
-    marginBottom: 8,
-  },
-  quantityRowContainer: {
-    marginBottom: 12,
-  },
-  quantityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  quantityLabel: {
-    width: 60,
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333",
-  },
-  quantityInput: {
-    flex: 1,
+  req: { color: "#ef4444" },
+  productName: { fontSize: 15, fontWeight: "700", color: "#111" },
+  pickerWrap: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 16,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
+    overflow: "hidden",
+    backgroundColor: "#fff",
   },
-  inputError: {
-    borderColor: "#e74c3c",
-  },
-  errorText: {
-    color: "#e74c3c",
-    fontSize: 12,
-    marginTop: 4,
-    marginLeft: 60,
-  },
-  // Variant styles
-  variantSizeContainer: {
-    backgroundColor: "#f9f9f9",
+  chipSection: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
     borderRadius: 12,
     padding: 12,
+    backgroundColor: "#f9fafb",
     marginBottom: 12,
   },
-  variantSizeTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 12,
+  chipSectionTitle: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#6b7280",
+    marginBottom: 10,
+    letterSpacing: 0.5,
   },
-  variantSizeStock: {
-    fontSize: 14,
-    fontWeight: "400",
-    color: "#888",
-  },
-  variantGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  variantInputContainer: {
-    width: "48%",
-    marginBottom: 8,
-  },
-  variantLabel: {
-    fontSize: 13,
-    color: "#555",
-    marginBottom: 4,
-  },
-  variantStock: {
-    fontSize: 12,
-    color: "#888",
-  },
-  variantInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
-    backgroundColor: "#fff",
-  },
-  variantErrorText: {
-    color: "#e74c3c",
-    fontSize: 11,
-    marginTop: 2,
-  },
-  pickerContainer: {
+    paddingVertical: 6,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    marginBottom: 12,
+    borderColor: "#d1d5db",
     backgroundColor: "#fff",
   },
+  chipSel: {
+    backgroundColor: "#fef2f2",
+    borderColor: "#f87171",
+  },
+  chipTxt: { fontSize: 11, fontWeight: "600", color: "#4b5563" },
+  chipTxtSel: { color: "#b91c1c" },
+  tableWrap: {
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: "hidden",
+  },
+  tableHead: {
+    flexDirection: "row",
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "#f9fafb",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  th: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#6b7280",
+    letterSpacing: 0.4,
+  },
+  tableBody: { maxHeight: 200 },
+  tr: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  td: { fontSize: 12, color: "#374151" },
+  badgeSize: {
+    fontSize: 10,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#93c5fd",
+    color: "#1d4ed8",
+    overflow: "hidden",
+  },
+  mul: { fontSize: 9, color: "#9ca3af" },
+  badgeVar: {
+    fontSize: 10,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    borderColor: "#f9a8d4",
+    color: "#be185d",
+    overflow: "hidden",
+  },
+  qtyIn: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    fontSize: 13,
+    textAlign: "center",
+    backgroundColor: "#fff",
+  },
+  block: { marginBottom: 14 },
+  hint: { fontSize: 11, color: "#9ca3af", marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    fontSize: 16,
+    fontSize: 14,
     backgroundColor: "#fff",
   },
-  modalFooter: {
+  footer: {
     flexDirection: "row",
-    padding: 16,
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 14,
     borderTopWidth: 1,
     borderTopColor: "#eee",
     gap: 12,
   },
-  button: {
+  btnCancel: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 11,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: "#d1d5db",
     alignItems: "center",
-    justifyContent: "center",
   },
-  cancelButton: {
-    backgroundColor: "#f5f5f5",
-    borderWidth: 1,
-    borderColor: "#ddd",
+  btnCancelTxt: { fontSize: 14, fontWeight: "600", color: "#4b5563" },
+  btnGo: {
+    flex: 1,
+    paddingVertical: 11,
+    borderRadius: 12,
+    backgroundColor: "#dc2626",
+    alignItems: "center",
   },
-  cancelButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#666",
-  },
-  confirmButton: {
-    backgroundColor: "#e74c3c", // Red for removal
-  },
-  confirmButtonText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#fff",
-  },
+  btnDisabled: { opacity: 0.45 },
+  btnGoTxt: { fontSize: 14, fontWeight: "600", color: "#fff" },
 });
 
 export default StockOutModal;

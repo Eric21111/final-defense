@@ -177,6 +177,22 @@ export const productAPI = {
     });
   },
 
+  // Stock in (server-side batches / FIFO — same as web Inventory)
+  stockIn: async (id, payload) => {
+    return apiCall(`/products/${id}/stock-in`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  // Stock out (server consumes batches FIFO — same as web)
+  stockOut: async (id, payload) => {
+    return apiCall(`/products/${id}/stock-out`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
   // Delete product
   delete: async (id) => {
     return apiCall(`/products/${id}`, {

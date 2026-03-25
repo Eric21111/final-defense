@@ -225,41 +225,6 @@ const InventoryTable = ({
 
       const { productAPI } = require("../../services/api");
 
-      // We need to fetch the full product details first to get the sizes structure
-      // The item from the list might be normalized/simplified
-      const response = await productAPI.getById(stockItem._id || stockItem.id);
-
-      if (!response.success) {
-        throw new Error("Failed to fetch product details");
-      }
-
-      const fullProduct = response.data;
-
-      // Helper to get quantity from size data
-      const getSizeQty = (sizeData) => {
-        if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.quantity !== undefined
-        ) {
-          return sizeData.quantity;
-        }
-        return typeof sizeData === "number" ? sizeData : 0;
-      };
-
-      // Helper to get price from size data
-      const getSizePrice = (sizeData) => {
-        if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.price !== undefined
-        ) {
-          return sizeData.price;
-        }
-        return null;
-      };
-
-      // Prepare user info - Fetch actual logged-in user from AsyncStorage
       const storedEmployeeStr = await AsyncStorage.getItem("currentEmployee");
       let handledBy = "Mobile User";
       let handledById = "mobile_user_id";
@@ -277,144 +242,12 @@ const InventoryTable = ({
         }
       }
 
-      if (stockData.noSizes) {
-        // Product without sizes - simple quantity update
-        const newStock = (fullProduct.currentStock || 0) + stockData.quantity;
-
-        await productAPI.update(fullProduct._id, {
-          currentStock: newStock,
-          stockMovementType: "Stock-In",
-          stockMovementReason: stockData.reason || "Restock",
-          handledBy: handledBy,
-          handledById: handledById,
-          stockMovementSizeQuantities: null,
-        });
-      } else {
-        // Product with sizes
-        const updatedSizes = { ...(fullProduct.sizes || {}) };
-
-        // Check if we're adding stock with variant quantities
-        if (stockData.hasVariants && stockData.variantQuantities) {
-          // Update variant quantities for each size
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size] || {};
-            const currentVariants = (typeof currentSizeData === "object" && currentSizeData.variants) || {};
-            const addVariantQtys = stockData.variantQuantities[size] || {};
-            
-            // Create new variants object with updated quantities
-            const newVariants = { ...currentVariants };
-            Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
-              if (addQty > 0) {
-                if (newVariants[variant]) {
-                  newVariants[variant] = {
-                    ...newVariants[variant],
-                    quantity: (newVariants[variant].quantity || 0) + addQty,
-                  };
-                } else {
-                  // New variant - use default prices
-                  newVariants[variant] = {
-                    quantity: addQty,
-                    price: currentSizeData.price || fullProduct.itemPrice || 0,
-                    costPrice: currentSizeData.costPrice || fullProduct.costPrice || 0,
-                  };
-                }
-              }
-            });
-
-            // Calculate new total quantity for this size
-            const newTotalQty = Object.values(newVariants).reduce(
-              (sum, v) => sum + (v.quantity || 0), 0
-            );
-
-            updatedSizes[size] = {
-              ...currentSizeData,
-              quantity: newTotalQty,
-              variants: newVariants,
-            };
-          });
-
-          const totalStock = Object.values(updatedSizes).reduce(
-            (sum, sizeData) => sum + getSizeQty(sizeData),
-            0,
-          );
-
-          // Calculate size quantities that were added
-          const sizeQuantitiesAdded = {};
-          stockData.selectedSizes.forEach((size) => {
-            const variantQtys = stockData.variantQuantities[size] || {};
-            const totalForSize = Object.values(variantQtys).reduce((sum, q) => sum + (parseInt(q) || 0), 0);
-            if (totalForSize > 0) {
-              sizeQuantitiesAdded[size] = totalForSize;
-            }
-          });
-
-          await productAPI.update(fullProduct._id, {
-            currentStock: totalStock,
-            sizes: updatedSizes,
-            stockMovementType: "Stock-In",
-            stockMovementReason: stockData.reason || "Restock",
-            handledBy: handledBy,
-            handledById: handledById,
-            stockMovementSizeQuantities:
-              Object.keys(sizeQuantitiesAdded).length > 0
-                ? sizeQuantitiesAdded
-                : null,
-          });
-        } else {
-          // Standard size-only stock in (no variants)
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size];
-            const currentQty = getSizeQty(currentSizeData);
-            const currentPrice = getSizePrice(currentSizeData);
-            const addQty = stockData.sizes[size] || 0;
-            const newQty = currentQty + addQty;
-
-            // Preserve price structure if it exists
-            if (
-              currentPrice !== null ||
-              (typeof currentSizeData === "object" && currentSizeData !== null)
-            ) {
-              updatedSizes[size] = {
-                ...currentSizeData,
-                quantity: newQty,
-                price:
-                  currentPrice !== null
-                    ? currentPrice
-                    : fullProduct.itemPrice || 0,
-              };
-            } else {
-              updatedSizes[size] = newQty;
-            }
-          });
-
-          const totalStock = Object.values(updatedSizes).reduce(
-            (sum, sizeData) => sum + getSizeQty(sizeData),
-            0,
-          );
-
-          // Calculate size quantities that were added
-          const sizeQuantitiesAdded = {};
-          stockData.selectedSizes.forEach((size) => {
-            const addQty = stockData.sizes[size] || 0;
-            if (addQty > 0) {
-              sizeQuantitiesAdded[size] = addQty;
-            }
-          });
-
-          await productAPI.update(fullProduct._id, {
-            currentStock: totalStock,
-            sizes: updatedSizes,
-            stockMovementType: "Stock-In",
-            stockMovementReason: stockData.reason || "Restock",
-            handledBy: handledBy,
-            handledById: handledById,
-            stockMovementSizeQuantities:
-              Object.keys(sizeQuantitiesAdded).length > 0
-                ? sizeQuantitiesAdded
-                : null,
-          });
-        }
-      }
+      const id = stockItem._id || stockItem.id;
+      await productAPI.stockIn(id, {
+        ...stockData,
+        handledBy,
+        handledById,
+      });
 
       Alert.alert("Success", "Stock added successfully");
       setShowStockIn(false);
@@ -436,49 +269,23 @@ const InventoryTable = ({
 
       const { productAPI, archiveAPI } = require("../../services/api");
 
-      // Fetch full product details
-      const response = await productAPI.getById(stockItem._id || stockItem.id);
-
-      if (!response.success) {
-        throw new Error("Failed to fetch product details");
+      let totalQuantityRemoved = 0;
+      if (stockData.noSizes) {
+        totalQuantityRemoved = stockData.quantity || 0;
+      } else if (stockData.hasVariants && stockData.variantQuantities) {
+        stockData.selectedSizes?.forEach((size) => {
+          const variantQtys = stockData.variantQuantities[size] || {};
+          totalQuantityRemoved += Object.values(variantQtys).reduce(
+            (sum, q) => sum + (parseInt(q, 10) || 0),
+            0,
+          );
+        });
+      } else {
+        stockData.selectedSizes?.forEach((size) => {
+          totalQuantityRemoved += parseInt(stockData.sizes?.[size], 10) || 0;
+        });
       }
 
-      const fullProduct = response.data;
-
-      // Helper to get quantity from size data
-      const getSizeQty = (sizeData) => {
-        if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.quantity !== undefined
-        ) {
-          return sizeData.quantity;
-        }
-        return typeof sizeData === "number" ? sizeData : 0;
-      };
-
-      // Helper to get price from size data
-      const getSizePrice = (sizeData) => {
-        if (
-          typeof sizeData === "object" &&
-          sizeData !== null &&
-          sizeData.price !== undefined
-        ) {
-          return sizeData.price;
-        }
-        return null;
-      };
-
-      // Determine type based on reason
-      const movementType =
-        stockData.reason === "Damaged" ||
-        stockData.reason === "Lost" ||
-        stockData.reason === "Expired" ||
-        stockData.reason === "Defective"
-          ? "Pull-Out"
-          : "Stock-Out";
-
-      // Values for tracking - Fetch actual logged-in user from AsyncStorage
       const storedEmployeeStr = await AsyncStorage.getItem("currentEmployee");
       let handledBy = "Mobile User";
       let handledById = "mobile_user_id";
@@ -496,182 +303,43 @@ const InventoryTable = ({
         }
       }
 
-      if (stockData.noSizes) {
-        // Product without sizes - simple quantity update
-        const newStock = Math.max(
-          0,
-          (fullProduct.currentStock || 0) - stockData.quantity,
-        );
+      const id = stockItem._id || stockItem.id;
+      await productAPI.stockOut(id, {
+        ...stockData,
+        handledBy,
+        handledById,
+      });
 
-        await productAPI.update(fullProduct._id, {
-          currentStock: newStock,
-          stockMovementType: movementType,
-          stockMovementReason: stockData.reason || "Sold",
-          handledBy: handledBy,
-          handledById: handledById,
-          stockMovementSizeQuantities: null,
-        });
+      const archiveReasons = ["Damaged", "Defective", "Expired"];
+      if (archiveReasons.includes(stockData.reason)) {
+        const sizesString = stockData.selectedSizes
+          ? stockData.selectedSizes.join(", ")
+          : "";
+        const itemName = stockItem.itemName || stockItem.name || "";
+        const brandName = stockItem.brandName || stockItem.brand || "";
 
-        // Archive items if reason is Damaged, Defective, or Expired
-        const archiveReasons = ["Damaged", "Defective", "Expired"];
-        if (archiveReasons.includes(stockData.reason)) {
-          try {
-            await archiveAPI.archive({
-              productId: fullProduct._id,
-              itemName: fullProduct.itemName,
-              sku: fullProduct.sku,
-              variant: fullProduct.variant || "",
-              selectedSize: fullProduct.size || "",
-              category: fullProduct.category,
-              brandName: fullProduct.brandName || "",
-              itemPrice: fullProduct.itemPrice || 0,
-              costPrice: fullProduct.costPrice || 0,
-              quantity: stockData.quantity,
-              itemImage: fullProduct.itemImage || "",
-              reason:
-                stockData.reason === "Defective"
-                  ? "Defective"
-                  : stockData.reason,
-              archivedBy: handledBy,
-              archivedById: handledById,
-              source: "stock-out",
-              notes: `Stock out - ${stockData.reason}`,
-            });
-          } catch (archiveError) {
-            console.error("Error archiving item:", archiveError);
-          }
-        }
-      } else {
-        // Product with sizes
-        const updatedSizes = { ...(fullProduct.sizes || {}) };
-
-        let sizeQuantitiesRemoved = {};
-
-        // Check if we're removing stock with variant quantities
-        if (stockData.hasVariants && stockData.variantQuantities) {
-          // Update variant quantities for each size
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size] || {};
-            const currentVariants = (typeof currentSizeData === "object" && currentSizeData.variants) || {};
-            const removeVariantQtys = stockData.variantQuantities[size] || {};
-            
-            // Create new variants object with updated quantities
-            const newVariants = { ...currentVariants };
-            Object.entries(removeVariantQtys).forEach(([variant, removeQty]) => {
-              if (removeQty > 0 && newVariants[variant]) {
-                newVariants[variant] = {
-                  ...newVariants[variant],
-                  quantity: Math.max(0, (newVariants[variant].quantity || 0) - removeQty),
-                };
-              }
-            });
-
-            // Calculate new total quantity for this size
-            const newTotalQty = Object.values(newVariants).reduce(
-              (sum, v) => sum + (v.quantity || 0), 0
-            );
-
-            updatedSizes[size] = {
-              ...currentSizeData,
-              quantity: newTotalQty,
-              variants: newVariants,
-            };
+        try {
+          await archiveAPI.archive({
+            productId: id,
+            itemName,
+            sku: stockItem.sku,
+            variant: stockItem.variant || "",
+            selectedSize: sizesString,
+            category: stockItem.category,
+            brandName,
+            itemPrice: stockItem.itemPrice ?? stockItem.price ?? 0,
+            costPrice: stockItem.costPrice ?? 0,
+            quantity: totalQuantityRemoved,
+            itemImage: stockItem.itemImage || "",
+            reason:
+              stockData.reason === "Defective" ? "Defective" : stockData.reason,
+            archivedBy: handledBy,
+            archivedById: handledById,
+            source: "stock-out",
+            notes: `Stock out - ${stockData.reason}. Sizes: ${sizesString}`,
           });
-
-          // Calculate removed quantities for stock movement
-          stockData.selectedSizes.forEach((size) => {
-            const variantQtys = stockData.variantQuantities[size] || {};
-            const totalForSize = Object.values(variantQtys).reduce((sum, q) => sum + (parseInt(q) || 0), 0);
-            if (totalForSize > 0) {
-              sizeQuantitiesRemoved[size] = totalForSize;
-            }
-          });
-        } else {
-          // Standard size-only stock out (no variants)
-          stockData.selectedSizes.forEach((size) => {
-            const currentSizeData = updatedSizes[size];
-            const currentQty = getSizeQty(currentSizeData);
-            const currentPrice = getSizePrice(currentSizeData);
-            const removeQty = stockData.sizes[size] || 0;
-            const newQty = Math.max(0, currentQty - removeQty);
-
-            // Preserve price structure if it exists
-            if (
-              currentPrice !== null ||
-              (typeof currentSizeData === "object" && currentSizeData !== null)
-            ) {
-              updatedSizes[size] = {
-                ...currentSizeData,
-                quantity: newQty,
-                price:
-                  currentPrice !== null
-                    ? currentPrice
-                    : fullProduct.itemPrice || 0,
-              };
-            } else {
-              updatedSizes[size] = newQty;
-            }
-          });
-
-          stockData.selectedSizes.forEach((size) => {
-            const removeQty = stockData.sizes[size] || 0;
-            if (removeQty > 0) {
-              sizeQuantitiesRemoved[size] = removeQty;
-            }
-          });
-        }
-
-        const totalStock = Object.values(updatedSizes).reduce(
-          (sum, sizeData) => sum + getSizeQty(sizeData),
-          0,
-        );
-
-        await productAPI.update(fullProduct._id, {
-          currentStock: totalStock,
-          sizes: updatedSizes,
-          stockMovementType: movementType,
-          stockMovementReason: stockData.reason || "Sold",
-          handledBy: handledBy,
-          handledById: handledById,
-          stockMovementSizeQuantities:
-            Object.keys(sizeQuantitiesRemoved).length > 0
-              ? sizeQuantitiesRemoved
-              : null,
-        });
-
-        // Archive items if reason is Damaged, Defective, or Expired
-        const archiveReasons = ["Damaged", "Defective", "Expired"];
-        if (archiveReasons.includes(stockData.reason)) {
-          const totalQuantityRemoved = Object.values(
-            sizeQuantitiesRemoved,
-          ).reduce((sum, qty) => sum + qty, 0);
-          const sizesString = stockData.selectedSizes.join(", ");
-
-          try {
-            await archiveAPI.archive({
-              productId: fullProduct._id,
-              itemName: fullProduct.itemName,
-              sku: fullProduct.sku,
-              variant: fullProduct.variant || "",
-              selectedSize: sizesString,
-              category: fullProduct.category,
-              brandName: fullProduct.brandName || "",
-              itemPrice: fullProduct.itemPrice || 0,
-              costPrice: fullProduct.costPrice || 0,
-              quantity: totalQuantityRemoved,
-              itemImage: fullProduct.itemImage || "",
-              reason:
-                stockData.reason === "Defective"
-                  ? "Defective"
-                  : stockData.reason,
-              archivedBy: handledBy,
-              archivedById: handledById,
-              source: "stock-out",
-              notes: `Stock out - ${stockData.reason}. Sizes: ${sizesString}`,
-            });
-          } catch (archiveError) {
-            console.error("Error archiving item:", archiveError);
-          }
+        } catch (archiveError) {
+          console.error("Error archiving item:", archiveError);
         }
       }
 
