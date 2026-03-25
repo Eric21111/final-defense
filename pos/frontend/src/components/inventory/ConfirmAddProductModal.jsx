@@ -47,7 +47,7 @@ const ConfirmAddProductModal = ({ isOpen, onClose, onConfirm, productName, noSto
           <div className="flex gap-4">
             <button
               onClick={onConfirm}
-              className="flex-1 py-2.5 px-6 rounded-lg font-bold text-white transition-all shadow-md hover:shadow-lg"
+              className="flex-1 py-2.5 px-6 rounded-lg font-bold text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
               style={{
                 background: '#09A046'
               }}>

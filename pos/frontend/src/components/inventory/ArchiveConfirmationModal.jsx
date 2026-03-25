@@ -47,7 +47,7 @@ const ArchiveConfirmationModal = ({ isOpen, onClose, onConfirm, itemName }) => {
                     <div className="flex gap-4">
                         <button
               onClick={onConfirm}
-              className="flex-1 py-2.5 px-6 rounded-lg font-bold text-white transition-all shadow-md hover:shadow-lg"
+              className="flex-1 py-2.5 px-6 rounded-lg font-bold text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
               style={{
                 background: '#F29800'
               }}>
@@ -58,7 +58,7 @@ const ArchiveConfirmationModal = ({ isOpen, onClose, onConfirm, itemName }) => {
               onClick={onClose}
               className={`flex-1 py-2.5 px-6 rounded-lg font-bold transition-all shadow-sm ${theme === 'dark' ?
               'bg-[#E6E6E6] text-gray-700 hover:opacity-90' :
-              'text-gray-700 bg-[#E6E6E6E6] hover:opacity-90'}`
+              'text-gray-700 bg-[#E6E6E6] hover:opacity-90'}`
               }>
               
                             Cancel

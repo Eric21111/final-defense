@@ -398,7 +398,7 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
                 <button
                   type="button"
                   onClick={handleClose}
-            className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${isDark ? "text-gray-300 border-gray-600 hover:bg-gray-700" : "text-gray-600 border-gray-300 hover:bg-gray-100"}`}
+            className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${isDark ? "bg-[#E6E6E6] text-gray-700 border-[#E6E6E6] hover:opacity-90" : "bg-[#E6E6E6] text-gray-700 border-[#E6E6E6] hover:opacity-90"}`}
           >
                   Cancel
                 </button>
@@ -406,7 +406,8 @@ const StockOutModal = ({ isOpen, onClose, product, onConfirm, loading }) => {
             type="button"
             disabled={loading || !isValid()}
             onClick={handleSubmit}
-            className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed bg-red-600"
+            className="px-8 py-2.5 text-sm font-semibold rounded-xl text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: "#CD0000" }}
           >
             {loading ? "Removing..." : "Remove"}
                 </button>

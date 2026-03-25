@@ -64,7 +64,7 @@ const SuccessModal = ({ isOpen, onClose, message = "The item was added successfu
 
           <button
             onClick={onClose}
-            className="w-full py-3 px-6 rounded-lg font-bold text-white transition-all shadow-md hover:shadow-lg"
+            className="w-full py-2.5 px-6 rounded-lg font-bold text-white transition-all shadow-md hover:opacity-90 disabled:opacity-50"
             style={{
               background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)'
             }}>

@@ -1331,7 +1331,7 @@ const AddProductModal = ({
             <div className={`px-8 py-4 flex justify-between items-center border-t flex-shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
               <button type="button"
                 onClick={() => currentStep === 1 ? setShowAddModal(false) : setCurrentStep((prev) => prev - 1)}
-                className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${theme === "dark" ? "text-gray-300 border-gray-600 hover:bg-gray-700" : "text-gray-600 border-gray-300 hover:bg-gray-100"}`}>
+                className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${theme === "dark" ? "bg-[#E6E6E6] text-gray-700 border-[#E6E6E6] hover:opacity-90" : "bg-[#E6E6E6] text-gray-700 border-[#E6E6E6] hover:opacity-90"}`}>
                 {currentStep === 1 ? "Cancel" : "← Back"}
               </button>
               {currentStep < 5 ? (
@@ -1353,7 +1353,7 @@ const AddProductModal = ({
           ) : (
             <div className={`px-8 py-4 flex justify-between items-center border-t flex-shrink-0 ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
               <button type="button" onClick={() => setShowAddModal(false)}
-                className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${theme === "dark" ? "text-gray-300 border-gray-600 hover:bg-gray-700" : "text-gray-600 border-gray-300 hover:bg-gray-100"}`}>
+                className={`px-8 py-2.5 text-sm font-semibold rounded-xl border-2 transition-colors ${theme === "dark" ? "bg-[#E6E6E6] text-gray-700 border-[#E6E6E6] hover:opacity-90" : "bg-[#E6E6E6] text-gray-700 border-[#E6E6E6] hover:opacity-90"}`}>
                 Cancel
               </button>
               <button type="submit" disabled={loading}

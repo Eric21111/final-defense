@@ -243,7 +243,7 @@ const ProductTable = ({
 
                           <div className="relative w-6 h-6 flex items-center justify-center">
                             <svg
-                              className={`w-6 h-6 ${theme === "dark" ? "text-gray-400 group-hover:text-green-500" : "text-gray-600 group-hover:text-green-600"}`}
+                              className={`w-6 h-6 ${theme === "dark" ? "text-gray-400 group-hover:text-[#09A046]" : "text-gray-600 group-hover:text-[#09A046]"}`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24">
@@ -255,7 +255,7 @@ const ProductTable = ({
                                 d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
 
                             </svg>
-                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center border border-white">
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#09A046] rounded-full flex items-center justify-center border border-white">
                               <span className="text-white text-[8px] font-bold leading-none">
                                 +
                               </span>
@@ -274,7 +274,7 @@ const ProductTable = ({
 
                           <div className="relative w-6 h-6 flex items-center justify-center">
                             <svg
-                              className={`w-6 h-6 ${theme === "dark" ? "text-gray-400 group-hover:text-red-500" : "text-gray-600 group-hover:text-red-600"}`}
+                              className={`w-6 h-6 ${theme === "dark" ? "text-gray-400 group-hover:text-[#CD0000]" : "text-gray-600 group-hover:text-[#CD0000]"}`}
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24">
@@ -286,7 +286,7 @@ const ProductTable = ({
                                 d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
 
                             </svg>
-                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-red-500 rounded-full flex items-center justify-center border border-white">
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-[#CD0000] rounded-full flex items-center justify-center border border-white">
                               <span className="text-white text-[8px] font-bold leading-none">
                                 -
                               </span>
@@ -304,7 +304,7 @@ const ProductTable = ({
                           title="Update">
 
                           <svg
-                            className="w-6 h-6 text-blue-500 group-hover:text-blue-600"
+                            className="w-6 h-6 text-[#1B89CD] group-hover:opacity-90"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24">
@@ -328,7 +328,7 @@ const ProductTable = ({
                           title="Archive">
 
                           <svg
-                            className="w-6 h-6 text-orange-400 group-hover:text-orange-500"
+                            className="w-6 h-6 text-[#F29800] group-hover:opacity-90"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24">

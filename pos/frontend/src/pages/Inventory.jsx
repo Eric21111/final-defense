@@ -2145,9 +2145,9 @@ const Inventory = () => {
               resetProductForm();
               setShowAddModal(true);
             }}
-            className="px-6 py-2 text-white rounded-lg hover:opacity-90 flex items-center gap-2 font-medium transition-all"
+            className="px-6 py-2.5 text-white rounded-lg hover:opacity-90 flex items-center gap-2 font-medium transition-all disabled:opacity-50"
             style={{
-              background: "linear-gradient(135deg, #10B981 0%, #059669 100%)"
+              background: "#09A046"
             }}>
 
             <FaPlus /> Add New Item
