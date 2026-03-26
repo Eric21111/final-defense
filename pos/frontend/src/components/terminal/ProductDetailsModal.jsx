@@ -374,8 +374,67 @@ const ProductDetailsModal = ({
     return `PHP ${min.toFixed(2)} - ${max.toFixed(2)}`;
   };
 
+  const toQty = (v) => {
+    const n = typeof v === "number" ? v : parseInt(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const getBatchPriceInfoForUI = () => {
+    // Returns FIFO "Batch 1" (slot index 0) price when available.
+    // We use this to prevent showing a min-max price range.
+    if (!productHasVariants) return null;
+    if (!selectedVariant || !effectiveSelectedSize) return null;
+    if (!product?.sizes || typeof product.sizes !== "object") return null;
+
+    const sizeData = product.sizes[effectiveSelectedSize];
+    if (!sizeData || typeof sizeData !== "object") return null;
+
+    const variantData = sizeData?.variants?.[selectedVariant];
+    if (variantData && typeof variantData === "object") {
+      const batches = Array.isArray(variantData.batches) ? variantData.batches : [];
+      if (batches.length > 0) {
+        // Prefer batch slot 1 if it has stock.
+        if (batches[0] && toQty(batches[0]?.qty) > 0) {
+          const price = toFinitePrice(batches[0]?.price);
+          if (price !== null) return { price, batchSlotIndex: 0 };
+        }
+
+        // Otherwise, use the first in-stock batch.
+        const firstInStockIdx = batches.findIndex((b) => toQty(b?.qty) > 0);
+        const idx = firstInStockIdx >= 0 ? firstInStockIdx : 0;
+        const price = toFinitePrice(batches[idx]?.price);
+        if (price !== null) return { price, batchSlotIndex: idx };
+      }
+
+      const top = toFinitePrice(variantData.price);
+      if (top !== null) return { price: top, batchSlotIndex: null };
+    }
+
+    // Some data shapes may store batches directly on the size.
+    if (Array.isArray(sizeData.batches)) {
+      const batches = sizeData.batches;
+      if (batches.length > 0) {
+        if (batches[0] && toQty(batches[0]?.qty) > 0) {
+          const price = toFinitePrice(batches[0]?.price);
+          if (price !== null) return { price, batchSlotIndex: 0 };
+        }
+        const firstInStockIdx = batches.findIndex((b) => toQty(b?.qty) > 0);
+        const idx = firstInStockIdx >= 0 ? firstInStockIdx : 0;
+        const price = toFinitePrice(batches[idx]?.price);
+        if (price !== null) return { price, batchSlotIndex: idx };
+      }
+    }
+
+    return null;
+  };
+
   const getSellingPriceText = () => {
     if (!productHasVariants) return `PHP ${Number(product.itemPrice || 0).toFixed(2)}`;
+
+    const batchInfo = getBatchPriceInfoForUI();
+    if (batchInfo?.price !== null && batchInfo?.price !== undefined) {
+      return `PHP ${Number(batchInfo.price).toFixed(2)}`;
+    }
 
     if (!selectedVariant) {
       const strictAll = getAllSellingPricesStrict();
@@ -394,8 +453,7 @@ const ProductDetailsModal = ({
       }
     }
 
-    // Fallback (should be rare): if strict per-variant price isn't stored,
-    // fall back to existing lookup.
+  
     if (effectiveSelectedSize) {
       const exact = getVariantPriceInSize(effectiveSelectedSize, selectedVariant);
       if (exact !== null && exact !== undefined) {
@@ -443,11 +501,10 @@ const ProductDetailsModal = ({
     (s) => s && s !== VARIANT_ONLY_SIZE_KEY
   );
 
-  // If there are no real V2 options for this variant, we still need a valid size key
-  // for stock/price/SKU, but we hide it from the UI.
+
   const effectiveSelectedSize = selectedSize || (!hasRealV2ForSelectedVariant && selectedVariant ? VARIANT_ONLY_SIZE_KEY : "");
 
-  // Auto-select the synthetic size only when the selected variant has no real V2.
+  
   useEffect(() => {
     if (!selectedVariant) return;
     if (!onSelectSize) return;
@@ -459,10 +516,10 @@ const ProductDetailsModal = ({
 
   const availableSizes = productHasVariants
     ? selectedVariant
-      // If there are real V2 options for this variant, hide synthetic.
+   
       ? (hasRealV2ForSelectedVariant
         ? availableSizesForSelectedVariant.filter((s) => s !== VARIANT_ONLY_SIZE_KEY)
-        : []) // hide synthetic pill when there are no real V2 options for this variant
+        : []) 
       : []
     : product.sizes && typeof product.sizes === "object"
       ? Object.keys(product.sizes)
@@ -650,8 +707,26 @@ const ProductDetailsModal = ({
 
                     Price
                   </p>
-                  <p className="font-bold text-[#09A046] text-lg">
+                  <p className="font-bold text-[#09A046] text-lg flex items-center gap-2">
                     {getSellingPriceText()}
+                    {(() => {
+                      const info = getBatchPriceInfoForUI();
+                      if (!info || info.batchSlotIndex !== 0) return null;
+                      return (
+                        <span className="relative group inline-flex items-center justify-center w-4 h-4 rounded-full border border-[#09A046]/40">
+                          <span className="text-[10px] leading-none font-bold">i</span>
+                          <span
+                            className={`absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-10 whitespace-nowrap px-2 py-1 rounded-md text-[11px] shadow ${
+                              theme === "dark"
+                                ? "bg-gray-900 text-gray-200 border border-gray-700"
+                                : "bg-white text-gray-800 border border-gray-200"
+                            } opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity`}
+                          >
+                            This is Batch 1 price
+                          </span>
+                        </span>
+                      );
+                    })()}
                   </p>
                 </div>
                 { }

@@ -44,11 +44,27 @@ const InventoryTable = ({
   const [stockLoading, setStockLoading] = useState(false);
 
   useEffect(() => {
-    // Lock to landscape
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+    // Lock to landscape (guard: avoid crashing on unsupported devices)
+    (async () => {
+      try {
+        await ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.LANDSCAPE,
+        );
+      } catch (e) {
+        console.warn("Failed to lock orientation:", e?.message || e);
+      }
+    })();
 
     return () => {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT);
+      (async () => {
+        try {
+          await ScreenOrientation.lockAsync(
+            ScreenOrientation.OrientationLock.PORTRAIT,
+          );
+        } catch (e) {
+          console.warn("Failed to unlock orientation:", e?.message || e);
+        }
+      })();
     };
   }, []);
 
@@ -390,7 +406,7 @@ const InventoryTable = ({
           data={items}
           renderItem={renderItem}
           keyExtractor={(item) =>
-            (item._id || item.id || Math.random()).toString()
+            (item?._id || item?.id || Math.random()).toString()
           }
           contentContainerStyle={{ paddingBottom: 20 }}
           onEndReached={onEndReached}
@@ -496,25 +512,27 @@ export default function Inventory() {
     return () => subscription?.remove();
   }, []);
 
-  const normalizeProduct = useCallback((product = {}) => {
+  const normalizeProduct = useCallback((product) => {
+    const p = product || {};
     return {
-      ...product,
-      name: product.name || product.itemName || "No Name",
-      brand: product.brand || product.brandName || "N/A",
-      price: product.price ?? product.itemPrice ?? 0,
-      stock: product.stock ?? product.currentStock ?? 0,
-      category: product.category || "Uncategorized",
-      sku: product.sku || "N/A",
-      itemImage: product.itemImage || product.image || "",
-      dateAdded:
-        product.dateAdded || product.createdAt || product.updatedAt || null,
-      costPrice: product.costPrice ?? 0,
+      ...p,
+      name: p.name || p.itemName || "No Name",
+      brand: p.brand || p.brandName || "N/A",
+      price: p.price ?? p.itemPrice ?? 0,
+      stock: p.stock ?? p.currentStock ?? 0,
+      category: p.category || "Uncategorized",
+      sku: p.sku || "N/A",
+      itemImage: p.itemImage || p.image || "",
+      dateAdded: p.dateAdded || p.createdAt || p.updatedAt || null,
+      costPrice: p.costPrice ?? 0,
     };
   }, []);
 
   // Memoized normalized products
   const products = useMemo(() => {
-    return cachedProducts.map(normalizeProduct);
+    return (Array.isArray(cachedProducts) ? cachedProducts : [])
+      .filter(Boolean)
+      .map(normalizeProduct);
   }, [cachedProducts, normalizeProduct]);
 
   // Helper function for date formatting - defined before useMemo that uses it
