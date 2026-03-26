@@ -118,6 +118,8 @@ const AddProductModal = ({
     return `B${y}${mo}${day}-${h}${min}`;
   };
 
+  const todayISO = new Date().toISOString().slice(0, 10);
+
   const getOpeningStockTotal = () => {
     const combos = [];
     const rvariants = selectedVariants.length > 0 ? selectedVariants : [null];
@@ -1164,7 +1166,7 @@ const AddProductModal = ({
                     {/* Reorder Level */}
                     <div className="flex items-start justify-between gap-6">
                       <div className="flex-1">
-                        <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Reorder Level (Per SKU)</label>
+                        <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Reorder Level (Per SKU) <span className='text-red-500'>*</span></label>
                         <p className={`text-[10px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>System alerts when any SKU falls below this level.</p>
                           </div>
                       <input type="number" min="0" name="reorderNumber" value={newProduct.reorderNumber || ""} onChange={handleInputChange} placeholder="eg. 23"
@@ -1182,7 +1184,7 @@ const AddProductModal = ({
                             <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Initial stock batch</label>
                             <p className={`text-[10px] mb-3 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
                               {hasOpeningStock
-                                ? "Batch 1 for this opening stock (same code style as Stock In). Add more lots via Stock In."
+                                ? "Batch 1 for this opening stock. Add more lots via Stock In."
                                 : "No batch until you receive stock — use Stock In."}
                             </p>
                             </div>
@@ -1199,7 +1201,7 @@ const AddProductModal = ({
                           {hasOpeningStock ? (
                             <div className="grid grid-cols-2 gap-4 w-full max-w-xl">
                               <div>
-                                <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Date received</label>
+                                <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Date received<span className='text-red-500'>*</span></label>
                                 <input
                                   type="date"
                                   name="dateReceived"
@@ -1214,6 +1216,7 @@ const AddProductModal = ({
                                   type="date"
                                   name="expiryDate"
                                   value={newProduct.expiryDate || ""}
+                                  min={todayISO}
                                   onChange={handleInputChange}
                                   className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                                 />
