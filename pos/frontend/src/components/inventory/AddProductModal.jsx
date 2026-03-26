@@ -1197,10 +1197,27 @@ const AddProductModal = ({
                           ) : null}
 
                           {hasOpeningStock ? (
-                            <div>
-                              <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiring Date</label>
-                              <input type="date" name="expiryDate" value={newProduct.expiryDate || ""} onChange={handleInputChange}
-                                className={`w-full max-w-xs px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
+                            <div className="grid grid-cols-2 gap-4 w-full max-w-xl">
+                              <div>
+                                <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Date received</label>
+                                <input
+                                  type="date"
+                                  name="dateReceived"
+                                  value={newProduct.dateReceived || ""}
+                                  onChange={handleInputChange}
+                                  className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                                />
+                              </div>
+                              <div>
+                                <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Expiration Date</label>
+                                <input
+                                  type="date"
+                                  name="expiryDate"
+                                  value={newProduct.expiryDate || ""}
+                                  onChange={handleInputChange}
+                                  className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                                />
+                              </div>
                             </div>
                           ) : null}
                         </>
