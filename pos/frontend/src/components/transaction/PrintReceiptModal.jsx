@@ -2,6 +2,8 @@ import { useState, useRef } from 'react';
 import { FaTimes, FaPrint } from 'react-icons/fa';
 import { sendReceiptToPrinter } from '../../utils/printBridge';
 
+const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
+
 const formatCurrency = (value = 0) =>
 new Intl.NumberFormat('en-PH', {
   style: 'currency',
@@ -64,7 +66,10 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
           quantity: item.quantity || 1,
           price: item.price || item.itemPrice || 0,
           itemPrice: item.price || item.itemPrice || 0,
-          size: item.selectedSize || item.size || ''
+          size:
+            (item.selectedSize || item.size || '') === VARIANT_ONLY_SIZE_KEY
+              ? ''
+              : (item.selectedSize || item.size || '')
         })) || [],
         subtotal: subtotal,
         discount: discountAmount,
@@ -162,7 +167,8 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
                 <div key={idx} className="text-xs">
                       <p className="font-medium text-gray-800">{item.itemName}</p>
                       {item.selectedSize &&
-                  <p className="text-gray-500">Size: {item.selectedSize}</p>
+                    item.selectedSize !== VARIANT_ONLY_SIZE_KEY &&
+                    <p className="text-gray-500">Size: {item.selectedSize}</p>
                   }
                       <p className="text-gray-500">
                         {item.quantity} x {formatCurrency(item.price || item.itemPrice)}

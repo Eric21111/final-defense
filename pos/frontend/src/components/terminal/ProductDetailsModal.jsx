@@ -707,26 +707,8 @@ const ProductDetailsModal = ({
 
                     Price
                   </p>
-                  <p className="font-bold text-[#09A046] text-lg flex items-center gap-2">
+                  <p className="font-bold text-[#09A046] text-lg">
                     {getSellingPriceText()}
-                    {(() => {
-                      const info = getBatchPriceInfoForUI();
-                      if (!info || info.batchSlotIndex !== 0) return null;
-                      return (
-                        <span className="relative group inline-flex items-center justify-center w-4 h-4 rounded-full border border-[#09A046]/40">
-                          <span className="text-[10px] leading-none font-bold">i</span>
-                          <span
-                            className={`absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-10 whitespace-nowrap px-2 py-1 rounded-md text-[11px] shadow ${
-                              theme === "dark"
-                                ? "bg-gray-900 text-gray-200 border border-gray-700"
-                                : "bg-white text-gray-800 border border-gray-200"
-                            } opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity`}
-                          >
-                            This is Batch 1 price
-                          </span>
-                        </span>
-                      );
-                    })()}
                   </p>
                 </div>
                 { }

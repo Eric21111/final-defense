@@ -10,6 +10,8 @@ import RemoveItemPinModal from './RemoveItemPinModal';
 import VoidTransactionModal from './VoidTransactionModal';
 import { generateDynamicSku } from '../../utils/skuUtils';
 
+const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
+
 const OrderSummary = memo(({
   cart,
   removeFromCart,
@@ -596,6 +598,8 @@ const OrderSummary = memo(({
               const displayQty = getDisplayQuantity(item);
               const hasPending = hasPendingChange(item);
               const isReducing = hasPending && displayQty < item.quantity;
+              const rawSize = item.selectedSize || item.size || "";
+              const normalizedSize = rawSize === VARIANT_ONLY_SIZE_KEY ? "" : rawSize;
 
               return (
                 <div key={item._id || item.productId || `cart-item-${index}`} className={`relative rounded-xl border shadow-[0_3px_8px_rgba(0,0,0,0.04)] p-3 ${hasPending ?
@@ -633,8 +637,8 @@ const OrderSummary = memo(({
                         {item.itemName ? item.itemName.replace(/\s*\([^)]*\)\s*$/, '').trim() : 'Item'}
                       </h3>
                       <p className={`text-xs mb-2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                        SKU: {generateDynamicSku(item.sku, item.selectedVariation, item.selectedSize || item.size)}<br />
-                        Size: {item.selectedSize || item.size || 'N/A'}<br />
+                        SKU: {generateDynamicSku(item.sku, item.selectedVariation, normalizedSize)}<br />
+                        Size: {normalizedSize || '—'}<br />
                         Color: {item.selectedVariation || 'N/A'}
                       </p>
                       <p className="text-sm font-bold text-[#AD7F65]">

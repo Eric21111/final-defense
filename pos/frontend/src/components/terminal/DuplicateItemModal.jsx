@@ -3,6 +3,8 @@ import { FaExclamationTriangle, FaTimes } from 'react-icons/fa';
 import { MdCategory } from 'react-icons/md';
 import { useTheme } from '../../context/ThemeContext';
 
+const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
+
 const DuplicateItemModal = ({ isOpen, onClose, onConfirm, item, existingQuantity }) => {
   const { theme } = useTheme();
 
@@ -47,7 +49,7 @@ const DuplicateItemModal = ({ isOpen, onClose, onConfirm, item, existingQuantity
             <div className="flex-1">
               <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.itemName}</h3>
               <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                {item.selectedSize && `Size: ${item.selectedSize}`}
+                {item.selectedSize && item.selectedSize !== VARIANT_ONLY_SIZE_KEY && `Size: ${item.selectedSize}`}
                 {item.variant && ` • ${item.variant}`}
               </p>
               <p className="text-sm font-medium text-[#AD7F65] mt-1">

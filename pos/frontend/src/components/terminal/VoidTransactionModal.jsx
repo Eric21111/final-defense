@@ -4,6 +4,8 @@ import { MdCategory } from 'react-icons/md';
 import { HiDocumentRemove } from 'react-icons/hi';
 import { useTheme } from '../../context/ThemeContext';
 
+const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
+
 const VoidTransactionModal = ({ isOpen, onClose, onConfirm, cartItems }) => {
   const { theme } = useTheme();
   const [selectedItems, setSelectedItems] = useState([]);
@@ -124,7 +126,7 @@ const VoidTransactionModal = ({ isOpen, onClose, onConfirm, cartItems }) => {
                         SKU: {item.sku}
                       </p>
                       <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                        Size: {item.selectedSize || item.size || 'N/A'}
+                        Size: {(item.selectedSize || item.size) === VARIANT_ONLY_SIZE_KEY ? '—' : (item.selectedSize || item.size || 'N/A')}
                       </p>
                       <p className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         Color: {item.selectedVariation || 'N/A'}
