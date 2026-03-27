@@ -1165,16 +1165,15 @@ const Terminal = () => {
         "[confirmRemoveItem] ✅ Item removed successfully, recording void transaction..."
       );
       const voidedQty = itemToVoid.quantity || 1;
+      setShowRemoveItemModal(false);
+      setItemToRemove(null);
+      toastBr.success(
+        `Item removed from this sale. (${voidedQty} ${voidedQty === 1 ? "item" : "items"} voided)`
+      );
       recordVoidedItem(itemToVoid, voidReason).
         then(() => {
           console.log(
             "[confirmRemoveItem] Void transaction recorded successfully"
-          );
-
-          setShowRemoveItemModal(false);
-          setItemToRemove(null);
-          toastBr.success(
-            `Item removed from this sale. (${voidedQty} ${voidedQty === 1 ? "item" : "items"} voided)`
           );
           console.log("[confirmRemoveItem] Modal closed and item cleared");
         }).
@@ -1183,10 +1182,6 @@ const Terminal = () => {
             "[confirmRemoveItem] Error recording void transaction:",
             error
           );
-
-
-          setShowRemoveItemModal(false);
-          setItemToRemove(null);
           toastBr.error(
             error?.message ||
               "Removed from cart, but the void could not be saved. Check your connection."
