@@ -33,6 +33,38 @@ import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../context/ThemeContext";
 import { API_ENDPOINTS } from "../../config/api";
 
+const formatCompactPeso = (n) => {
+  const abs = Math.abs(Number(n) || 0);
+  if (abs === 0) return "₱0";
+  if (abs >= 1_000_000) {
+    const v = abs / 1_000_000;
+    return `₱${v >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "")}M`;
+  }
+  if (abs >= 1000) {
+    const v = abs / 1000;
+    return `₱${v >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "")}k`;
+  }
+  return `₱${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+};
+
+const growthVsLastPeriod = (current, previous, rate) => {
+  const cur = Number(current) || 0;
+  const prev = Number(previous) || 0;
+  if (cur === 0 && prev === 0) {
+    return { text: "— vs last period", tone: "neutral" };
+  }
+  const r = Number(rate) || 0;
+  const sign = r > 0 ? "+" : "";
+  const tone = r > 0 ? "up" : r < 0 ? "down" : "neutral";
+  return { text: `${sign}${r}% vs last period`, tone };
+};
+
+const growthToneClass = (tone, dark) => {
+  if (tone === "up") return "text-green-600 dark:text-green-400";
+  if (tone === "down") return "text-red-600 dark:text-red-400";
+  return dark ? "text-gray-400" : "text-gray-500";
+};
+
 const Dashboard = () => {
   const { currentUser } = useAuth();
   const { theme } = useTheme();
@@ -50,7 +82,9 @@ const Dashboard = () => {
     profit: 0,
     lowStockItems: 0,
     growthRate: 0,
-    totalSalesPrevious: 0
+    totalSalesPrevious: 0,
+    totalTransactionsPrevious: 0,
+    transactionGrowthRate: 0
   });
   const [salesOverTimeData, setSalesOverTimeData] = useState([]);
   const [salesByCategoryData, setSalesByCategoryData] = useState([]);
@@ -267,19 +301,17 @@ const Dashboard = () => {
 
   const formatCurrency = (val) => `₱${val.toLocaleString()}`;
 
-  const KpiValueCurrency = ({ value, dark }) => {
-    const n = Number(value) || 0;
-    return (
-      <p className={`flex items-baseline gap-0.5 font-black tracking-tight leading-none ${dark ? "text-white" : "text-gray-900"}`}>
-        <span className={`text-3xl lg:text-4xl font-bold ${dark ? "text-gray-200" : "text-gray-800"}`}>₱</span>
-        <span className="text-5xl lg:text-6xl tabular-nums">{n.toLocaleString()}</span>
-      </p>
-    );
-  };
-
-  const KpiValuePlain = ({ children, dark }) => (
-    <p className={`text-5xl lg:text-6xl font-black tabular-nums tracking-tight leading-none ${dark ? "text-white" : "text-gray-900"}`}>{children}</p>
+  const salesGrowth = growthVsLastPeriod(
+    metrics.totalSalesToday,
+    metrics.totalSalesPrevious,
+    metrics.growthRate
   );
+  const txGrowth = growthVsLastPeriod(
+    metrics.totalTransactions,
+    metrics.totalTransactionsPrevious,
+    metrics.transactionGrowthRate
+  );
+  const isDark = theme === "dark";
 
   const renderDateRange = () => {
     if (timeframe === "Custom" && startDate && endDate) {
@@ -421,86 +453,65 @@ const Dashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           <div className="lg:col-span-2 flex flex-col gap-6 h-full">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:min-h-[190px] sm:auto-rows-fr">
-              <div className={`rounded-xl p-5 min-h-[148px] shadow-sm border relative overflow-hidden group hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-                <div
-                  className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
-                  style={{ backgroundImage: "linear-gradient(180deg, #93C5FD 0%, #2563EB 100%)" }}
-                />
-                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
-                  <div className="absolute top-0 right-0 z-10">
-                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-blue-500/15" : "bg-blue-50"}`}>
-                      <FaShoppingBag className="text-blue-400 text-base" />
-                    </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:auto-rows-fr">
+              {/* Total Sales */}
+              <div className={`rounded-xl border shadow-sm relative overflow-hidden hover:shadow-md transition-shadow min-h-[192px] ${isDark ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-3 h-full rounded-l-xl" style={{ backgroundImage: "linear-gradient(180deg, #93C5FD 0%, #2563EB 100%)" }} />
+                <div className="relative flex flex-col items-center text-center pt-6 pb-5 px-4 pl-6 min-h-[192px]">
+                  <div className={`p-2.5 rounded-full mb-3 ${isDark ? "bg-blue-500/15" : "bg-blue-50"}`}>
+                    <FaShoppingBag className="text-blue-500 text-base" />
                   </div>
-                  <div className="flex flex-col flex-1 pr-12">
-                    <KpiValueCurrency value={metrics.totalSalesToday} dark={theme === "dark"} />
-                    <p className="text-sm font-extrabold text-blue-600 mt-2">Total Sales</p>
-                    <p className="text-[10px] font-semibold text-green-600 mt-auto pt-3">+{metrics.growthRate}% vs last period</p>
-                  </div>
+                  <p className={`text-3xl sm:text-4xl font-black tabular-nums leading-none tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
+                    {formatCompactPeso(metrics.totalSalesToday)}
+                  </p>
+                  <p className={`text-sm font-extrabold mt-2.5 ${isDark ? "text-blue-400" : "text-blue-600"}`}>Total Sales</p>
+                  <p className={`text-[10px] font-semibold mt-auto pt-4 ${growthToneClass(salesGrowth.tone, isDark)}`}>{salesGrowth.text}</p>
                 </div>
               </div>
 
               {/* Total Transactions */}
-              <div className={`rounded-xl p-5 min-h-[148px] shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-                <div
-                  className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
-                  style={{ backgroundImage: "linear-gradient(180deg, #C4B5FD 0%, #7C3AED 100%)" }}
-                />
-                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
-                  <div className="absolute top-0 right-0 z-10">
-                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-purple-500/15" : "bg-purple-50"}`}>
-                      <FaHandshake className="text-purple-400 text-base" />
-                    </div>
+              <div className={`rounded-xl border shadow-sm relative overflow-hidden hover:shadow-md transition-shadow min-h-[192px] ${isDark ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-3 h-full rounded-l-xl" style={{ backgroundImage: "linear-gradient(180deg, #C4B5FD 0%, #7C3AED 100%)" }} />
+                <div className="relative flex flex-col items-center text-center pt-6 pb-5 px-4 pl-6 min-h-[192px]">
+                  <div className={`p-2.5 rounded-full mb-3 ${isDark ? "bg-purple-500/15" : "bg-purple-50"}`}>
+                    <FaHandshake className="text-purple-500 text-base" />
                   </div>
-                  <div className="flex flex-col flex-1 pr-12">
-                    <KpiValuePlain dark={theme === "dark"}>{metrics.totalTransactions}</KpiValuePlain>
-                    <p className="text-sm font-extrabold text-purple-700 mt-2">Total Transactions</p>
-                    <p className="text-[10px] font-semibold text-green-600 mt-auto pt-3">+12% vs last period</p>
-                  </div>
+                  <p className={`text-3xl sm:text-4xl font-black tabular-nums leading-none tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
+                    {(metrics.totalTransactions ?? 0).toLocaleString("en-US")}
+                  </p>
+                  <p className={`text-sm font-extrabold mt-2.5 ${isDark ? "text-purple-400" : "text-purple-700"}`}>Total Transactions</p>
+                  <p className={`text-[10px] font-semibold mt-auto pt-4 ${growthToneClass(txGrowth.tone, isDark)}`}>{txGrowth.text}</p>
                 </div>
               </div>
 
-
-              <div className={`rounded-xl p-5 min-h-[148px] shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-                <div
-                  className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
-                  style={{ backgroundImage: "linear-gradient(180deg, #86EFAC 0%, #16A34A 100%)" }}
-                />
-                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
-                  <div className="absolute top-0 right-0 z-10">
-                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-green-500/15" : "bg-green-50"}`}>
-                      <FaChartLine className="text-green-500 text-base" />
-                    </div>
+              {/* Sales growth % (same as first card trend) */}
+              <div className={`rounded-xl border shadow-sm relative overflow-hidden hover:shadow-md transition-shadow min-h-[192px] ${isDark ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-3 h-full rounded-l-xl" style={{ backgroundImage: "linear-gradient(180deg, #86EFAC 0%, #16A34A 100%)" }} />
+                <div className="relative flex flex-col items-center text-center pt-6 pb-5 px-4 pl-6 min-h-[192px]">
+                  <div className={`p-2.5 rounded-full mb-3 ${isDark ? "bg-green-500/15" : "bg-green-50"}`}>
+                    <FaChartLine className="text-green-500 text-base" />
                   </div>
-                  <div className="flex flex-col flex-1 pr-12">
-                    <p className={`flex items-baseline gap-0.5 font-black tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      <span className="text-5xl lg:text-6xl tabular-nums">{metrics.growthRate}</span>
-                      <span className={`text-3xl lg:text-4xl font-bold ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>%</span>
-                    </p>
-                    <p className="text-sm font-extrabold text-green-700 mt-2">Average Growth Rate</p>
-                    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-auto pt-3">vs last period</p>
-                  </div>
+                  <p className={`flex items-baseline justify-center gap-0.5 font-black leading-none ${isDark ? "text-white" : "text-gray-900"}`}>
+                    <span className="text-3xl sm:text-4xl tabular-nums tracking-tight">{metrics.growthRate}</span>
+                    <span className={`text-2xl font-bold ${isDark ? "text-gray-400" : "text-gray-600"}`}>%</span>
+                  </p>
+                  <p className={`text-sm font-extrabold mt-2.5 ${isDark ? "text-green-400" : "text-green-700"}`}>Average Growth Rate</p>
+                  <p className={`text-[10px] font-semibold mt-auto pt-4 ${growthToneClass(salesGrowth.tone, isDark)}`}>{salesGrowth.text}</p>
                 </div>
               </div>
 
-
-              <div className={`rounded-xl p-5 min-h-[148px] shadow-sm border relative overflow-hidden hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
-                <div
-                  className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
-                  style={{ backgroundImage: "linear-gradient(180deg, #FCA5A5 0%, #DC2626 100%)" }}
-                />
-                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
-                  <div className="absolute top-0 right-0 z-10">
-                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-red-500/15" : "bg-red-50"}`}>
-                      <FaExclamationTriangle className="text-red-500 text-base" />
-                    </div>
+              {/* Low stock */}
+              <div className={`rounded-xl border shadow-sm relative overflow-hidden hover:shadow-md transition-shadow min-h-[192px] ${isDark ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+                <div className="absolute top-0 left-0 w-3 h-full rounded-l-xl" style={{ backgroundImage: "linear-gradient(180deg, #FCA5A5 0%, #DC2626 100%)" }} />
+                <div className="relative flex flex-col items-center text-center pt-6 pb-5 px-4 pl-6 min-h-[192px]">
+                  <div className={`p-2.5 rounded-full mb-3 ${isDark ? "bg-red-500/15" : "bg-red-50"}`}>
+                    <FaExclamationTriangle className="text-red-500 text-base" />
                   </div>
-                  <div className="flex flex-col flex-1 pr-12">
-                    <KpiValuePlain dark={theme === "dark"}>{metrics.lowStockItems}</KpiValuePlain>
-                    <p className="text-sm font-extrabold text-red-600 mt-2">Low Stock Items</p>
-                    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-auto pt-3">Below reorder level</p>
-                  </div>
+                  <p className={`text-3xl sm:text-4xl font-black tabular-nums leading-none tracking-tight ${isDark ? "text-white" : "text-gray-900"}`}>
+                    {(metrics.lowStockItems ?? 0).toLocaleString("en-US")}
+                  </p>
+                  <p className={`text-sm font-extrabold mt-2.5 ${isDark ? "text-red-400" : "text-red-600"}`}>Low Stock Items</p>
+                  <p className={`text-[10px] font-semibold mt-auto pt-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>Below reorder level</p>
                 </div>
               </div>
             </div>

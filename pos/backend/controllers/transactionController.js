@@ -708,6 +708,7 @@ exports.getDashboardStats = async (req, res) => {
     // Extract previous period results
     const previousSummary = previousResult[0]?.summary[0] || {};
     const totalSalesPrevious = previousSummary.totalSales || 0;
+    const totalTransactionsPrevious = previousSummary.totalTransactions || 0;
 
     // Growth rate
     let growthRate = 0;
@@ -715,6 +716,14 @@ exports.getDashboardStats = async (req, res) => {
       growthRate = ((totalSalesToday - totalSalesPrevious) / totalSalesPrevious) * 100;
     } else if (totalSalesToday > 0) {
       growthRate = 100;
+    }
+
+    let transactionGrowthRate = 0;
+    if (totalTransactionsPrevious > 0) {
+      transactionGrowthRate =
+        ((totalTransactions - totalTransactionsPrevious) / totalTransactionsPrevious) * 100;
+    } else if (totalTransactions > 0) {
+      transactionGrowthRate = 100;
     }
 
     const lowStockItems = lowStockCountResult.length > 0 ? lowStockCountResult[0].count : 0;
@@ -727,7 +736,9 @@ exports.getDashboardStats = async (req, res) => {
         profit,
         lowStockItems,
         growthRate: parseFloat(growthRate.toFixed(1)),
-        totalSalesPrevious
+        totalSalesPrevious,
+        totalTransactionsPrevious,
+        transactionGrowthRate: parseFloat(transactionGrowthRate.toFixed(1))
       }
     });
   } catch (error) {
