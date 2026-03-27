@@ -1663,8 +1663,6 @@ const Terminal = () => {
       // NOTE: don't invalidate products here; we update them locally for instant UI
       invalidateCache("transactions");
 
-      toastBr.success("Transaction completed successfully.");
-
       try {
         const stockRes = await fetch(`${API_BASE_URL}/api/products/update-stock`, {
           method: "POST",
@@ -1977,6 +1975,9 @@ const Terminal = () => {
         discountAmount={discount}
         selectedDiscounts={selectedDiscounts}
         onProceed={handleCashProceed}
+        onTransactionDone={() =>
+          toastBr.success("Transaction completed successfully.")
+        }
         cartItems={cart}
         cashierName={currentUser?.name} />
 

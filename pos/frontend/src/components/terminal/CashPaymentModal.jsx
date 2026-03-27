@@ -15,6 +15,7 @@ const CashPaymentModal = ({
   discountAmount = 0,
   selectedDiscounts = [],
   onProceed,
+  onTransactionDone,
   cartItems = [],
   cashierName = ""
 }) => {
@@ -138,6 +139,7 @@ const CashPaymentModal = ({
 
   const handleNewTransaction = () => {
     setShowReceipt(false);
+    if (onTransactionDone) onTransactionDone();
 
   };
 
