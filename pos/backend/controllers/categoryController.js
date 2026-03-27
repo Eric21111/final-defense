@@ -81,6 +81,14 @@ exports.createCategory = async (req, res) => {
       });
     }
     
+    // Set default type and parentCategory for parent categories
+    if (!categoryData.type) {
+      categoryData.type = 'category';
+    }
+    if (!categoryData.parentCategory) {
+      categoryData.parentCategory = null;
+    }
+    
     // Set default status if not provided
     if (!categoryData.status) {
       categoryData.status = 'active';

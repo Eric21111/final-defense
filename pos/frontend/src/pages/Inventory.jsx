@@ -2202,7 +2202,9 @@ const Inventory = () => {
         resetProductForm={resetProductForm}
         loading={loading}
         categories={categories}
-        brandPartners={brandPartners} />
+        brandPartners={brandPartners}
+        onCategoryAdd={fetchCategories}
+        onBrandAdd={fetchBrandPartners} />
 
 
       <ConfirmAddProductModal

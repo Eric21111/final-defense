@@ -22,7 +22,11 @@ const AddCategoryModal = ({ show, onClose, onAdd }) => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ name: newCategory })
+        body: JSON.stringify({
+          name: newCategory,
+          type: 'category',
+          parentCategory: null
+        })
       });
 
       const data = await response.json();
