@@ -627,12 +627,16 @@ const AddProductModal = ({
                 <div className="grid grid-cols-2 gap-4">
                         <div>
                     <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Category <span className="text-red-500">*</span></label>
-                    <select name="category" value={newProduct.category || ""} onChange={(e) => { handleInputChange(e); setNewProduct(prev => ({ ...prev, subCategory: "" })); }} required
+                    <select name="category" value={newProduct.category || ""} onChange={(e) => {
+                      if (e.target.value === "__add_new_category__") { setShowCategoryModal(true); return; }
+                      handleInputChange(e); setNewProduct(prev => ({ ...prev, subCategory: "" }));
+                    }} required
                       className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.category ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
-                            <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""}>Select Category</option>
-                      {parentCategories.map(cat => (<option key={cat} value={cat} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{cat}</option>))}
-                          </select>
+                      <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""}>Select Category</option>
+                      {sortedParentCategories.filter(c => c !== "Others").map(cat => (<option key={cat} value={cat} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{cat}</option>))}
+                      <option value="__add_new_category__" className="font-semibold text-[#09A046]">+ Add Category</option>
+                    </select>
                         </div>
                         <div>
                     <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Sub Category <span className="text-red-500">*</span></label>
@@ -764,15 +768,17 @@ const AddProductModal = ({
                           <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Category <span className="text-red-500">*</span></label>
                             <select name="category" value={newProduct.category || ""} onChange={(e) => {
+                              if (e.target.value === "__add_new_category__") { setShowCategoryModal(true); return; }
                               handleInputChange(e);
                               setNewProduct(prev => ({ ...prev, subCategory: "" }));
                             }} required
                           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.category ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
                               <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""}>Select Category</option>
-                              {parentCategories.map((cat) => (
+                              {sortedParentCategories.filter(c => c !== "Others").map((cat) => (
                                 <option key={cat} value={cat} className={theme === "dark" ? "bg-[#2A2724]" : ""}>{cat}</option>
                               ))}
+                              <option value="__add_new_category__" className="font-semibold text-[#09A046]">+ Add Category</option>
                             </select>
                           </div>
                           <div>
