@@ -1077,7 +1077,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                                     };
                                   });
                                   setNewComboData(u);
-                                }}>Fill all Prices</span>
+                                }}>Fill all</span>
                               </div>
                               <div className={`rounded-lg border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                                 <div className={`grid grid-cols-[1fr_88px_88px_68px] gap-1 items-center px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${theme === "dark" ? "bg-[#2A2724] text-gray-400 border-b border-gray-700" : "bg-gray-50 text-gray-500 border-b border-gray-200"}`}>

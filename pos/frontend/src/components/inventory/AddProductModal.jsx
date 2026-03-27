@@ -1056,7 +1056,7 @@ const AddProductModal = ({
                                 className={`w-full px-2 py-2 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
                                 </div>
                             <button type="button" onClick={handleFillAll} disabled={!fillAllCost && !fillAllPrice && !fillAllQty}
-                              className={`px-4 py-2 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors ${(fillAllCost || fillAllPrice || fillAllQty) ? "bg-[#09A046] text-white hover:bg-[#078a3b]" : (theme === "dark" ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed")}`}>Fill all Prices</button>
+                              className={`px-4 py-2 text-xs font-semibold rounded-lg whitespace-nowrap transition-colors ${(fillAllCost || fillAllPrice || fillAllQty) ? "bg-[#09A046] text-white hover:bg-[#078a3b]" : (theme === "dark" ? "bg-gray-700 text-gray-500 cursor-not-allowed" : "bg-gray-200 text-gray-400 cursor-not-allowed")}`}>Fill all</button>
                           </div>
 
                           {/* Combo table */}
@@ -1201,7 +1201,7 @@ const AddProductModal = ({
                           {hasOpeningStock ? (
                             <div className="grid grid-cols-2 gap-4 w-full max-w-xl">
                               <div>
-                                <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Date received<span className='text-red-500'>*</span></label>
+                                <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Date received <span className='text-red-500'>*</span></label>
                                 <input
                                   type="date"
                                   name="dateReceived"

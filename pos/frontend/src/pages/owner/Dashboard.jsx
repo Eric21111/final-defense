@@ -405,9 +405,9 @@ const Dashboard = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 flex flex-col gap-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+          <div className="lg:col-span-2 flex flex-col gap-6 h-full">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:min-h-[190px] sm:auto-rows-fr">
               <div className={`rounded-xl p-5 min-h-[148px] shadow-sm border relative overflow-hidden group hover:shadow-md transition-shadow ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
                 <div
                   className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
@@ -504,7 +504,7 @@ const Dashboard = () => {
 
 
             <div
-              className={`p-6 rounded-xl shadow-sm border ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
+              className={`p-6 rounded-xl shadow-sm border flex-1 flex flex-col ${theme === "dark" ? "bg-[#2A2724] border-[#4A4037]" : "bg-white border-gray-100"}`}>
 
               <div className="flex justify-between items-center mb-6">
                 <div>
@@ -550,7 +550,7 @@ const Dashboard = () => {
                   </div>
                 </div>
               </div>
-              <div className="h-[300px] w-full">
+              <div className="h-[300px] min-h-[300px] w-full">
                 {salesOverTimeData && salesOverTimeData.length > 0 ?
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={salesOverTimeData}>
