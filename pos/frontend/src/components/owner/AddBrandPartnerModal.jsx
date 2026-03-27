@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FaTimes, FaUserFriends } from 'react-icons/fa';
+import circleIcon from '../../assets/owner/add-employee-circle.svg';
 import cameraIcon from '../../assets/owner/camera.svg';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -51,8 +52,8 @@ const AddBrandPartnerModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.brandName.trim()) {
-      setError('Brand name is required.');
+    if (!formData.brandName.trim() || !formData.email.trim() || !formData.contactNumber.trim() || !formData.contactPerson.trim()) {
+      setError('Please complete all required fields.');
       return;
     }
 
@@ -111,21 +112,26 @@ const AddBrandPartnerModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
 
           <div
-            className={`w-36 h-36 mx-auto rounded-full flex items-center justify-center cursor-pointer border border-dashed ${theme === 'dark' ?
+            className={`w-40 h-40 mx-auto rounded-full flex items-center justify-center cursor-pointer border border-dashed overflow-hidden relative ${theme === 'dark' ?
             'bg-linear-to-b from-[#2A2724] to-[#1E1B18] border-gray-600 hover:border-[#AD7F65]' :
             'bg-linear-to-b from-gray-50 to-gray-200 border-gray-300 hover:border-[#AD7F65]'}`
             }
             onClick={() => fileInputRef.current?.click()}>
             
             {formData.logo ?
-            <img src={formData.logo} alt="Brand logo preview" className="w-full h-full object-cover rounded-full" /> :
-
-            <div className="flex flex-col items-center text-gray-400">
-                <div className={`w-12 h-12 flex items-center justify-center mb-2 rounded-full shadow-inner ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'}`}>
-                  <img src={cameraIcon} alt="Upload" className={`w-6 h-6 ${theme === 'dark' ? 'opacity-50 invert' : 'opacity-70'}`} />
+            <>
+                <img src={formData.logo} alt="Brand logo preview" className="w-full h-full object-cover" />
+                <div className="absolute bottom-4 right-4 w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-md border border-gray-200">
+                  <img src={cameraIcon} alt="Camera" className="w-7 h-7 opacity-80" />
                 </div>
-                <span className="text-xs font-medium text-gray-500">Upload Logo</span>
-              </div>
+              </> :
+
+            <>
+                <img src={circleIcon} alt="Circle background" className="w-full h-full object-cover" />
+                <div className="absolute bottom-4 right-4 w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-md border border-gray-200">
+                  <img src={cameraIcon} alt="Camera" className="w-7 h-7 opacity-80" />
+                </div>
+              </>
             }
           </div>
           <input
@@ -142,13 +148,14 @@ const AddBrandPartnerModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
             <div className="space-y-4">
               <div>
-                <label className={`block text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Brand</label>
+                <label className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1 block">Brand <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="brandName"
                   placeholder="e.g., John Doe"
                   value={formData.brandName}
                   onChange={handleInputChange}
+                  required
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === 'dark' ?
                   'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
                   'bg-white border-gray-200 text-gray-900'}`
@@ -156,13 +163,14 @@ const AddBrandPartnerModal = ({ isOpen, onClose, onSuccess }) => {
                 
               </div>
               <div>
-                <label className={`block text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Email</label>
+                <label className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1 block">Email <span className="text-red-500">*</span></label>
                 <input
                   type="email"
                   name="email"
                   placeholder="yourname12345@gmail.com"
                   value={formData.email}
                   onChange={handleInputChange}
+                  required
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === 'dark' ?
                   'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
                   'bg-white border-gray-200 text-gray-900'}`
@@ -170,13 +178,14 @@ const AddBrandPartnerModal = ({ isOpen, onClose, onSuccess }) => {
                 
               </div>
               <div>
-                <label className={`block text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Contact No.</label>
+                <label className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1 block">Contact No. <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="contactNumber"
                   placeholder="+63"
                   value={formData.contactNumber}
                   onChange={handleInputChange}
+                  required
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === 'dark' ?
                   'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
                   'bg-white border-gray-200 text-gray-900'}`
@@ -184,13 +193,14 @@ const AddBrandPartnerModal = ({ isOpen, onClose, onSuccess }) => {
                 
               </div>
               <div>
-                <label className={`block text-xs mb-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Contact Person</label>
+                <label className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1 block">Contact Person <span className="text-red-500">*</span></label>
                 <input
                   type="text"
                   name="contactPerson"
                   placeholder="e.g., John Doe"
                   value={formData.contactPerson}
                   onChange={handleInputChange}
+                  required
                   className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === 'dark' ?
                   'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
                   'bg-white border-gray-200 text-gray-900'}`
