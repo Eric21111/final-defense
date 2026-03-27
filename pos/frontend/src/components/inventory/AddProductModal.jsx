@@ -637,7 +637,7 @@ const AddProductModal = ({
                         <div>
                     <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Sub Category <span className="text-red-500">*</span></label>
                     <select name="subCategory" value={newProduct.subCategory || ""} onChange={(e) => {
-                      if (e.target.value === "__add_new__") { setShowCategoryModal(true); return; }
+                      if (e.target.value === "__add_new__") { setShowSubcategoryModal(true); return; }
                       handleInputChange(e); setSelectedVariants([]); setCustomColorInput(""); setVariantQuantities({}); setVariantPrices({}); setVariantCostPrices({}); setDifferentPricesPerVariant({});
                     }} required disabled={!newProduct.category}
                       className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"} ${!newProduct.category ? "opacity-50 cursor-not-allowed" : ""}`}
@@ -778,7 +778,7 @@ const AddProductModal = ({
                           <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Sub Category <span className="text-red-500">*</span></label>
                             <select name="subCategory" value={newProduct.subCategory || ""} onChange={(e) => {
-                              if (e.target.value === "__add_new__") { setShowCategoryModal(true); return; }
+                              if (e.target.value === "__add_new__") { setShowSubcategoryModal(true); return; }
                               handleInputChange(e);
                               setSelectedVariants([]); setCustomColorInput(""); setVariantQuantities({}); setVariantPrices({}); setVariantCostPrices({}); setDifferentPricesPerVariant({});
                             }} required disabled={!newProduct.category}
@@ -1433,6 +1433,18 @@ const AddProductModal = ({
 
           setNewProduct((prev) => ({ ...prev, category: newCategoryName }));
         }} />
+
+      <AddSubcategoryModal
+        show={showSubcategoryModal}
+        parentCategory={newProduct.category}
+        onClose={() => setShowSubcategoryModal(false)}
+        onAdd={(newSubcategoryName) => {
+          if (onCategoryAdd) {
+            onCategoryAdd();
+          }
+          setNewProduct((prev) => ({ ...prev, subCategory: newSubcategoryName }));
+        }}
+      />
 
 
       <AddBrandModal
