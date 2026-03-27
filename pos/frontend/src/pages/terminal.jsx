@@ -1238,20 +1238,22 @@ const Terminal = () => {
 
   const normalizeCategory = useCallback((value) => String(value || "").trim().toLowerCase(), []);
 
-  const itemMatchesDiscountCategory = useCallback((item, discountCategory) => {
-    const target = normalizeCategory(discountCategory);
-    if (!target) return false;
-
-    const candidates = [];
-    if (item?.category) candidates.push(item.category);
-    if (item?.subCategory) candidates.push(item.subCategory);
+  const itemMatchesDiscountCategory = useCallback((item, discountCategory, discountSubCategory) => {
+    const targetCategory = normalizeCategory(discountCategory);
+    if (!targetCategory) return false;
 
     const productId = String(item?._id || item?.productId || item?.id || "");
     const product = productMap.get(productId);
-    if (product?.category) candidates.push(product.category);
-    if (product?.subCategory) candidates.push(product.subCategory);
 
-    return candidates.some((category) => normalizeCategory(category) === target);
+    const itemCategory = normalizeCategory(item?.category || product?.category);
+    const itemSubCategory = normalizeCategory(item?.subCategory || product?.subCategory);
+
+    if (itemCategory !== targetCategory) return false;
+
+    const targetSubCategory = normalizeCategory(discountSubCategory);
+    if (!targetSubCategory) return true;
+
+    return itemSubCategory === targetSubCategory;
   }, [normalizeCategory, productMap]);
 
 
@@ -1271,7 +1273,7 @@ const Terminal = () => {
 
     if (appliesToType === "category" && discountItem.category) {
       const hasMatchingItem = cartItems.some((item) =>
-        itemMatchesDiscountCategory(item, discountItem.category)
+        itemMatchesDiscountCategory(item, discountItem.category, discountItem.subCategory)
       );
 
       if (!hasMatchingItem) {
@@ -1355,7 +1357,7 @@ const Terminal = () => {
           totalEligibleAmount = subtotal;
         } else if (appliesToType === "category" && selectedDiscount.category) {
           totalEligibleAmount = cart.reduce((sum, item) => {
-            if (itemMatchesDiscountCategory(item, selectedDiscount.category)) {
+            if (itemMatchesDiscountCategory(item, selectedDiscount.category, selectedDiscount.subCategory)) {
               return sum + item.itemPrice * item.quantity;
             }
             return sum;

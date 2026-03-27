@@ -693,12 +693,12 @@ const ProductDetailsModal = ({
                   <p
                     className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
 
-                    SKU/Item Code
+                    Subcategory
                   </p>
                   <p
                     className={`font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
 
-                    {getDisplaySku()}
+                    {product.subCategory || "N/A"}
                   </p>
                 </div>
                 <div>
@@ -709,6 +709,18 @@ const ProductDetailsModal = ({
                   </p>
                   <p className="font-bold text-[#09A046] text-lg">
                     {getSellingPriceText()}
+                  </p>
+                </div>
+                <div>
+                  <p
+                    className={`text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+
+                    SKU/Item Code
+                  </p>
+                  <p
+                    className={`font-medium ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+
+                    {getDisplaySku()}
                   </p>
                 </div>
                 { }

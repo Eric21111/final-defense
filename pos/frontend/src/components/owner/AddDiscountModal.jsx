@@ -12,6 +12,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     discountValue: '',
     appliesTo: 'all',
     category: '',
+    subCategory: '',
     selectedProducts: [],
     validFrom: '',
     validUntil: '',
@@ -64,12 +65,25 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     const set = new Set();
     allProducts.forEach((p) => {
       if (p?.category) set.add(String(p.category).trim());
-      if (p?.subCategory) set.add(String(p.subCategory).trim());
     });
     categoryOptions.forEach((c) => set.add(String(c).trim()));
     if (discountToEdit?.category) set.add(String(discountToEdit.category).trim());
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
   }, [allProducts, categoryOptions, discountToEdit]);
+
+  const subCategoryOptions = useMemo(() => {
+    if (!formData.category) return [];
+    const set = new Set();
+    allProducts.forEach((p) => {
+      const category = String(p?.category || '').trim();
+      const selectedCategory = String(formData.category || '').trim();
+      if (category === selectedCategory && p?.subCategory) {
+        set.add(String(p.subCategory).trim());
+      }
+    });
+    if (discountToEdit?.subCategory) set.add(String(discountToEdit.subCategory).trim());
+    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [allProducts, formData.category, discountToEdit]);
 
   useEffect(() => {
     if (isOpen) {
@@ -83,6 +97,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
           discountValue: discountToEdit.discountValue || '',
           appliesTo: discountToEdit.appliesTo || 'all',
           category: discountToEdit.category || '',
+          subCategory: discountToEdit.subCategory || '',
           selectedProducts: discountToEdit.selectedProducts || [],
           validFrom: discountToEdit.validFrom && discountToEdit.validFrom !== 'Permanent' ? new Date(discountToEdit.validFrom).toISOString().split('T')[0] : '',
           validUntil: discountToEdit.validTo && discountToEdit.validTo !== 'Permanent' ? new Date(discountToEdit.validTo).toISOString().split('T')[0] : '',
@@ -99,6 +114,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
           discountValue: '',
           appliesTo: 'all',
           category: '',
+          subCategory: '',
           selectedProducts: [],
           validFrom: '',
           validUntil: '',
@@ -135,6 +151,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
+      ...(name === 'category' ? { subCategory: '' } : {}),
       [name]: type === 'checkbox' ? checked : value
     }));
   };
@@ -347,6 +364,23 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           <option key={cat} value={cat}>{cat}</option>
                           )}
                           </select>
+                          {subCategoryOptions.length > 0 && (
+                            <div className="mt-3">
+                              <label className={labelClass}>
+                                Select Subcategory <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
+                              </label>
+                              <select
+                                name="subCategory"
+                                value={formData.subCategory || ''}
+                                onChange={handleChange}
+                                className={inputClass}>
+                                <option value="">All in selected category</option>
+                                {subCategoryOptions.map((sub) => (
+                                  <option key={sub} value={sub}>{sub}</option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                         </div>
                       }
                       {formData.appliesTo === 'products' &&

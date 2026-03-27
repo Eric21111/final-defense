@@ -31,7 +31,12 @@ const discountSchema = new mongoose.Schema({
   category: {
     type: String,
     default: null,
-    enum: ['Tops', 'Bottoms', 'Dresses', 'Makeup', 'Accessories', 'Shoes', 'Head Wear', 'Foods', null]
+    trim: true
+  },
+  subCategory: {
+    type: String,
+    default: null,
+    trim: true
   },
   productIds: {
     type: [mongoose.Schema.Types.ObjectId],
@@ -92,6 +97,7 @@ const discountSchema = new mongoose.Schema({
 discountSchema.index({ status: 1 });
 discountSchema.index({ appliesTo: 1 });
 discountSchema.index({ category: 1 });
+discountSchema.index({ subCategory: 1 });
 discountSchema.index({ dateCreated: -1 });
 discountSchema.index({ discountCode: 1 });
 

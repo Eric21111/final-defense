@@ -26,7 +26,7 @@ exports.getAllDiscounts = async (req, res) => {
       const appliesToText = discount.appliesTo === 'all'
         ? 'All Products'
         : discount.appliesTo === 'category'
-          ? `Category: ${discount.category}`
+          ? `Category: ${discount.category}${discount.subCategory ? ` > ${discount.subCategory}` : ''}`
           : 'Specific Products';
 
       return {
