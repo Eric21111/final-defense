@@ -267,6 +267,20 @@ const Dashboard = () => {
 
   const formatCurrency = (val) => `₱${val.toLocaleString()}`;
 
+  const KpiValueCurrency = ({ value, dark }) => {
+    const n = Number(value) || 0;
+    return (
+      <p className={`flex items-baseline gap-0.5 font-black tracking-tight leading-none ${dark ? "text-white" : "text-gray-900"}`}>
+        <span className={`text-3xl lg:text-4xl font-bold ${dark ? "text-gray-200" : "text-gray-800"}`}>₱</span>
+        <span className="text-5xl lg:text-6xl tabular-nums">{n.toLocaleString()}</span>
+      </p>
+    );
+  };
+
+  const KpiValuePlain = ({ children, dark }) => (
+    <p className={`text-5xl lg:text-6xl font-black tabular-nums tracking-tight leading-none ${dark ? "text-white" : "text-gray-900"}`}>{children}</p>
+  );
+
   const renderDateRange = () => {
     if (timeframe === "Custom" && startDate && endDate) {
       return `${format(startDate, "MMM d, yyyy")} - ${format(endDate, "MMM d, yyyy")}`;
@@ -413,20 +427,16 @@ const Dashboard = () => {
                   className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
                   style={{ backgroundImage: "linear-gradient(180deg, #93C5FD 0%, #2563EB 100%)" }}
                 />
-                <div className="flex flex-col h-full min-h-[116px] justify-between">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className={`text-sm font-extrabold text-blue-600`}>Total Sales</p>
-                      <p className="text-[10px] font-semibold text-green-600 mt-0.5">+{metrics.growthRate}% vs last period</p>
-                    </div>
-                    <div className="bg-blue-50 p-2.5 rounded-full">
+                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
+                  <div className="absolute top-0 right-0 z-10">
+                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-blue-500/15" : "bg-blue-50"}`}>
                       <FaShoppingBag className="text-blue-400 text-base" />
                     </div>
                   </div>
-                  <div className="pt-1">
-                    <p className={`text-3xl lg:text-4xl font-black tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      {formatCurrency(metrics.totalSalesToday)}
-                    </p>
+                  <div className="flex flex-col flex-1 pr-12">
+                    <KpiValueCurrency value={metrics.totalSalesToday} dark={theme === "dark"} />
+                    <p className="text-sm font-extrabold text-blue-600 mt-2">Total Sales</p>
+                    <p className="text-[10px] font-semibold text-green-600 mt-auto pt-3">+{metrics.growthRate}% vs last period</p>
                   </div>
                 </div>
               </div>
@@ -437,20 +447,16 @@ const Dashboard = () => {
                   className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
                   style={{ backgroundImage: "linear-gradient(180deg, #C4B5FD 0%, #7C3AED 100%)" }}
                 />
-                <div className="flex flex-col h-full min-h-[116px] justify-between">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className={`text-sm font-extrabold text-purple-700`}>Total Transactions</p>
-                      <p className="text-[10px] font-semibold text-green-600 mt-0.5">+12% vs last period</p>
-                    </div>
-                    <div className="bg-purple-50 p-2.5 rounded-full">
+                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
+                  <div className="absolute top-0 right-0 z-10">
+                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-purple-500/15" : "bg-purple-50"}`}>
                       <FaHandshake className="text-purple-400 text-base" />
                     </div>
                   </div>
-                  <div className="pt-1">
-                    <p className={`text-3xl lg:text-4xl font-black tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      {metrics.totalTransactions}
-                    </p>
+                  <div className="flex flex-col flex-1 pr-12">
+                    <KpiValuePlain dark={theme === "dark"}>{metrics.totalTransactions}</KpiValuePlain>
+                    <p className="text-sm font-extrabold text-purple-700 mt-2">Total Transactions</p>
+                    <p className="text-[10px] font-semibold text-green-600 mt-auto pt-3">+12% vs last period</p>
                   </div>
                 </div>
               </div>
@@ -461,19 +467,19 @@ const Dashboard = () => {
                   className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
                   style={{ backgroundImage: "linear-gradient(180deg, #86EFAC 0%, #16A34A 100%)" }}
                 />
-                <div className="flex flex-col h-full min-h-[116px] justify-between">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className={`text-sm font-extrabold text-green-700`}>Average Growth Rate</p>
-                    </div>
-                    <div className="bg-green-50 p-2.5 rounded-full">
+                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
+                  <div className="absolute top-0 right-0 z-10">
+                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-green-500/15" : "bg-green-50"}`}>
                       <FaChartLine className="text-green-500 text-base" />
                     </div>
                   </div>
-                  <div className="pt-1">
-                    <p className={`text-3xl lg:text-4xl font-black tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      {metrics.growthRate}%
+                  <div className="flex flex-col flex-1 pr-12">
+                    <p className={`flex items-baseline gap-0.5 font-black tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
+                      <span className="text-5xl lg:text-6xl tabular-nums">{metrics.growthRate}</span>
+                      <span className={`text-3xl lg:text-4xl font-bold ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>%</span>
                     </p>
+                    <p className="text-sm font-extrabold text-green-700 mt-2">Average Growth Rate</p>
+                    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-auto pt-3">vs last period</p>
                   </div>
                 </div>
               </div>
@@ -484,19 +490,16 @@ const Dashboard = () => {
                   className="absolute top-0 left-0 w-3 h-full rounded-l-xl"
                   style={{ backgroundImage: "linear-gradient(180deg, #FCA5A5 0%, #DC2626 100%)" }}
                 />
-                <div className="flex flex-col h-full min-h-[116px] justify-between">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <p className={`text-sm font-extrabold text-red-600`}>Low Stock Items</p>
-                    </div>
-                    <div className="bg-red-50 p-2.5 rounded-full">
+                <div className="relative flex flex-col h-full min-h-[140px] pl-1">
+                  <div className="absolute top-0 right-0 z-10">
+                    <div className={`p-2.5 rounded-full ${theme === "dark" ? "bg-red-500/15" : "bg-red-50"}`}>
                       <FaExclamationTriangle className="text-red-500 text-base" />
                     </div>
                   </div>
-                  <div className="flex items-center pt-1">
-                    <p className={`text-3xl lg:text-4xl font-black tracking-tight leading-none ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
-                      {metrics.lowStockItems}
-                    </p>
+                  <div className="flex flex-col flex-1 pr-12">
+                    <KpiValuePlain dark={theme === "dark"}>{metrics.lowStockItems}</KpiValuePlain>
+                    <p className="text-sm font-extrabold text-red-600 mt-2">Low Stock Items</p>
+                    <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 mt-auto pt-3">Below reorder level</p>
                   </div>
                 </div>
               </div>
