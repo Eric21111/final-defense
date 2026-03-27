@@ -142,9 +142,9 @@ const AddBrandPartnerModal = ({ isOpen, onClose, onSuccess }) => {
             className="hidden" />
           
 
-          <div className={`border rounded-2xl p-5 ${theme === 'dark' ? 'bg-[#2A2724] border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+          <div className={`p-5 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             <div className="flex items-center gap-2 mb-4">
-              <span className="text-[#76462B] font-semibold text-sm">Brand Partner Information</span>
+              <span className="text-gray font-semibold text-sm">Brand Partner Information</span>
             </div>
             <div className="space-y-4">
               <div>
