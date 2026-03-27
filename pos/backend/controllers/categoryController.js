@@ -81,12 +81,22 @@ exports.createCategory = async (req, res) => {
       });
     }
     
-    // Set default type and parentCategory for parent categories
+    // Set default type and parentCategory based on category type
     if (!categoryData.type) {
       categoryData.type = 'category';
     }
-    if (!categoryData.parentCategory) {
+    
+    // For parent categories, ensure parentCategory is null
+    // For subcategories, keep the provided parentCategory
+    if (categoryData.type === 'category') {
       categoryData.parentCategory = null;
+    }
+    // If type is 'subcategory' and parentCategory is not provided, reject
+    if (categoryData.type === 'subcategory' && !categoryData.parentCategory) {
+      return res.status(400).json({
+        success: false,
+        message: 'Parent category is required for subcategories'
+      });
     }
     
     // Set default status if not provided

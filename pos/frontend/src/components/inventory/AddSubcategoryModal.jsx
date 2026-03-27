@@ -19,7 +19,11 @@ const AddSubcategoryModal = ({ show, parentCategory, onClose, onAdd }) => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ name: newSubcategory, parentCategory: parentCategory })
+        body: JSON.stringify({
+          name: newSubcategory,
+          type: 'subcategory',
+          parentCategory: parentCategory
+        })
       });
 
       const data = await response.json();

@@ -73,15 +73,17 @@ const AddProductModal = ({
   const legacyParentCategories = ["Apparel", "Shoes", "Foods", "Accessories", "Makeup", "Head Wear", "Essentials"];
 
   const customParentCategories = categories
-    .map((c) => c?.name)
-    .filter((name) =>
-      name &&
-      name !== "All" &&
-      name !== "Others" &&
-      !defaultParentCategories.includes(name) &&
-      !allKnownDefaultSubs.has(name) &&
-      !legacyParentCategories.includes(name)
-    );
+    .filter((c) =>
+      c?.name &&
+      c?.name !== "All" &&
+      c?.name !== "Others" &&
+      !defaultParentCategories.includes(c?.name) &&
+      !allKnownDefaultSubs.has(c?.name) &&
+      !legacyParentCategories.includes(c?.name) &&
+      (!c?.type || c?.type === 'category') &&
+      !c?.parentCategory
+    )
+    .map((c) => c?.name);
 
   const parentCategories = [...defaultParentCategories, ...customParentCategories];
 
