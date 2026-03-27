@@ -12,6 +12,7 @@ import ProductDetailsModal from "../components/terminal/ProductDetailsModal";
 import QRCodePaymentModal from "../components/terminal/QRCodePaymentModal";
 import RemoveItemPinModal from "../components/terminal/RemoveItemPinModal";
 import { API_BASE_URL } from "../config/api";
+import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { useTheme } from "../context/ThemeContext";
@@ -23,6 +24,11 @@ import dressesIcon from "../assets/inventory-icons/dresses.svg";
 import makeupIcon from "../assets/inventory-icons/make up.svg";
 import shoesIcon from "../assets/inventory-icons/shoe.svg";
 import topIcon from "../assets/inventory-icons/Top.svg";
+
+const toastBr = {
+  success: (msg) => toast.success(msg, { position: "bottom-right" }),
+  error: (msg) => toast.error(msg, { position: "bottom-right" })
+};
 
 const Terminal = () => {
   const { theme } = useTheme();
@@ -845,40 +851,42 @@ const Terminal = () => {
   };
 
   const recordVoidedItem = async (item, voidReason) => {
-    try {
-      await fetch(`${API_BASE_URL}/api/transactions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          userId,
-          performedById: currentUser?._id || currentUser?.id,
-          performedByName: currentUser?.name,
-          items: [
-            {
-              productId: item.productId || item._id,
-              itemName: item.itemName,
-              sku: item.sku,
-              variant: item.variant,
-              selectedSize: resolveItemSize(item) || null,
-              quantity: item.quantity || 1,
-              price: item.itemPrice || 0,
-              itemImage: item.itemImage || "",
-              voidReason: voidReason || null
-            }],
+    const res = await fetch(`${API_BASE_URL}/api/transactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId,
+        performedById: currentUser?._id || currentUser?.id,
+        performedByName: currentUser?.name,
+        items: [
+          {
+            productId: item.productId || item._id,
+            itemName: item.itemName,
+            sku: item.sku,
+            variant: item.variant,
+            selectedSize: resolveItemSize(item) || null,
+            quantity: item.quantity || 1,
+            price: item.itemPrice || 0,
+            itemImage: item.itemImage || "",
+            voidReason: voidReason || null
+          }],
 
-          paymentMethod: "void",
-          amountReceived: 0,
-          changeGiven: 0,
-          referenceNo: `VOID-${Date.now()}`,
-          totalAmount: (item.itemPrice || 0) * (item.quantity || 1),
-          status: "Voided",
-          voidReason: voidReason || null
-        })
-      });
-    } catch (error) {
-      console.warn("Failed to record void transaction", error);
+        paymentMethod: "void",
+        amountReceived: 0,
+        changeGiven: 0,
+        referenceNo: `VOID-${Date.now()}`,
+        totalAmount: (item.itemPrice || 0) * (item.quantity || 1),
+        status: "Voided",
+        voidReason: voidReason || null
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) {
+      throw new Error(
+        data.message || data.error || `Void recording failed (${res.status})`
+      );
     }
   };
 
@@ -1136,10 +1144,9 @@ const Terminal = () => {
             resolvedSize: resolveItemSize(item)
           }))
         });
-        alert(
-          "Failed to remove item from cart. The item may have already been removed or the IDs do not match. Please check the console for details."
+        toastBr.error(
+          "Could not remove that line from the cart. It may already be removed."
         );
-
 
         return;
       }
@@ -1149,6 +1156,7 @@ const Terminal = () => {
         console.error(
           "[confirmRemoveItem] ❌ Safety check failed: itemWasRemoved is not true! Aborting."
         );
+        toastBr.error("Could not void this item. Please try again.");
         return;
       }
 
@@ -1156,6 +1164,7 @@ const Terminal = () => {
       console.log(
         "[confirmRemoveItem] ✅ Item removed successfully, recording void transaction..."
       );
+      const voidedQty = itemToVoid.quantity || 1;
       recordVoidedItem(itemToVoid, voidReason).
         then(() => {
           console.log(
@@ -1164,6 +1173,9 @@ const Terminal = () => {
 
           setShowRemoveItemModal(false);
           setItemToRemove(null);
+          toastBr.success(
+            `Item removed from this sale. (${voidedQty} ${voidedQty === 1 ? "item" : "items"} voided)`
+          );
           console.log("[confirmRemoveItem] Modal closed and item cleared");
         }).
         catch((error) => {
@@ -1175,14 +1187,14 @@ const Terminal = () => {
 
           setShowRemoveItemModal(false);
           setItemToRemove(null);
-          alert(
-            "Item removed from cart, but failed to record void transaction. Please check logs."
+          toastBr.error(
+            error?.message ||
+              "Removed from cart, but the void could not be saved. Check your connection."
           );
         });
     } catch (error) {
       console.error("[confirmRemoveItem] Error:", error);
-      alert("Failed to void item. Please try again.");
-
+      toastBr.error("Failed to void item. Please try again.");
     }
   };
 
@@ -1653,7 +1665,7 @@ const Terminal = () => {
       // NOTE: don't invalidate products here; we update them locally for instant UI
       invalidateCache("transactions");
 
-
+      toastBr.success("Transaction completed successfully.");
 
       try {
         const stockRes = await fetch(`${API_BASE_URL}/api/products/update-stock`, {
@@ -1704,8 +1716,8 @@ const Terminal = () => {
         }
       } catch (stockErr) {
         console.error("Stock update error:", stockErr);
-        alert(
-          `Transaction saved, but stock update failed: ${stockErr.message || "Unknown error"}`
+        toastBr.error(
+          `Sale saved, but inventory update failed: ${stockErr.message || "Unknown error"}`
         );
       }
 
@@ -1725,8 +1737,8 @@ const Terminal = () => {
 
       setCart(cartSnapshot);
       const errorMessage = error.message || "Unknown error occurred";
-      alert(
-        `Transaction failed: ${errorMessage}\n\nYour cart has been restored. Please try again.`
+      toastBr.error(
+        `Transaction failed: ${errorMessage}. Your cart was restored.`
       );
       throw error;
     } finally {
@@ -1768,6 +1780,7 @@ const Terminal = () => {
 
     invalidateCache("transactions");
 
+    toastBr.success("Transaction completed successfully.");
 
     // Background refresh to stay consistent (UI already updated immediately).
     fetchProducts(true).catch((err) =>
