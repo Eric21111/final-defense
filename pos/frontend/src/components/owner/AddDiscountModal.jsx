@@ -3,19 +3,6 @@ import { FaBox, FaCheck, FaSearch, FaTimes } from 'react-icons/fa';
 import { API_ENDPOINTS } from '../../config/api';
 import { useTheme } from '../../context/ThemeContext';
 
-const CATEGORY_STRUCTURE = {
-  "Apparel - Men": ["Tops", "Bottoms", "Outerwear"],
-  "Apparel - Women": ["Tops", "Bottoms", "Dresses", "Outerwear"],
-  "Apparel - Kids": ["Tops", "Bottoms", "Dresses", "Outerwear"],
-  "Apparel - Unisex": ["Tops", "Bottoms", "Dresses", "Outerwear"],
-  "Foods": ["Beverages", "Snacks", "Meals", "Desserts", "Ingredients", "Other"],
-  "Makeup": ["Face", "Eyes", "Lips", "Nails", "SkinCare", "Others"],
-  "Accessories": ["Jewelry", "Bags", "Head Wear", "Glasses/Sunglasses", "Others"],
-  "Shoes": ["Sneakers", "Boots", "Sandals", "Others"],
-  "Essentials": ["Daily Essentials", "Personal Care", "Home Essentials", "Others"],
-  "Others": ["Others"]
-};
-
 const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) => {
   const { theme } = useTheme();
   const [formData, setFormData] = useState({
@@ -63,10 +50,15 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
       const response = await fetch(API_ENDPOINTS.categories);
       const data = await response.json();
       if (data.success && Array.isArray(data.data)) {
+        // Keep full category objects so we can map subcategories by `parentCategory`.
         setCategoryOptions(
-          data.data
-            .map((c) => c?.name)
-            .filter((name) => typeof name === 'string' && name.trim() && name !== 'All')
+          data.data.filter(
+            (c) =>
+              c &&
+              typeof c?.name === 'string' &&
+              c.name.trim() &&
+              c.name !== 'All'
+          )
         );
       }
     } catch (error) {
@@ -74,44 +66,93 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     }
   }, []);
 
-  const parentCategories = useMemo(() => Object.keys(CATEGORY_STRUCTURE), []);
-  const allKnownDefaultSubs = useMemo(() => new Set(Object.values(CATEGORY_STRUCTURE).flat()), []);
+  const categoryStructure = {
+    "Apparel - Men": ["Tops", "Bottoms", "Outerwear"],
+    "Apparel - Women": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Apparel - Kids": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Apparel - Unisex": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Foods": ["Beverages", "Snacks", "Meals", "Desserts", "Ingredients", "Other"],
+    "Makeup": ["Face", "Eyes", "Lips", "Nails", "SkinCare", "Others"],
+    "Accessories": ["Jewelry", "Bags", "Head Wear", "Glasses/Sunglasses", "Others"],
+    "Shoes": ["Sneakers", "Boots", "Sandals", "Others"],
+    "Essentials": ["Daily Essentials", "Personal Care", "Home Essentials", "Others"],
+    "Others": ["Others"]
+  };
+
+  const defaultParentCategories = Object.keys(categoryStructure);
+  const allKnownDefaultSubs = new Set(Object.values(categoryStructure).flat());
+  const legacyParentCategories = ["Apparel", "Shoes", "Foods", "Accessories", "Makeup", "Head Wear", "Essentials"];
 
   const categories = useMemo(() => {
-    const set = new Set(parentCategories);
+    const set = new Set();
+    // Always include the full fixed parent list (so `Essentials` doesn't disappear when no product exists yet).
+    defaultParentCategories.forEach((cat) => set.add(cat));
+
+    // Add custom parent categories from the DB categories collection.
+    // Mirror Add Product modal logic: filter by name sets (not by `type`) so dropdown options stay consistent.
     categoryOptions.forEach((c) => {
-      const n = String(c || '').trim();
-      if (n && !allKnownDefaultSubs.has(n)) set.add(n);
+      const name = String(c?.name || '').trim();
+      if (!name || name === 'All' || name === 'Others') return;
+      if (defaultParentCategories.includes(name)) return;
+      if (allKnownDefaultSubs.has(name)) return;
+      if (legacyParentCategories.includes(name)) return;
+      set.add(name);
     });
+
+    // Include product categories as fallbacks, but exclude anything that is a known default subcategory.
     allProducts.forEach((p) => {
-      const n = String(p?.category || '').trim();
-      if (n) set.add(n);
+      const cat = String(p?.category || '').trim();
+      if (!cat) return;
+      if (allKnownDefaultSubs.has(cat)) return;
+      set.add(cat);
     });
+
     if (discountToEdit?.category) set.add(String(discountToEdit.category).trim());
+    if (formData.category) set.add(String(formData.category).trim());
+
     return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  }, [parentCategories, categoryOptions, allProducts, allKnownDefaultSubs, discountToEdit]);
+  }, [allProducts, categoryOptions, discountToEdit, formData.category]);
 
   const subCategoryOptions = useMemo(() => {
-    if (!formData.category) return [];
-    const set = new Set();
-    const defaultSubs = CATEGORY_STRUCTURE[formData.category] || [];
-    defaultSubs.forEach((s) => set.add(String(s).trim()));
-    allProducts.forEach((p) => {
-      const category = String(p?.category || '').trim();
-      const selectedCategory = String(formData.category || '').trim();
-      if (category === selectedCategory && p?.subCategory) {
-        set.add(String(p.subCategory).trim());
-      }
-    });
-    categoryOptions.forEach((c) => {
-      const n = String(c || '').trim();
-      if (n && !parentCategories.includes(n) && !allKnownDefaultSubs.has(n)) {
-        set.add(n);
-      }
-    });
-    if (discountToEdit?.subCategory) set.add(String(discountToEdit.subCategory).trim());
-    return Array.from(set).filter(Boolean).sort((a, b) => a.localeCompare(b));
-  }, [allProducts, formData.category, discountToEdit, categoryOptions, parentCategories, allKnownDefaultSubs]);
+    const parentCat = String(formData.category || '').trim();
+    if (!parentCat) return [];
+
+    const defaultSubs = categoryStructure[parentCat] || [];
+
+    // Custom subcategories tied to the selected parent category in the DB.
+    const mappedCustomSubCategories = categoryOptions
+      .filter((c) => c?.parentCategory === parentCat)
+      .map((c) => c?.name)
+      .filter((name) => typeof name === 'string' && name.trim() && name !== 'All');
+
+    // Orphan/custom subcategories (not part of the fixed structure).
+    const orphanCustomSubCategories = categoryOptions
+      .map((c) => c?.name)
+      .filter((name) => {
+        if (typeof name !== 'string') return false;
+        const trimmed = name.trim();
+        if (!trimmed || trimmed === 'All' || trimmed === 'Others') return false;
+        if (defaultParentCategories.includes(trimmed)) return false;
+        if (allKnownDefaultSubs.has(trimmed)) return false;
+        if (legacyParentCategories.includes(trimmed)) return false;
+        return true;
+      });
+
+    const subs = [...defaultSubs, ...mappedCustomSubCategories, ...orphanCustomSubCategories];
+
+    const selectedSub = String(formData.subCategory || '').trim();
+    if (selectedSub && selectedSub !== '__add_new__' && !subs.includes(selectedSub)) {
+      subs.push(selectedSub);
+    }
+
+    const editSub = String(discountToEdit?.subCategory || '').trim();
+    const editCat = String(discountToEdit?.category || '').trim();
+    if (editSub && editCat === parentCat && !subs.includes(editSub)) {
+      subs.push(editSub);
+    }
+
+    return [...new Set(subs)].filter(Boolean).sort((a, b) => a.localeCompare(b));
+  }, [categoryOptions, defaultParentCategories, formData.category, formData.subCategory, discountToEdit, allKnownDefaultSubs, legacyParentCategories]);
 
   useEffect(() => {
     if (isOpen) {
