@@ -1170,9 +1170,6 @@ const Terminal = () => {
       const voidedQty = itemToVoid.quantity || 1;
       setShowRemoveItemModal(false);
       setItemToRemove(null);
-      toastBr.success(
-        `Item removed from this sale. (${voidedQty} ${voidedQty === 1 ? "item" : "items"} voided)`
-      );
       recordVoidedItem(itemToVoid, voidReason).
         then(() => {
           console.log(
@@ -1190,6 +1187,7 @@ const Terminal = () => {
               "Removed from cart, but the void could not be saved. Check your connection."
           );
         });
+      return { voidedQty };
     } catch (error) {
       console.error("[confirmRemoveItem] Error:", error);
       toastBr.error("Failed to void item. Please try again.");

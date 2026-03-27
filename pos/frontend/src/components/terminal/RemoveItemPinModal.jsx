@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { FaChevronDown, FaEye, FaEyeSlash, FaTimes } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 import { useTheme } from '../../context/ThemeContext';
 
 const voidReasons = [
@@ -145,7 +146,11 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
 
             setLoading(false);
 
-            await onConfirm(voidReason, approverInfo);
+            const result = await onConfirm(voidReason, approverInfo);
+            const voidedQty = result?.voidedQty || item?.quantity || 1;
+            toast.success(
+              `Item removed from this sale. (${voidedQty} ${voidedQty === 1 ? 'item' : 'items'} voided)`
+            );
             console.log('[RemoveItemPinModal] onConfirm called successfully with approver:', approverInfo);
           } catch (error) {
             console.error('[RemoveItemPinModal] Error calling onConfirm:', error);
