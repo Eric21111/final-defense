@@ -377,9 +377,12 @@ const Inventory = () => {
 
 
     if (filterCategory !== "All") {
-      filtered = filtered.filter(
-        (product) => product.category === filterCategory || product.subCategory === filterCategory
-      );
+      const matchCat = filterCategory.toLowerCase().trim();
+      filtered = filtered.filter((product) => {
+        const pCat = (product.category || "").toLowerCase().trim();
+        const pSubCat = (product.subCategory || "").toLowerCase().trim();
+        return pCat === matchCat || pSubCat === matchCat;
+      });
     }
 
 

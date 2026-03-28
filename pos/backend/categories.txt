@@ -1,0 +1,2 @@
+CAT: ["Apparel - Unisex","Makeup","Foods"]
+SUB: ["Dresses","Tops","Shoes","Bottoms","Makeup","Foods"]

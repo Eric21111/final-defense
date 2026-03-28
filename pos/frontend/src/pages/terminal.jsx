@@ -325,9 +325,12 @@ const Terminal = () => {
     });
 
     if (selectedCategory !== "All") {
-      filtered = filtered.filter(
-        (product) => product.category === selectedCategory
-      );
+      const matchCat = selectedCategory.toLowerCase().trim();
+      filtered = filtered.filter((product) => {
+        const pCat = (product.category || "").toLowerCase().trim();
+        const pSubCat = (product.subCategory || "").toLowerCase().trim();
+        return pCat === matchCat || pSubCat === matchCat;
+      });
     }
 
     if (searchQuery) {
