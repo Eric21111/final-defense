@@ -1879,7 +1879,7 @@ const Terminal = () => {
                 onClick={() => setSelectedCategory(cat.name)}
                 className={`flex items-center justify-center px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md border truncate ${
                   selectedCategory === cat.name
-                  ? `text-[#AD7F65] border-b-4 border-x-0 border-t-0 border-[#AD7F65] ${
+                  ? `text-[#AD7F65] border-b-5 border-x-0 border-t-0 border-gray-200 ${
                       theme === "dark" ? "bg-[#2A2724]" : "bg-white"
                     }`
                     : theme === "dark"
