@@ -38,7 +38,8 @@ const Terminal = () => {
   const [products, setProducts] = useState(
     () => getCachedData("products") || []
   );
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedMainCategory, setSelectedMainCategory] = useState("All");
+  const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [cart, setCart] = useState([]);
   const [discountAmount, setDiscountAmount] = useState("");
@@ -107,7 +108,8 @@ const Terminal = () => {
     { name: "Essentials", icon: accessoriesIcon }];
 
 
-  const [categories, setCategories] = useState(defaultCategories);
+  const [mainCategories, setMainCategories] = useState(defaultCategories);
+  const [subCategories, setSubCategories] = useState([]);
 
 
   const categoryIconMap = {
@@ -126,30 +128,32 @@ const Terminal = () => {
       const data = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
+        const activeDbCats = data.data.filter((cat) => cat.status === "active");
 
-        const activeDbCategories = data.data.
-          filter((cat) => cat.status === "active").
-          map((cat) => ({
-            name: cat.name,
-            icon: categoryIconMap[cat.name] || allIcon
-          }));
+        const dbMainCats = activeDbCats
+          .filter(c => c.type !== 'subcategory')
+          .map(cat => ({ name: cat.name, icon: categoryIconMap[cat.name] || allIcon }));
 
+        const dbSubCats = activeDbCats
+          .filter(c => c.type === 'subcategory')
+          .map(cat => ({ name: cat.name, parentCategory: cat.parentCategory }));
 
-        const mergedCategories = [...defaultCategories];
+        const mergedMainCategories = [...defaultCategories];
         const defaultNames = new Set(defaultCategories.map((c) => c.name));
 
-        activeDbCategories.forEach((cat) => {
+        dbMainCats.forEach((cat) => {
           if (!defaultNames.has(cat.name)) {
-            mergedCategories.push(cat);
+            mergedMainCategories.push(cat);
           }
         });
 
-        setCategories(mergedCategories);
+        setMainCategories(mergedMainCategories);
+        setSubCategories(dbSubCats);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
-
-      setCategories(defaultCategories);
+      setMainCategories(defaultCategories);
+      setSubCategories([]);
     }
   };
 
@@ -324,13 +328,22 @@ const Terminal = () => {
       return (product.currentStock || 0) > 0;
     });
 
-    if (selectedCategory !== "All") {
-      const matchCat = selectedCategory.toLowerCase().trim();
-      filtered = filtered.filter((product) => {
-        const pCat = (product.category || "").toLowerCase().trim();
-        const pSubCat = (product.subCategory || "").toLowerCase().trim();
-        return pCat === matchCat || pSubCat === matchCat;
-      });
+    if (selectedMainCategory !== "All") {
+      const matchMain = selectedMainCategory.toLowerCase().trim();
+      
+      if (selectedSubCategory && selectedSubCategory !== "All") {
+        const matchSub = selectedSubCategory.toLowerCase().trim();
+        filtered = filtered.filter((product) => {
+          const pCat = (product.category || "").toLowerCase().trim();
+          const pSubCat = (product.subCategory || "").toLowerCase().trim();
+          return pCat === matchMain && pSubCat === matchSub;
+        });
+      } else {
+        filtered = filtered.filter((product) => {
+          const pCat = (product.category || "").toLowerCase().trim();
+          return pCat === matchMain;
+        });
+      }
     }
 
     if (searchQuery) {
@@ -364,11 +377,11 @@ const Terminal = () => {
     });
 
     return filtered;
-  }, [products, selectedCategory, searchQuery, sortOption]);
+  }, [products, selectedMainCategory, selectedSubCategory, searchQuery, sortOption]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedCategory, searchQuery]);
+  }, [selectedMainCategory, selectedSubCategory, searchQuery]);
 
   const fetchProducts = async (background = false) => {
     try {
@@ -1871,26 +1884,60 @@ const Terminal = () => {
             onSortChange={setSortOption} />
 
 
-          { }
-          <div className="grid grid-cols-7 gap-3 pb-2 w-full">
-            {categories.map((cat) =>
-              <button
-                key={cat.name}
-                onClick={() => setSelectedCategory(cat.name)}
-                className={`flex items-center justify-center px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md truncate ${
-                  selectedCategory === cat.name
-                    ? `text-[#AD7F65] border border-b-5 ${
-                        theme === "dark" ? "bg-[#2A2724] border-gray-700" : "bg-white border-gray-200"
-                      }`
-                    : theme === "dark"
-                      ? "bg-[#2A2724] text-gray-300 border border-gray-700 hover:border-gray"
-                      : "bg-white text-gray-800 border border-gray-200 hover:border-gray"
+          {/* Category Dropdowns */}
+          <div className="flex gap-4 w-full px-2" style={{ transform: "translateY(-5px)" }}>
+            <div className="flex-1 max-w-[280px]">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                Main Category
+              </label>
+              <select
+                value={selectedMainCategory}
+                onChange={(e) => {
+                   setSelectedMainCategory(e.target.value);
+                   setSelectedSubCategory("");
+                }}
+                className={`w-full p-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#AD7F65] cursor-pointer text-sm font-medium ${
+                  theme === "dark" 
+                    ? "bg-[#2A2724] border-gray-600 text-white" 
+                    : "bg-white border-gray-300 text-gray-900"
                 }`}
-                style={selectedCategory === cat.name ? { borderBottomColor: "#AD7F65" } : {}}
-                title={cat.name}>
-                <span className="truncate w-full text-center">{cat.name}</span>
-              </button>
-            )}
+              >
+                {mainCategories.map((cat) => (
+                  <option key={`main-${cat.name}`} value={cat.name}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex-1 max-w-[280px]">
+              <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                Subcategory
+              </label>
+              <select
+                value={selectedSubCategory}
+                onChange={(e) => setSelectedSubCategory(e.target.value)}
+                disabled={selectedMainCategory === "All" || !selectedMainCategory}
+                className={`w-full p-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#AD7F65] text-sm font-medium ${
+                    selectedMainCategory === "All" || !selectedMainCategory
+                      ? "opacity-60 cursor-not-allowed bg-gray-100 dark:bg-[#1f1d1b]"
+                      : "cursor-pointer hover:border-gray-400"
+                  } ${
+                  theme === "dark" 
+                    ? "bg-[#2A2724] border-gray-600 text-white" 
+                    : "bg-white border-gray-300 text-gray-900"
+                }`}
+              >
+                <option value="">All {selectedMainCategory !== "All" ? selectedMainCategory : ""}</option>
+                {subCategories
+                  .filter((sub) => sub.parentCategory === selectedMainCategory)
+                  .map((sub) => (
+                    <option key={`sub-${sub.name}`} value={sub.name}>
+                      {sub.name}
+                    </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -1898,7 +1945,7 @@ const Terminal = () => {
           <div
             className="flex-1 overflow-auto p-6"
             style={{
-              paddingTop: `${130 + Math.ceil(categories.length / 7) * 50}px`
+              paddingTop: `200px`
             }}>
 
             <div>
