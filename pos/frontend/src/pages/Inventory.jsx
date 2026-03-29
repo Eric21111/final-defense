@@ -293,12 +293,25 @@ const Inventory = () => {
           .filter(c => c.type !== 'subcategory' && !categoryStructureOptions.includes(c.name))
           .map(cat => ({ name: cat.name, icon: categoryIconMap[cat.name] || allIcon }));
 
-        const dbSubCats = activeDbCats
-          .filter(c => c.type === 'subcategory' || categoryStructureOptions.includes(c.name))
-          .map(cat => ({ 
-            name: cat.name, 
-            parentCategory: cat.parentCategory || getParentCategoryForLegacy(cat.name)
-          }));
+        const rawSubCats = activeDbCats
+          .filter(c => c.type === 'subcategory' || categoryStructureOptions.includes(c.name));
+
+        const dbSubCats = [];
+
+        for (const [parent, subs] of Object.entries(categoryStructure)) {
+          subs.forEach(subName => {
+            const dbSub = rawSubCats.find(s => s.name === subName);
+            if (dbSub) {
+              dbSubCats.push({ name: dbSub.name, parentCategory: parent });
+            }
+          });
+        }
+
+        rawSubCats.forEach(sub => {
+          if (!categoryStructureOptions.includes(sub.name)) {
+            dbSubCats.push({ name: sub.name, parentCategory: sub.parentCategory });
+          }
+        });
 
         const mergedMainCategories = [...defaultCategories];
         const defaultNames = new Set(defaultCategories.map((c) => c.name));

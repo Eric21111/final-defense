@@ -336,7 +336,19 @@ const Categories = () => {
         (filterStatus === 'Active' && main.status === 'active') ||
         (filterStatus === 'Archived' && main.status === 'inactive');
       
-      const relatedSubs = subCats.filter(sub => sub.parentCategory === main.name);
+      const builtInNames = categoryStructure[main.name] || [];
+      const builtInSubs = builtInNames.map(name => {
+        const sub = subCats.find(s => s.name === name);
+        if (sub) return { ...sub, parentCategory: main.name };
+        return null;
+      }).filter(Boolean);
+
+      const customSubs = subCats.filter(sub => 
+        sub.parentCategory === main.name && !builtInNames.includes(sub.name)
+      );
+
+      const relatedSubs = [...builtInSubs, ...customSubs];
+      
       const filteredSubs = relatedSubs.filter(sub => {
         const matchSearch = sub.name.toLowerCase().includes(searchQuery.toLowerCase());
         const matchFilter = filterStatus === 'All' ||
