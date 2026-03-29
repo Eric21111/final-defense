@@ -23,6 +23,10 @@ const categorySchema = new mongoose.Schema({
     enum: ['active', 'inactive'],
     default: 'active'
   },
+  showOnPos: {
+    type: Boolean,
+    default: true
+  },
   dateCreated: {
     type: Date,
     default: Date.now
