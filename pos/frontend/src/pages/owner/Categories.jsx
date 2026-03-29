@@ -551,11 +551,8 @@ const Categories = () => {
                               setShowOnPos(true);
                               setShowAddSubModal(true);
                             }}
-                            className={`p-2 rounded-lg transition-colors group ${theme === 'dark' ? 'hover:bg-[#352F2A]' : 'hover:bg-green-50'}`}
-                            title="Add Subcategory">
-                            <svg className="w-5 h-5 text-green-500 group-hover:text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
+                            className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                            + Sub
                           </button>
                           {mainGroup.status === 'active' ? (
                             <button
