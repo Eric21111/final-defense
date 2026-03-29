@@ -509,7 +509,7 @@ const OwnerOnboarding = ({ onSetupComplete }) => {
           <div className="text-center mb-10">
             <h1 className="text-5xl lg:text-6xl font-bold mb-4">
               <span className="text-[#2D2D2D]">Welcome to </span>
-              <span className="text-[#8B7355]">CYSPOS!</span>
+              <span className="text-[#76462B]">CYSPOS!</span>
             </h1>
             <div className="w-full max-w-md h-1 bg-[#C2A68C] mx-auto" />
           </div>

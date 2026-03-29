@@ -175,10 +175,10 @@ const PinEntry = () => {
         
         <div className="w-full max-w-[600px]">
           <div className="text-center mb-12">
-            <h2 className="text-5xl font-bold text-[#8B7355] mb-4 tracking-[8px]">
+            <h2 className="text-5xl font-bold text-[#76462B] mb-4 tracking-[8px]">
               CYSPOS
             </h2>
-            <div className="w-full h-0 pb-6 border-b-[3px] border-[#8B7355]"></div>
+            <div className="w-full h-[6px]" style={{ background: "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)" }}></div>
           </div>
 
           <div
@@ -288,29 +288,27 @@ const PinEntry = () => {
 
               {showKeypad &&
               <button
-                className="bg-[#8B7355] text-white border-none rounded-full px-20 py-3 text-lg font-semibold cursor-pointer transition-all duration-300 uppercase shadow-md hover:bg-[#6d5a43] hover:shadow-lg active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-white border-none rounded-full px-20 py-3 text-lg font-semibold cursor-pointer transition-all duration-300 uppercase shadow-md hover:shadow-lg active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={handleLogin}
                 disabled={loading || pin.length !== 6}
-                style={{ fontFamily: "sans-serif" }}>
-                
-                  {loading ? "VERIFYING..." : "LOGIN"}
-                </button>
-              }
-            </div>
-          </div>
-
-          {!showKeypad &&
-          <div className="text-center mt-8">
-              <button
-              className="bg-[#8B7355] text-white border-none rounded-[10px] px-12 py-3 text-lg font-semibold cursor-pointer transition-all duration-300 uppercase shadow-md hover:bg-[#6d5a43] hover:shadow-lg active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed -translate-x-5"
-              onClick={handleLogin}
-              disabled={loading || pin.length !== 6}
-              style={{ fontFamily: "sans-serif" }}>
-              
+                style={{ fontFamily: "sans-serif", background: "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)" }}>
                 {loading ? "VERIFYING..." : "LOGIN"}
               </button>
+            }
             </div>
-          }
+            </div>
+
+            {!showKeypad &&
+              <div className="text-center mt-8">
+                <button
+                  className="text-white border-none rounded-[10px] px-12 py-3 text-lg font-semibold cursor-pointer transition-all duration-300 uppercase shadow-md hover:shadow-lg active:translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed -translate-x-5"
+                  onClick={handleLogin}
+                  disabled={loading || pin.length !== 6}
+                  style={{ fontFamily: "sans-serif", background: "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)" }}>
+                  {loading ? "VERIFYING..." : "LOGIN"}
+                </button>
+              </div>
+            }
         </div>
       </div>
     </div>);
