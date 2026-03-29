@@ -1877,17 +1877,17 @@ const Terminal = () => {
               <button
                 key={cat.name}
                 onClick={() => setSelectedCategory(cat.name)}
-                className={`flex items-center justify-center px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md border truncate ${
+                className={`flex items-center justify-center px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md truncate ${
                   selectedCategory === cat.name
-                  ? `text-[#AD7F65] border-b-5 border-x-0 border-t-0 border-[#AD7F65] ${
-                      theme === "dark" ? "bg-[#2A2724]" : "bg-white"
-                    }`
+                    ? `text-[#AD7F65] border border-b-4 ${
+                        theme === "dark" ? "bg-[#2A2724] border-gray-700" : "bg-white border-gray-200"
+                      }`
                     : theme === "dark"
                       ? "bg-[#2A2724] text-gray-300 border border-gray-700 hover:border-gray"
                       : "bg-white text-gray-800 border border-gray-200 hover:border-gray"
                 }`}
+                style={selectedCategory === cat.name ? { borderBottomColor: "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)" } : {}}
                 title={cat.name}>
-
                 <span className="truncate w-full text-center">{cat.name}</span>
               </button>
             )}
