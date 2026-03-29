@@ -144,7 +144,6 @@ const Inventory = () => {
   const [productToArchive, setProductToArchive] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [productToEdit, setProductToEdit] = useState(null);
-  const [filterCategory, setFilterCategory] = useState("All");
   const [filterBrand, setFilterBrand] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
   const [sortBy, setSortBy] = useState("sku-new");
@@ -199,9 +198,43 @@ const Inventory = () => {
     return defaultProductState;
   });
 
-  const [categories, setCategories] = useState([
-    { name: "All", icon: allIcon }]
-  );
+  const [selectedMainCategory, setSelectedMainCategory] = useState("All");
+  const [selectedSubCategory, setSelectedSubCategory] = useState("");
+
+  const defaultCategories = [
+    { name: "All", icon: allIcon }
+  ];
+
+  const categoryStructureOptions = [
+    "Tops", "Bottoms", "Dresses", "Outerwear",
+    "Beverages", "Snacks", "Meals", "Desserts", "Ingredients", "Other",
+    "Face", "Eyes", "Lips", "Nails", "SkinCare", "Others",
+    "Jewelry", "Bags", "Head Wear", "Glasses/Sunglasses", 
+    "Sneakers", "Boots", "Sandals", 
+    "Daily Essentials", "Personal Care", "Home Essentials"
+  ];
+
+  const categoryStructure = {
+    "Apparel - Men": ["Tops", "Bottoms", "Outerwear"],
+    "Apparel - Women": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Apparel - Kids": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Apparel - Unisex": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Foods": ["Beverages", "Snacks", "Meals", "Desserts", "Ingredients", "Other"],
+    "Makeup": ["Face", "Eyes", "Lips", "Nails", "SkinCare", "Others"],
+    "Accessories": ["Jewelry", "Bags", "Head Wear", "Glasses/Sunglasses", "Others"],
+    "Shoes": ["Sneakers", "Boots", "Sandals", "Others"],
+    "Essentials": ["Daily Essentials", "Personal Care", "Home Essentials", "Others"],
+  };
+
+  const getParentCategoryForLegacy = (name) => {
+    for (const [parent, subs] of Object.entries(categoryStructure)) {
+      if (subs.includes(name)) return parent;
+    }
+    return null;
+  };
+
+  const [mainCategories, setMainCategories] = useState(defaultCategories);
+  const [subCategories, setSubCategories] = useState([]);
   const [brandPartners, setBrandPartners] = useState([]);
 
 
@@ -253,36 +286,35 @@ const Inventory = () => {
       const data = await response.json();
 
       if (data.success && Array.isArray(data.data)) {
+        const activeDbCats = data.data.filter((cat) => cat.status === "active");
 
-        const activeCategories = data.data.
-          filter((cat) => cat.status === "active" && cat.name !== "Others").
-          map((cat) => ({
-            name: cat.name,
-            icon: categoryIconMap[cat.name] || allIcon,
-            parentCategory: cat.parentCategory || null
+        const dbMainCats = activeDbCats
+          .filter(c => c.type !== 'subcategory' && !categoryStructureOptions.includes(c.name))
+          .map(cat => ({ name: cat.name, icon: categoryIconMap[cat.name] || allIcon }));
+
+        const dbSubCats = activeDbCats
+          .filter(c => c.type === 'subcategory' || categoryStructureOptions.includes(c.name))
+          .map(cat => ({ 
+            name: cat.name, 
+            parentCategory: cat.parentCategory || getParentCategoryForLegacy(cat.name)
           }));
 
-        const withEssentials = activeCategories.some((cat) => cat.name === "Essentials")
-          ? activeCategories
-          : [...activeCategories, { name: "Essentials", icon: categoryIconMap.Essentials, parentCategory: null }];
+        const mergedMainCategories = [...defaultCategories];
+        const defaultNames = new Set(defaultCategories.map((c) => c.name));
 
+        dbMainCats.forEach((cat) => {
+          if (!defaultNames.has(cat.name)) {
+            mergedMainCategories.push(cat);
+          }
+        });
 
-        setCategories([{ name: "All", icon: allIcon, parentCategory: null }, ...withEssentials]);
+        setMainCategories(mergedMainCategories);
+        setSubCategories(dbSubCats);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
-
-      setCategories([
-        { name: "All", icon: allIcon, parentCategory: null },
-        { name: "Tops", icon: topIcon, parentCategory: null },
-        { name: "Bottoms", icon: bottomsIcon, parentCategory: null },
-        { name: "Dresses", icon: dressesIcon, parentCategory: null },
-        { name: "Makeup", icon: makeupIcon, parentCategory: null },
-        { name: "Accessories", icon: accessoriesIcon, parentCategory: null },
-        { name: "Essentials", icon: accessoriesIcon, parentCategory: null },
-        { name: "Shoes", icon: shoesIcon, parentCategory: null },
-        { name: "Head Wear", icon: headWearIcon, parentCategory: null }]
-      );
+      setMainCategories(defaultCategories);
+      setSubCategories([]);
     }
   };
 
@@ -376,13 +408,22 @@ const Inventory = () => {
     let filtered = products;
 
 
-    if (filterCategory !== "All") {
-      const matchCat = filterCategory.toLowerCase().trim();
-      filtered = filtered.filter((product) => {
-        const pCat = (product.category || "").toLowerCase().trim();
-        const pSubCat = (product.subCategory || "").toLowerCase().trim();
-        return pCat === matchCat || pSubCat === matchCat;
-      });
+    if (selectedMainCategory !== "All") {
+      const matchMain = selectedMainCategory.toLowerCase().trim();
+      
+      if (selectedSubCategory && selectedSubCategory !== "All") {
+        const matchSub = selectedSubCategory.toLowerCase().trim();
+        filtered = filtered.filter((product) => {
+          const pCat = (product.category || "").toLowerCase().trim();
+          const pSubCat = (product.subCategory || "").toLowerCase().trim();
+          return pCat === matchMain && pSubCat === matchSub;
+        });
+      } else {
+        filtered = filtered.filter((product) => {
+          const pCat = (product.category || "").toLowerCase().trim();
+          return pCat === matchMain;
+        });
+      }
     }
 
 
@@ -458,7 +499,8 @@ const Inventory = () => {
     return uniqueProducts;
   }, [
     products,
-    filterCategory,
+    selectedMainCategory,
+    selectedSubCategory,
     filterBrand,
     filterStatus,
     searchQuery,
@@ -505,7 +547,7 @@ const Inventory = () => {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterCategory, filterBrand, filterStatus, searchQuery, sortBy]);
+  }, [selectedMainCategory, selectedSubCategory, filterBrand, filterStatus, searchQuery, sortBy]);
 
   useEffect(() => {
     setSelectedProductIds((prev) =>
@@ -2083,23 +2125,49 @@ const Inventory = () => {
 
           </div>
 
-          <select
-            value={filterCategory}
-            onChange={(e) => setFilterCategory(e.target.value)}
-            className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === "dark" ?
-              "bg-[#2A2724] border-gray-600 text-white" :
-              "bg-white border-gray-300"}`
-            }>
+          <div className="flex gap-2">
+            <select
+              value={selectedMainCategory}
+              onChange={(e) => {
+                setSelectedMainCategory(e.target.value);
+                setSelectedSubCategory("");
+              }}
+              className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${theme === "dark" ?
+                "bg-[#2A2724] border-gray-600 text-white" :
+                "bg-white border-gray-300"}`
+              }>
 
-            <option value="All">By Category</option>
-            {categories.
-              filter((c) => c.name !== "All").
-              map((cat) =>
+              {mainCategories.map((cat) => (
                 <option key={cat.name} value={cat.name}>
-                  {cat.name}
+                  {cat.name === "All" ? "By Category" : cat.name}
                 </option>
-              )}
-          </select>
+              ))}
+            </select>
+            
+            <select
+              value={selectedSubCategory}
+              onChange={(e) => setSelectedSubCategory(e.target.value)}
+              disabled={selectedMainCategory === "All"}
+              className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${
+                selectedMainCategory === "All" ? "opacity-50 cursor-not-allowed text-gray-400" : ""
+              } ${theme === "dark" ?
+                "bg-[#2A2724] border-gray-600 text-white" :
+                "bg-white border-gray-300"}`
+              }>
+              
+              <option value="">
+                {selectedMainCategory === "All" ? "Select Main First" : "All Subcategories"}
+              </option>
+              
+              {subCategories
+                .filter((sub) => sub.parentCategory === selectedMainCategory)
+                .map((sub) => (
+                  <option key={`sub-${sub.name}`} value={sub.name}>
+                    {sub.name}
+                  </option>
+                ))}
+            </select>
+          </div>
 
           <select
             value={filterBrand}
