@@ -1,5 +1,5 @@
 import React, { memo, useEffect, useMemo, useState } from 'react';
-import { FaEdit, FaPlus, FaSearch, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
+import { FaChevronDown, FaChevronRight, FaEdit, FaPlus, FaSearch, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
 import ViewCategoryProductsModal from '../../components/owner/ViewCategoryProductsModal';
 import Header from '../../components/shared/header';
 import { useAuth } from '../../context/AuthContext';
@@ -25,6 +25,7 @@ const Categories = () => {
   const [error, setError] = useState('');
   const [showArchiveCategoryModal, setShowArchiveCategoryModal] = useState(false);
   const [categoryToArchive, setCategoryToArchive] = useState(null);
+  const [collapsedCategories, setCollapsedCategories] = useState({});
 
 
   const categoryStructure = {
@@ -457,9 +458,20 @@ const Categories = () => {
                     <tr className={`hover:bg-opacity-50 transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3734] bg-[#2A2724]/30' : 'hover:bg-gray-50 bg-white'}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
+                          {mainGroup.subcategories && mainGroup.subcategories.length > 0 && (
+                            <button
+                              onClick={() => setCollapsedCategories(prev => ({ ...prev, [mainGroup._id]: !prev[mainGroup._id] }))}
+                              className={`p-1 rounded transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3734] text-gray-400' : 'hover:bg-gray-200 text-gray-500'}`}
+                            >
+                              {collapsedCategories[mainGroup._id] ? <FaChevronRight className="w-3 h-3" /> : <FaChevronDown className="w-3 h-3" />}
+                            </button>
+                          )}
                           <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} text-base`}>
                             {mainGroup.name}
                           </span>
+                          {mainGroup.subcategories && mainGroup.subcategories.length > 0 && (
+                            <span className={`text-xs ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>({mainGroup.subcategories.length})</span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -523,8 +535,8 @@ const Categories = () => {
                       </td>
                     </tr>
                     
-                    {/* Subcategories rows */}
-                    {mainGroup.subcategories && mainGroup.subcategories.map((subCat) => (
+                    {/* Subcategories rows - collapsible */}
+                    {!collapsedCategories[mainGroup._id] && mainGroup.subcategories && mainGroup.subcategories.map((subCat) => (
                       <tr key={subCat._id} className={`hover:bg-opacity-50 transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3734] bg-[#1E1B18]' : 'hover:bg-gray-50 bg-white'}`}>
                         <td className="px-6 py-4 pl-12">
                           <div className="flex items-center gap-2">
