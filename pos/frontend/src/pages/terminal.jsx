@@ -1879,14 +1879,14 @@ const Terminal = () => {
                 onClick={() => setSelectedCategory(cat.name)}
                 className={`flex items-center justify-center px-6 py-3 rounded-xl text-sm font-bold transition-all duration-200 shadow-md truncate ${
                   selectedCategory === cat.name
-                    ? `text-[#AD7F65] border border-b-4 ${
+                    ? `text-[#AD7F65] border border-b-5 ${
                         theme === "dark" ? "bg-[#2A2724] border-gray-700" : "bg-white border-gray-200"
                       }`
                     : theme === "dark"
                       ? "bg-[#2A2724] text-gray-300 border border-gray-700 hover:border-gray"
                       : "bg-white text-gray-800 border border-gray-200 hover:border-gray"
                 }`}
-                style={selectedCategory === cat.name ? { borderBottomColor: "#76462B" } : {}}
+                style={selectedCategory === cat.name ? { borderBottomColor: "#AD7F65" } : {}}
                 title={cat.name}>
                 <span className="truncate w-full text-center">{cat.name}</span>
               </button>
