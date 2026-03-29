@@ -167,8 +167,7 @@ const ProductCard = memo(function ProductCard({ product, onToggleExpand }) {
           className="w-full mt-2 py-2 text-xs text-[#FFFFFF] rounded-lg border hover:opacity-90 transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
           style={{
             background:  "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-            borderColor:  "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-            boxShadow: "0 2px 2px rgba(0, 0, 0, 0.25)"
+            borderColor:  "linear-gradient(135deg, #10B981 0%, #059669 100%)"
           }}>
           
           Add to Cart

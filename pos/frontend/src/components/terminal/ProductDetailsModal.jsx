@@ -1033,9 +1033,9 @@ const ProductDetailsModal = ({
                 disabled={isAddButtonDisabled()}
                 className={`w-full py-3 rounded-lg font-semibold text-white transition-all ${isAddButtonDisabled() ?
                   "bg-gray-300 cursor-not-allowed" :
-                  "bg-green-500 hover:bg-green-600"}`
-                }>
-
+                  ""}`}
+                style={!isAddButtonDisabled() ? { background: "linear-gradient(135deg, #10B981 0%, #059669 100%)" } : {}}
+              >
                 Add to Cart
               </button>
             </div>
