@@ -1,57 +1,9 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import { FaEdit, FaPlus, FaSearch, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
 import ViewCategoryProductsModal from '../../components/owner/ViewCategoryProductsModal';
 import Header from '../../components/shared/header';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-
-const CategoryCard = memo(({ category, theme, builtInCategories, onViewProducts, onEdit, onDelete, onToggleStatus }) => (
-  <div
-    className={`rounded-xl shadow-lg border overflow-hidden transition-colors ${theme === 'dark' ? 'bg-[#2A2724] border-[#4A4037]' : 'bg-white border-gray-200'} ${category.status === 'inactive' ? 'grayscale opacity-70' : ''}`}>
-    <div className="flex flex-col items-center justify-center p-4 text-center h-full">
-      <h3 className={`text-xl font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-        {category.name}
-      </h3>
-      <div className="mb-4">
-        <span className={`text-lg font-bold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>
-          {category.productCount || 0}
-        </span>
-        <span className={`text-xs ml-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-          Products in category
-        </span>
-      </div>
-      <div className="flex items-center gap-2 mt-auto">
-        <button
-          onClick={() => onViewProducts(category)}
-          className={`px-3 py-1.5 rounded-lg transition-colors text-xs font-bold ${theme === 'dark' ?
-          'bg-[#3A3734] text-gray-300 hover:bg-[#4A4440]' :
-          'bg-gray-200 text-gray-700 hover:bg-gray-300'}`
-          }>
-          View Products
-        </button>
-        {!builtInCategories.includes(category.name) &&
-          <button
-            onClick={() => onEdit(category)}
-            className="w-8 h-8 flex items-center justify-center bg-[#007AFF] text-white rounded-lg hover:bg-blue-600 transition-colors shadow-sm">
-            <FaEdit className="w-3.5 h-3.5" />
-          </button>
-        }
-        {category.status === 'active' ?
-          <button
-            onClick={() => onDelete(category)}
-            className="w-8 h-8 flex items-center justify-center bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors shadow-sm">
-            <FaTrash className="w-3.5 h-3.5" />
-          </button> :
-          <button
-            onClick={() => onToggleStatus(category._id)}
-            className="w-8 h-8 flex items-center justify-center bg-[#10B981] text-white rounded-lg hover:bg-green-600 transition-colors shadow-sm">
-            <FaUndo className="w-3.5 h-3.5" />
-          </button>
-        }
-      </div>
-    </div>
-  </div>
-));
 
 const Categories = () => {
   const { currentUser } = useAuth();
@@ -462,43 +414,155 @@ const Categories = () => {
             <div className="text-gray-500">No categories found. Create your first category!</div>
           </div> :
 
-          <div className="flex flex-col gap-6 w-full">
-            {groupedCategories.map((mainGroup) => (
-              <div key={mainGroup._id} className="flex flex-col gap-3">
-                
-                {/* Main Category row */}
-                <div className="w-full max-w-sm">
-                  <CategoryCard 
-                    category={mainGroup} 
-                    theme={theme} 
-                    builtInCategories={builtInCategories}
-                    onViewProducts={handleViewProducts}
-                    onEdit={handleEdit}
-                    onDelete={handleDelete}
-                    onToggleStatus={handleToggleStatus}
-                  />
-                </div>
-                
-                {/* Subcategories */}
-                {mainGroup.subcategories && mainGroup.subcategories.length > 0 && (
-                  <div className={`ml-8 pl-6 border-l-2 ${theme === 'dark' ? 'border-[#4A4037]' : 'border-gray-300'} grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4`}>
-                    {mainGroup.subcategories.map((subCat) => (
-                      <CategoryCard 
-                        key={subCat._id}
-                        category={subCat} 
-                        theme={theme} 
-                        builtInCategories={builtInCategories}
-                        onViewProducts={handleViewProducts}
-                        onEdit={handleEdit}
-                        onDelete={handleDelete}
-                        onToggleStatus={handleToggleStatus}
-                      />
+          <div className={`overflow-x-auto rounded-xl border ${theme === 'dark' ? 'border-[#4A4037]' : 'border-gray-200'} bg-white dark:bg-[#1E1B18]`}>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className={`text-xs uppercase tracking-wider ${theme === 'dark' ? 'bg-[#2A2724] text-gray-400' : 'bg-gray-50 text-gray-500'} border-b ${theme === 'dark' ? 'border-[#4A4037]' : 'border-gray-200'}`}>
+                  <th className="px-6 py-4 font-semibold">Name</th>
+                  <th className="px-6 py-4 font-semibold">Type</th>
+                  <th className="px-6 py-4 font-semibold">Products</th>
+                  <th className="px-6 py-4 font-semibold">Status</th>
+                  <th className="px-6 py-4 font-semibold">POS</th>
+                  <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className={`divide-y ${theme === 'dark' ? 'divide-[#4A4037]' : 'divide-gray-100'}`}>
+                {groupedCategories.map((mainGroup) => (
+                  <React.Fragment key={mainGroup._id}>
+                    {/* Main Category row */}
+                    <tr className={`hover:bg-opacity-50 transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3734] bg-[#2A2724]/30' : 'hover:bg-gray-50 bg-white'}`}>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'} text-base`}>
+                            {mainGroup.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600 border border-blue-100">
+                          Main category
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {mainGroup.productCount || 0}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-2 h-2 rounded-full ${mainGroup.status === 'active' ? 'bg-[#10B981]' : 'bg-gray-400'}`}></div>
+                          <span className={`text-sm ${mainGroup.status === 'active' ? 'text-[#10B981]' : 'text-gray-500'}`}>
+                            {mainGroup.status === 'active' ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`text-sm ${mainGroup.showOnPos !== false ? 'text-[#10B981]' : 'text-gray-400'}`}>
+                          {mainGroup.showOnPos !== false ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {!builtInCategories.includes(mainGroup.name) &&
+                            <button
+                              onClick={() => handleEdit(mainGroup)}
+                              className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                              Edit
+                            </button>
+                          }
+                          <button
+                            onClick={() => {
+                              setCategoryName('');
+                              setError('');
+                              setSelectedParentCategory(mainGroup.name);
+                              setIsActive(true);
+                              setShowOnPos(true);
+                              setShowAddSubModal(true);
+                            }}
+                            className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                            + Sub
+                          </button>
+                          {mainGroup.status === 'active' ? (
+                            <button
+                              onClick={() => handleDelete(mainGroup)}
+                              className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-red-900/50 text-red-400 hover:bg-red-900/30' : 'border-red-100 text-red-500 hover:bg-red-50'}`}>
+                              Archive
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleToggleStatus(mainGroup._id)}
+                              className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-green-900/50 text-green-400 hover:bg-green-900/30' : 'border-green-100 text-green-600 hover:bg-green-50'}`}>
+                              Activate
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    
+                    {/* Subcategories rows */}
+                    {mainGroup.subcategories && mainGroup.subcategories.map((subCat) => (
+                      <tr key={subCat._id} className={`hover:bg-opacity-50 transition-colors ${theme === 'dark' ? 'hover:bg-[#3A3734] bg-[#1E1B18]' : 'hover:bg-gray-50 bg-white'}`}>
+                        <td className="px-6 py-4 pl-12">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-300 dark:text-[#4A4037] text-lg leading-none transform -translate-y-[2px]">└</span>
+                            <span className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {subCat.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-600 border border-green-100">
+                            Subcategory
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {subCat.productCount || 0}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${subCat.status === 'active' ? 'bg-[#10B981]' : 'bg-gray-400'}`}></div>
+                            <span className={`text-sm ${subCat.status === 'active' ? 'text-[#10B981]' : 'text-gray-500'}`}>
+                              {subCat.status === 'active' ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className={`text-sm ${subCat.showOnPos !== false ? 'text-[#10B981]' : 'text-gray-400'}`}>
+                            {subCat.showOnPos !== false ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            {!builtInCategories.includes(subCat.name) &&
+                              <button
+                                onClick={() => handleEdit(subCat)}
+                                className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-700' : 'border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                                Edit
+                              </button>
+                            }
+                            {subCat.status === 'active' ? (
+                              <button
+                                onClick={() => handleDelete(subCat)}
+                                className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-red-900/50 text-red-400 hover:bg-red-900/30' : 'border-red-100 text-red-500 hover:bg-red-50'}`}>
+                                Archive
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleToggleStatus(subCat._id)}
+                                className={`px-4 py-1.5 text-xs font-medium border rounded-md transition-colors ${theme === 'dark' ? 'border-green-900/50 text-green-400 hover:bg-green-900/30' : 'border-green-100 text-green-600 hover:bg-green-50'}`}>
+                                Activate
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                )}
-                
-              </div>
-            ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
           </div>
       }
 
