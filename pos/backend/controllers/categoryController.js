@@ -5,21 +5,42 @@ exports.getAllCategories = async (req, res) => {
   try {
     const categories = await Category.find({}).sort({ dateCreated: -1 }).lean();
     
-    // Get product counts for each category
+    // Efficiently get product counts for each category using Aggregation instead of fetching all products
     const productCounts = {};
     
     try {
-      const products = await Product.find({}).lean();
-      products.forEach(product => {
-        if (product.category) {
-          productCounts[product.category] = (productCounts[product.category] || 0) + 1;
+      const aggregationResults = await Product.aggregate([
+        {
+          $facet: {
+            byCategory: [
+              { $match: { category: { $nin: [null, ""] } } },
+              { $group: { _id: "$category", count: { $sum: 1 } } }
+            ],
+            bySubCategory: [
+              { $match: { subCategory: { $nin: [null, ""] } } },
+              { $group: { _id: "$subCategory", count: { $sum: 1 } } }
+            ]
+          }
         }
-        if (product.subCategory) {
-          productCounts[product.subCategory] = (productCounts[product.subCategory] || 0) + 1;
-        }
-      });
+      ]);
+
+      if (aggregationResults && aggregationResults[0]) {
+        // Map main category counts
+        aggregationResults[0].byCategory.forEach(cat => {
+          if (cat._id) {
+            productCounts[cat._id] = (productCounts[cat._id] || 0) + cat.count;
+          }
+        });
+        
+        // Map subcategory counts 
+        aggregationResults[0].bySubCategory.forEach(sub => {
+          if (sub._id) {
+            productCounts[sub._id] = (productCounts[sub._id] || 0) + sub.count;
+          }
+        });
+      }
     } catch (error) {
-      console.warn('Error fetching product counts:', error.message);
+      console.warn('Error computing product counts aggregation:', error.message);
     }
     
     // Format categories with product counts
