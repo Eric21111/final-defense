@@ -235,6 +235,7 @@ const Inventory = () => {
 
   const [mainCategories, setMainCategories] = useState(defaultCategories);
   const [subCategories, setSubCategories] = useState([]);
+  const [categories, setCategories] = useState([{ name: "All", icon: allIcon }]);
   const [brandPartners, setBrandPartners] = useState([]);
 
 
@@ -310,11 +311,38 @@ const Inventory = () => {
 
         setMainCategories(mergedMainCategories);
         setSubCategories(dbSubCats);
+
+        // Fetch categories for AddProductModal specifically
+        const activeCategories = data.data.
+          filter((cat) => cat.status === "active" && cat.name !== "Others").
+          map((cat) => ({
+            name: cat.name,
+            icon: categoryIconMap[cat.name] || allIcon,
+            parentCategory: cat.parentCategory || null
+          }));
+
+        const withEssentials = activeCategories.some((cat) => cat.name === "Essentials")
+          ? activeCategories
+          : [...activeCategories, { name: "Essentials", icon: categoryIconMap.Essentials, parentCategory: null }];
+
+        setCategories([{ name: "All", icon: allIcon, parentCategory: null }, ...withEssentials]);
       }
     } catch (error) {
       console.error("Error fetching categories:", error);
       setMainCategories(defaultCategories);
       setSubCategories([]);
+      
+      setCategories([
+        { name: "All", icon: allIcon, parentCategory: null },
+        { name: "Tops", icon: topIcon, parentCategory: null },
+        { name: "Bottoms", icon: bottomsIcon, parentCategory: null },
+        { name: "Dresses", icon: dressesIcon, parentCategory: null },
+        { name: "Makeup", icon: makeupIcon, parentCategory: null },
+        { name: "Accessories", icon: accessoriesIcon, parentCategory: null },
+        { name: "Essentials", icon: accessoriesIcon, parentCategory: null },
+        { name: "Shoes", icon: shoesIcon, parentCategory: null },
+        { name: "Head Wear", icon: headWearIcon, parentCategory: null }]
+      );
     }
   };
 
