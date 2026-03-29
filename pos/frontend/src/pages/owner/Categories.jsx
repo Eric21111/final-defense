@@ -27,72 +27,93 @@ const Categories = () => {
   const [categoryToArchive, setCategoryToArchive] = useState(null);
 
 
-  const builtInCategories = ['Tops', 'Bottoms', 'Dresses', 'Makeup', 'Accessories', 'Shoes', 'Head Wear', 'Foods'];
+  const categoryStructure = {
+    "Apparel - Men": ["Tops", "Bottoms", "Outerwear"],
+    "Apparel - Women": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Apparel - Kids": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Apparel - Unisex": ["Tops", "Bottoms", "Dresses", "Outerwear"],
+    "Foods": ["Beverages", "Snacks", "Meals", "Desserts", "Ingredients", "Other"],
+    "Makeup": ["Face", "Eyes", "Lips", "Nails", "SkinCare", "Others"],
+    "Accessories": ["Jewelry", "Bags", "Head Wear", "Glasses/Sunglasses", "Others"],
+    "Shoes": ["Sneakers", "Boots", "Sandals", "Others"],
+    "Essentials": ["Daily Essentials", "Personal Care", "Home Essentials", "Others"],
+  };
+
+  const builtInCategories = [
+    ...Object.keys(categoryStructure),
+    ...new Set(Object.values(categoryStructure).flat())
+  ];
 
 
   useEffect(() => {
-    initializeBuiltInCategories();
+    fetchCategories().then(cats => {
+      if (cats && cats.length > 0) {
+        initializeBuiltInCategories(cats);
+      }
+    });
   }, []);
 
-  const initializeBuiltInCategories = async () => {
+  const initializeBuiltInCategories = async (existingData) => {
     try {
-      setLoading(true);
+      const existingCats = existingData.filter(c => c.type !== 'subcategory').map(c => c.name);
+      const existingSubs = existingData.filter(c => c.type === 'subcategory');
+      
+      const othersCategories = existingData.filter((cat) => cat.name === 'Others');
+      let needsRefresh = false;
 
-
-      const response = await fetch('http://localhost:5000/api/categories');
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const existingCategories = data.success && Array.isArray(data.data) ? data.data : [];
-      const existingCategoryNames = existingCategories.map((cat) => cat.name);
-
-
-      const othersCategories = existingCategories.filter((cat) => cat.name === 'Others');
       if (othersCategories.length > 0) {
         const archivePromises = othersCategories.map((cat) =>
         fetch(`http://localhost:5000/api/categories/${cat._id}/archive`, {
           method: 'PATCH'
-        }).catch((error) => {
-          console.warn(`Error archiving Others category:`, error);
-          return null;
-        })
+        }).catch((error) => null)
         );
         await Promise.all(archivePromises);
+        needsRefresh = true;
       }
 
+      const createPromises = [];
 
-      const missingCategories = builtInCategories.filter(
-        (categoryName) => !existingCategoryNames.includes(categoryName)
-      );
+      Object.keys(categoryStructure).forEach(parentName => {
+        if (!existingCats.includes(parentName)) {
+            createPromises.push(
+              fetch('http://localhost:5000/api/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: parentName, type: 'category', status: 'active' })
+              }).catch(() => null)
+            );
+        }
+      });
 
+      Object.entries(categoryStructure).forEach(([parentName, subList]) => {
+          subList.forEach(subName => {
+              const subExists = existingSubs.some(s => s.name === subName && s.parentCategory === parentName);
+              if (!subExists) {
+                  createPromises.push(
+                      fetch('http://localhost:5000/api/categories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: subName, type: 'subcategory', parentCategory: parentName, status: 'active' })
+                      }).catch(() => null)
+                  );
+              }
+          });
+      });
 
-      const createPromises = missingCategories.map((categoryName) =>
-      fetch('http://localhost:5000/api/categories', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: categoryName,
-          status: 'active'
-        })
-      }).catch((error) => {
-        console.warn(`Error creating category ${categoryName}:`, error);
-        return null;
-      })
-      );
+      if (createPromises.length > 0) {
+        await Promise.all(createPromises);
+        needsRefresh = true;
+      }
 
-      await Promise.all(createPromises);
-
-
-      await fetchCategories();
+      if (needsRefresh) {
+        const response = await fetch('http://localhost:5000/api/categories');
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          setCategories(data.data);
+        }
+      }
     } catch (error) {
-      console.error('Error initializing categories:', error);
-
-      await fetchCategories();
+      console.error('Error initializing categories background sync:', error);
     }
   };
 
@@ -109,13 +130,16 @@ const Categories = () => {
 
       if (data.success && Array.isArray(data.data)) {
         setCategories(data.data);
+        return data.data;
       } else {
         console.warn('Invalid response format:', data);
         setCategories([]);
+        return [];
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
       setCategories([]);
+      return [];
     } finally {
       setLoading(false);
     }
