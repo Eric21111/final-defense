@@ -681,7 +681,7 @@ const Categories = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl shadow-lg bg-[#007AFF]">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white text-xl shadow-lg bg-[#AD7F65]">
                   <FaPlus />
                 </div>
                 <h2 className="text-2xl font-bold">Add Main Category</h2>
@@ -710,7 +710,7 @@ const Categories = () => {
                   setCategoryName(e.target.value);
                   setError('');
                 }}
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] transition-all
                     ${theme === 'dark' ?
                     'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
                     'bg-white border-gray-200 text-gray-900 placeholder-gray-400 shadow-sm'}`
@@ -730,7 +730,7 @@ const Categories = () => {
                 </div>
                 <button
                   onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:ring-offset-2 ${isActive ? 'bg-[#007AFF]' : 'bg-gray-300'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:ring-offset-2 ${isActive ? 'bg-[#AD7F65]' : 'bg-gray-300'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -743,7 +743,7 @@ const Categories = () => {
                 </div>
                 <button
                   onClick={() => setShowOnPos(!showOnPos)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:ring-offset-2 ${showOnPos ? 'bg-[#007AFF]' : 'bg-gray-300'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:ring-offset-2 ${showOnPos ? 'bg-[#AD7F65]' : 'bg-gray-300'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showOnPos ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -766,7 +766,7 @@ const Categories = () => {
               </button>
               <button
                 onClick={() => handleAddCategory('category')}
-                className="px-8 py-3 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 bg-[#007AFF] hover:bg-blue-600">
+                className="px-8 py-3 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 bg-[#09A046] hover:bg-green-600">
                 Add main category
               </button>
             </div>
@@ -782,7 +782,7 @@ const Categories = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-700 text-xl shadow-md border bg-white">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-700 text-xl shadow-md border bg-[#AD7F65]>
                   <FaPlus />
                 </div>
                 <h2 className="text-2xl font-bold">Add Subcategory</h2>
@@ -810,7 +810,7 @@ const Categories = () => {
                   setSelectedParentCategory(e.target.value);
                   setError('');
                 }}
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] transition-all
                     ${theme === 'dark' ?
                     'bg-[#2A2724] border-gray-600 text-white' :
                     'bg-white border-gray-200 text-gray-900 shadow-sm'}`
@@ -836,7 +836,7 @@ const Categories = () => {
                   setCategoryName(e.target.value);
                   setError('');
                 }}
-                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#007AFF] transition-all
+                className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] transition-all
                     ${theme === 'dark' ?
                     'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
                     'bg-white border-gray-200 text-gray-900 placeholder-gray-400 shadow-sm'}`
@@ -856,7 +856,7 @@ const Categories = () => {
                 </div>
                 <button
                   onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:ring-offset-2 ${isActive ? 'bg-[#007AFF]' : 'bg-gray-300'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:ring-offset-2 ${isActive ? 'bg-[#AD7F65]' : 'bg-gray-300'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isActive ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -869,7 +869,7 @@ const Categories = () => {
                 </div>
                 <button
                   onClick={() => setShowOnPos(!showOnPos)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:ring-offset-2 ${showOnPos ? 'bg-[#007AFF]' : 'bg-gray-300'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:ring-offset-2 ${showOnPos ? 'bg-[#AD7F65]' : 'bg-gray-300'}`}
                 >
                   <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showOnPos ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
@@ -893,7 +893,7 @@ const Categories = () => {
               </button>
               <button
                 onClick={() => handleAddCategory('subcategory')}
-                className="px-8 py-3 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 bg-[#007AFF] hover:bg-blue-600">
+                className="px-8 py-3 text-white rounded-xl font-bold shadow-lg hover:shadow-xl transition-all transform active:scale-95 bg-[#09A046] hover:bg-green-600">
                 Add subcategory
               </button>
             </div>
