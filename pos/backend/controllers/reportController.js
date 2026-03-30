@@ -162,13 +162,66 @@ exports.getInventoryAnalytics = async (req, res) => {
             localField: "items.productId",
             foreignField: "_id",
             as: "productInfo",
-            pipeline: [{ $project: { costPrice: 1 } }],
+            pipeline: [{ $project: { costPrice: 1, sizes: 1 } }],
+          },
+        },
+        { $unwind: { path: "$productInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            sizeData: {
+              $let: {
+                vars: {
+                  matchedSize: {
+                    $first: {
+                      $filter: {
+                        input: {
+                          $objectToArray: { $ifNull: ["$productInfo.sizes", {}] },
+                        },
+                        as: "sz",
+                        cond: { $eq: ["$$sz.k", "$items.selectedSize"] },
+                      },
+                    },
+                  },
+                },
+                in: "$$matchedSize.v",
+              },
+            },
           },
         },
         {
           $addFields: {
+            variantCostPrice: {
+              $let: {
+                vars: {
+                  matchedVariantCost: {
+                    $first: {
+                      $filter: {
+                        input: {
+                          $objectToArray: {
+                            $ifNull: ["$sizeData.variantCostPrices", {}],
+                          },
+                        },
+                        as: "vc",
+                        cond: { $eq: ["$$vc.k", "$items.variant"] },
+                      },
+                    },
+                  },
+                },
+                in: "$$matchedVariantCost.v",
+              },
+            },
+            sizeCostPrice: {
+              $cond: [
+                { $eq: [{ $type: "$sizeData" }, "object"] },
+                { $getField: { field: "costPrice", input: "$sizeData" } },
+                null,
+              ],
+            },
             itemCostPrice: {
-              $ifNull: [{ $arrayElemAt: ["$productInfo.costPrice", 0] }, 0],
+              $ifNull: [
+                "$variantCostPrice",
+                { $ifNull: ["$sizeCostPrice", { $ifNull: ["$productInfo.costPrice", 0] }] },
+              ],
             },
           },
         },
@@ -258,13 +311,66 @@ exports.getInventoryAnalytics = async (req, res) => {
             localField: "items.productId",
             foreignField: "_id",
             as: "productInfo",
-            pipeline: [{ $project: { costPrice: 1 } }],
+            pipeline: [{ $project: { costPrice: 1, sizes: 1 } }],
+          },
+        },
+        { $unwind: { path: "$productInfo", preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            sizeData: {
+              $let: {
+                vars: {
+                  matchedSize: {
+                    $first: {
+                      $filter: {
+                        input: {
+                          $objectToArray: { $ifNull: ["$productInfo.sizes", {}] },
+                        },
+                        as: "sz",
+                        cond: { $eq: ["$$sz.k", "$items.selectedSize"] },
+                      },
+                    },
+                  },
+                },
+                in: "$$matchedSize.v",
+              },
+            },
           },
         },
         {
           $addFields: {
+            variantCostPrice: {
+              $let: {
+                vars: {
+                  matchedVariantCost: {
+                    $first: {
+                      $filter: {
+                        input: {
+                          $objectToArray: {
+                            $ifNull: ["$sizeData.variantCostPrices", {}],
+                          },
+                        },
+                        as: "vc",
+                        cond: { $eq: ["$$vc.k", "$items.variant"] },
+                      },
+                    },
+                  },
+                },
+                in: "$$matchedVariantCost.v",
+              },
+            },
+            sizeCostPrice: {
+              $cond: [
+                { $eq: [{ $type: "$sizeData" }, "object"] },
+                { $getField: { field: "costPrice", input: "$sizeData" } },
+                null,
+              ],
+            },
             itemCostPrice: {
-              $ifNull: [{ $arrayElemAt: ["$productInfo.costPrice", 0] }, 0],
+              $ifNull: [
+                "$variantCostPrice",
+                { $ifNull: ["$sizeCostPrice", { $ifNull: ["$productInfo.costPrice", 0] }] },
+              ],
             },
             dateField: { $ifNull: ["$checkedOutAt", "$createdAt"] },
           },

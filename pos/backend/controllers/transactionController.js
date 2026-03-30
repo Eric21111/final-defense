@@ -659,17 +659,75 @@ exports.getDashboardStats = async (req, res) => {
                   from: 'products',
                   localField: 'items.productId',
                   foreignField: '_id',
-                  as: 'productInfo'
+                  as: 'productInfo',
+                  pipeline: [{ $project: { costPrice: 1, sizes: 1 } }]
                 }
               },
               { $unwind: { path: '$productInfo', preserveNullAndEmptyArrays: true } },
+              {
+                $addFields: {
+                  sizeData: {
+                    $let: {
+                      vars: {
+                        matchedSize: {
+                          $first: {
+                            $filter: {
+                              input: {
+                                $objectToArray: { $ifNull: ['$productInfo.sizes', {}] }
+                              },
+                              as: 'sz',
+                              cond: { $eq: ['$$sz.k', '$items.selectedSize'] }
+                            }
+                          }
+                        }
+                      },
+                      in: '$$matchedSize.v'
+                    }
+                  }
+                }
+              },
+              {
+                $addFields: {
+                  variantCostPrice: {
+                    $let: {
+                      vars: {
+                        matchedVariantCost: {
+                          $first: {
+                            $filter: {
+                              input: {
+                                $objectToArray: { $ifNull: ['$sizeData.variantCostPrices', {}] }
+                              },
+                              as: 'vc',
+                              cond: { $eq: ['$$vc.k', '$items.variant'] }
+                            }
+                          }
+                        }
+                      },
+                      in: '$$matchedVariantCost.v'
+                    }
+                  },
+                  sizeCostPrice: {
+                    $cond: [
+                      { $eq: [{ $type: '$sizeData' }, 'object'] },
+                      { $getField: { field: 'costPrice', input: '$sizeData' } },
+                      null
+                    ]
+                  },
+                  itemCostPrice: {
+                    $ifNull: [
+                      '$variantCostPrice',
+                      { $ifNull: ['$sizeCostPrice', { $ifNull: ['$productInfo.costPrice', 0] }] }
+                    ]
+                  }
+                }
+              },
               {
                 $group: {
                   _id: null,
                   totalProfit: {
                     $sum: {
                       $multiply: [
-                        { $subtract: [{ $ifNull: ['$items.price', 0] }, { $ifNull: ['$productInfo.costPrice', 0] }] },
+                        { $subtract: [{ $ifNull: ['$items.price', 0] }, '$itemCostPrice'] },
                         { $ifNull: ['$items.quantity', 1] }
                       ]
                     }
