@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { API_BASE_URL } from '../../config/api';
 import { useTheme } from '../../context/ThemeContext';
 
 const AddBrandModal = ({ show, onClose, onAdd }) => {
@@ -14,7 +15,7 @@ const AddBrandModal = ({ show, onClose, onAdd }) => {
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/brand-partners', {
+      const response = await fetch(`${API_BASE_URL}/api/brand-partners`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
