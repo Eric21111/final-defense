@@ -1503,7 +1503,7 @@ const Settings = () => {
                 <button
                   onClick={() => saveProfile()}
                   disabled={profileLoading}
-                  className="px-8 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-green-200/30 hover:shadow-green-300/40">
+                  className="px-8 py-3 rounded-xl font-bold text-white bg-[#1B89CD] hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-green-200/30 hover:shadow-green-300/40">
 
                   {profileLoading ?
                     <>
@@ -1705,7 +1705,7 @@ const Settings = () => {
                 <button
                   onClick={handleUpdatePin}
                   disabled={pinLoading}
-                  className="px-8 py-2.5 rounded-xl text-white font-bold bg-[#3B82F6] hover:bg-[#2563EB] transition-all shadow-md disabled:opacity-50">
+                  className="px-8 py-2.5 rounded-xl text-white font-bold bg-[#1B89CD] hover:bg-[#2563EB] transition-all shadow-md disabled:opacity-50">
 
                   {pinLoading ? "Changing PIN..." : "Change PIN"}
                 </button>
