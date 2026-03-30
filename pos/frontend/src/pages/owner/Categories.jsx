@@ -390,7 +390,7 @@ const Categories = () => {
   }, [groupedCategories]);
 
   return (
-    <div className={`p-8 min-h-screen ${theme === 'dark' ? 'bg-[#1E1B18]' : 'bg-[#F5F5F5]'}`}>
+    <div className={`p-8 min-h-screen ${theme === 'dark' ? 'bg-[#1E1B18]' : 'bg-[#F9FAFB]'}`}>
       <Header
         pageName="Categories"
         profileBackground={theme === 'dark' ? 'bg-[#2A2724]' : 'bg-gray-100'}
