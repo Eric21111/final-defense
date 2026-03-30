@@ -375,6 +375,20 @@ const Categories = () => {
     return results;
   }, [categories, searchQuery, filterStatus]);
 
+  // Default state: collapse subcategories on initial load.
+  // Preserve any user-toggled state for categories already present.
+  useEffect(() => {
+    setCollapsedCategories((prev) => {
+      const next = { ...prev };
+      groupedCategories.forEach((main) => {
+        if (next[main._id] === undefined) {
+          next[main._id] = true;
+        }
+      });
+      return next;
+    });
+  }, [groupedCategories]);
+
   return (
     <div className={`p-8 min-h-screen ${theme === 'dark' ? 'bg-[#1E1B18]' : 'bg-[#F5F5F5]'}`}>
       <Header
