@@ -756,16 +756,6 @@ exports.getDashboardStats = async (req, res) => {
                             { $objectToArray: { $ifNull: ['$productInfo.sizes', {}] } },
                             0
                           ]
-                        },
-                        firstVariantEntry: {
-                          $arrayElemAt: [
-                            {
-                              $objectToArray: {
-                                $ifNull: ['$$firstSizeEntry.v.variants', {}]
-                              }
-                            },
-                            0
-                          ]
                         }
                       },
                       in: {
@@ -773,15 +763,31 @@ exports.getDashboardStats = async (req, res) => {
                           { $gt: ['$$computedCost', 0] },
                           '$$computedCost',
                           {
-                            $ifNull: [
-                              '$$firstVariantEntry.v.costPrice',
-                              {
+                            $let: {
+                              vars: {
+                                firstVariantEntry: {
+                                  $arrayElemAt: [
+                                    {
+                                      $objectToArray: {
+                                        $ifNull: ['$$firstSizeEntry.v.variants', {}]
+                                      }
+                                    },
+                                    0
+                                  ]
+                                }
+                              },
+                              in: {
                                 $ifNull: [
-                                  '$$firstSizeEntry.v.costPrice',
-                                  { $ifNull: ['$productInfo.costPrice', 0] }
+                                  '$$firstVariantEntry.v.costPrice',
+                                  {
+                                    $ifNull: [
+                                      '$$firstSizeEntry.v.costPrice',
+                                      { $ifNull: ['$productInfo.costPrice', 0] }
+                                    ]
+                                  }
                                 ]
                               }
-                            ]
+                            }
                           }
                         ]
                       }
