@@ -193,7 +193,26 @@ exports.getInventoryAnalytics = async (req, res) => {
             variantCostPrice: {
               $let: {
                 vars: {
-                  matchedVariantCost: {
+                  matchedVariantCostFromVariants: {
+                    $first: {
+                      $filter: {
+                        input: {
+                          $objectToArray: { $ifNull: ["$sizeData.variants", {}] },
+                        },
+                        as: "vn",
+                        cond: { $eq: ["$$vn.k", "$items.variant"] },
+                      },
+                    },
+                  },
+                  firstVariantCostFromVariants: {
+                    $arrayElemAt: [
+                      {
+                        $objectToArray: { $ifNull: ["$sizeData.variants", {}] },
+                      },
+                      0,
+                    ],
+                  },
+                  matchedVariantCostFromLegacyMap: {
                     $first: {
                       $filter: {
                         input: {
@@ -201,27 +220,125 @@ exports.getInventoryAnalytics = async (req, res) => {
                             $ifNull: ["$sizeData.variantCostPrices", {}],
                           },
                         },
-                        as: "vc",
-                        cond: { $eq: ["$$vc.k", "$items.variant"] },
+                        as: "lvc",
+                        cond: { $eq: ["$$lvc.k", "$items.variant"] },
                       },
                     },
                   },
                 },
-                in: "$$matchedVariantCost.v",
+                in: {
+                  $ifNull: [
+                    "$$matchedVariantCostFromVariants.v.costPrice",
+                    {
+                      $ifNull: [
+                        "$$firstVariantCostFromVariants.v.costPrice",
+                        "$$matchedVariantCostFromLegacyMap.v",
+                      ],
+                    },
+                  ],
+                },
               },
             },
             sizeCostPrice: {
               $cond: [
                 { $eq: [{ $type: "$sizeData" }, "object"] },
-                { $getField: { field: "costPrice", input: "$sizeData" } },
+                { $ifNull: ["$sizeData.costPrice", null] },
                 null,
               ],
             },
             itemCostPrice: {
-              $ifNull: [
-                "$variantCostPrice",
-                { $ifNull: ["$sizeCostPrice", { $ifNull: ["$productInfo.costPrice", 0] }] },
-              ],
+              $let: {
+                vars: {
+                  computedCost: {
+                    $ifNull: [
+                      "$variantCostPrice",
+                      { $ifNull: ["$sizeCostPrice", { $ifNull: ["$productInfo.costPrice", 0] }] },
+                    ],
+                  },
+                  firstSizeEntry: {
+                    $arrayElemAt: [
+                      { $objectToArray: { $ifNull: ["$productInfo.sizes", {}] } },
+                      0,
+                    ],
+                  },
+                },
+                in: {
+                  $cond: [
+                    { $gt: ["$$computedCost", 0] },
+                    "$$computedCost",
+                    {
+                      $let: {
+                        vars: {
+                          fallbackVariantCostPrice: {
+                            $let: {
+                              vars: {
+                                firstVariantEntry: {
+                                  $arrayElemAt: [
+                                    {
+                                      $objectToArray: {
+                                        $ifNull: ["$$firstSizeEntry.v.variants", {}],
+                                      },
+                                    },
+                                    0,
+                                  ],
+                                },
+                                matchedVariantFromVariants: {
+                                  $first: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ["$$firstSizeEntry.v.variants", {}],
+                                        },
+                                      },
+                                      as: "vn",
+                                      cond: { $eq: ["$$vn.k", "$items.variant"] },
+                                    },
+                                  },
+                                },
+                                matchedVariantFromLegacyMap: {
+                                  $first: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ["$$firstSizeEntry.v.variantCostPrices", {}],
+                                        },
+                                      },
+                                      as: "lvc",
+                                      cond: { $eq: ["$$lvc.k", "$items.variant"] },
+                                    },
+                                  },
+                                },
+                              },
+                              in: {
+                                $ifNull: [
+                                  "$$matchedVariantFromVariants.v.costPrice",
+                                  {
+                                    $ifNull: [
+                                      "$$firstVariantEntry.v.costPrice",
+                                      "$$matchedVariantFromLegacyMap.v",
+                                    ],
+                                  },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                        in: {
+                          $ifNull: [
+                            "$$fallbackVariantCostPrice",
+                            {
+                              $ifNull: [
+                                "$$firstSizeEntry.v.costPrice",
+                                { $ifNull: ["$productInfo.costPrice", 0] },
+                              ],
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
             },
           },
         },
@@ -342,7 +459,26 @@ exports.getInventoryAnalytics = async (req, res) => {
             variantCostPrice: {
               $let: {
                 vars: {
-                  matchedVariantCost: {
+                  matchedVariantCostFromVariants: {
+                    $first: {
+                      $filter: {
+                        input: {
+                          $objectToArray: { $ifNull: ["$sizeData.variants", {}] },
+                        },
+                        as: "vn",
+                        cond: { $eq: ["$$vn.k", "$items.variant"] },
+                      },
+                    },
+                  },
+                  firstVariantCostFromVariants: {
+                    $arrayElemAt: [
+                      {
+                        $objectToArray: { $ifNull: ["$sizeData.variants", {}] },
+                      },
+                      0,
+                    ],
+                  },
+                  matchedVariantCostFromLegacyMap: {
                     $first: {
                       $filter: {
                         input: {
@@ -350,27 +486,125 @@ exports.getInventoryAnalytics = async (req, res) => {
                             $ifNull: ["$sizeData.variantCostPrices", {}],
                           },
                         },
-                        as: "vc",
-                        cond: { $eq: ["$$vc.k", "$items.variant"] },
+                        as: "lvc",
+                        cond: { $eq: ["$$lvc.k", "$items.variant"] },
                       },
                     },
                   },
                 },
-                in: "$$matchedVariantCost.v",
+                in: {
+                  $ifNull: [
+                    "$$matchedVariantCostFromVariants.v.costPrice",
+                    {
+                      $ifNull: [
+                        "$$firstVariantCostFromVariants.v.costPrice",
+                        "$$matchedVariantCostFromLegacyMap.v",
+                      ],
+                    },
+                  ],
+                },
               },
             },
             sizeCostPrice: {
               $cond: [
                 { $eq: [{ $type: "$sizeData" }, "object"] },
-                { $getField: { field: "costPrice", input: "$sizeData" } },
+                { $ifNull: ["$sizeData.costPrice", null] },
                 null,
               ],
             },
             itemCostPrice: {
-              $ifNull: [
-                "$variantCostPrice",
-                { $ifNull: ["$sizeCostPrice", { $ifNull: ["$productInfo.costPrice", 0] }] },
-              ],
+              $let: {
+                vars: {
+                  computedCost: {
+                    $ifNull: [
+                      "$variantCostPrice",
+                      { $ifNull: ["$sizeCostPrice", { $ifNull: ["$productInfo.costPrice", 0] }] },
+                    ],
+                  },
+                  firstSizeEntry: {
+                    $arrayElemAt: [
+                      { $objectToArray: { $ifNull: ["$productInfo.sizes", {}] } },
+                      0,
+                    ],
+                  },
+                },
+                in: {
+                  $cond: [
+                    { $gt: ["$$computedCost", 0] },
+                    "$$computedCost",
+                    {
+                      $let: {
+                        vars: {
+                          fallbackVariantCostPrice: {
+                            $let: {
+                              vars: {
+                                firstVariantEntry: {
+                                  $arrayElemAt: [
+                                    {
+                                      $objectToArray: {
+                                        $ifNull: ["$$firstSizeEntry.v.variants", {}],
+                                      },
+                                    },
+                                    0,
+                                  ],
+                                },
+                                matchedVariantFromVariants: {
+                                  $first: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ["$$firstSizeEntry.v.variants", {}],
+                                        },
+                                      },
+                                      as: "vn",
+                                      cond: { $eq: ["$$vn.k", "$items.variant"] },
+                                    },
+                                  },
+                                },
+                                matchedVariantFromLegacyMap: {
+                                  $first: {
+                                    $filter: {
+                                      input: {
+                                        $objectToArray: {
+                                          $ifNull: ["$$firstSizeEntry.v.variantCostPrices", {}],
+                                        },
+                                      },
+                                      as: "lvc",
+                                      cond: { $eq: ["$$lvc.k", "$items.variant"] },
+                                    },
+                                  },
+                                },
+                              },
+                              in: {
+                                $ifNull: [
+                                  "$$matchedVariantFromVariants.v.costPrice",
+                                  {
+                                    $ifNull: [
+                                      "$$firstVariantEntry.v.costPrice",
+                                      "$$matchedVariantFromLegacyMap.v",
+                                    ],
+                                  },
+                                ],
+                              },
+                            },
+                          },
+                        },
+                        in: {
+                          $ifNull: [
+                            "$$fallbackVariantCostPrice",
+                            {
+                              $ifNull: [
+                                "$$firstSizeEntry.v.costPrice",
+                                { $ifNull: ["$productInfo.costPrice", 0] },
+                              ],
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  ],
+                },
+              },
             },
             dateField: { $ifNull: ["$checkedOutAt", "$createdAt"] },
           },
