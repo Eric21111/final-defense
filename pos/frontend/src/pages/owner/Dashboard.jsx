@@ -311,6 +311,14 @@ const Dashboard = () => {
     metrics.totalTransactionsPrevious,
     metrics.transactionGrowthRate
   );
+
+  // Gross Profit Margin = (Revenue - COGS) / Revenue * 100
+  // In our backend dashboard stats, `metrics.profit` is gross profit (Revenue - COGS).
+  const grossProfitMargin =
+    (metrics.totalSalesToday ?? 0) > 0
+      ? ((metrics.profit ?? 0) / (metrics.totalSalesToday ?? 0)) * 100
+      : 0;
+  const grossProfitMarginTone = grossProfitMargin >= 0 ? "up" : "down";
   const isDark = theme === "dark";
 
   const renderDateRange = () => {
@@ -492,11 +500,11 @@ const Dashboard = () => {
                     <FaChartLine className="text-green-500 text-base" />
                   </div>
                   <p className={`flex items-baseline justify-center gap-0.5 font-black leading-none ${isDark ? "text-white" : "text-gray-900"}`}>
-                    <span className="text-3xl sm:text-5xl tabular-nums tracking-tight">{metrics.growthRate}</span>
+                    <span className="text-3xl sm:text-5xl tabular-nums tracking-tight">{grossProfitMargin.toFixed(1)}</span>
                     <span className={`text-2xl font-bold ${isDark ? "text-gray-400" : "text-gray-600"}`}>%</span>
                   </p>
-                  <p className={`text-sm font-extrabold mt-2.5 ${isDark ? "text-green-400" : "text-green-700"}`}>Average Growth Rate</p>
-                  <p className={`text-[10px] font-semibold mt-auto ${growthToneClass(salesGrowth.tone, isDark)}`}>{salesGrowth.text}</p>
+                  <p className={`text-sm font-extrabold mt-2.5 ${isDark ? "text-green-400" : "text-green-700"}`}>Gross Profit Margin</p>
+                  <p className={`text-[10px] font-semibold mt-auto ${growthToneClass(grossProfitMarginTone, isDark)}`}>Revenue - COGS / Revenue</p>
                 </div>
               </div>
 
