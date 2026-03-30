@@ -1936,60 +1936,50 @@ const Terminal = () => {
             onSortChange={setSortOption} />
 
 
-          {/* Category Dropdowns */}
-          <div className="flex gap-4 w-full px-2" style={{ transform: "translateY(-5px)" }}>
-            <div className="flex-1 max-w-[280px]">
-              <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                Main Category
-              </label>
-              <select
-                value={selectedMainCategory}
-                onChange={(e) => {
-                   setSelectedMainCategory(e.target.value);
-                   setSelectedSubCategory("");
-                }}
-                className={`w-full p-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#AD7F65] cursor-pointer text-sm font-medium ${
-                  theme === "dark" 
-                    ? "bg-[#2A2724] border-gray-600 text-white" 
-                    : "bg-white border-gray-300 text-gray-900"
-                }`}
-              >
-                {mainCategories.map((cat) => (
-                  <option key={`main-${cat.name}`} value={cat.name}>
-                    {cat.name}
+          {/* Category Dropdowns (match Inventory design) */}
+          <div className="flex gap-2 w-full px-2" style={{ transform: "translateY(-5px)" }}>
+            <select
+              value={selectedMainCategory}
+              onChange={(e) => {
+                setSelectedMainCategory(e.target.value);
+                setSelectedSubCategory("");
+              }}
+              className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${
+                theme === "dark"
+                  ? "bg-[#2A2724] border-gray-600 text-white"
+                  : "bg-white border-gray-300"
+              }`}
+            >
+              {mainCategories.map((cat) => (
+                <option key={`main-${cat.name}`} value={cat.name}>
+                  {cat.name === "All" ? "By Category" : cat.name}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={selectedSubCategory}
+              onChange={(e) => setSelectedSubCategory(e.target.value)}
+              disabled={selectedMainCategory === "All"}
+              className={`h-10 px-4 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${
+                selectedMainCategory === "All" ? "opacity-50 cursor-not-allowed text-gray-400" : ""
+              } ${
+                theme === "dark"
+                  ? "bg-[#2A2724] border-gray-600 text-white"
+                  : "bg-white border-gray-300"
+              }`}
+            >
+              <option value="">
+                {selectedMainCategory === "All" ? "Select Main First" : "All Subcategories"}
+              </option>
+              {subCategories
+                .filter((sub) => sub.parentCategory === selectedMainCategory)
+                .map((sub) => (
+                  <option key={`sub-${sub.name}`} value={sub.name}>
+                    {sub.name}
                   </option>
                 ))}
-              </select>
-            </div>
-
-            <div className="flex-1 max-w-[280px]">
-              <label className={`block text-xs font-semibold uppercase tracking-wider mb-2 ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-                Subcategory
-              </label>
-              <select
-                value={selectedSubCategory}
-                onChange={(e) => setSelectedSubCategory(e.target.value)}
-                disabled={selectedMainCategory === "All" || !selectedMainCategory}
-                className={`w-full p-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#AD7F65] text-sm font-medium ${
-                    selectedMainCategory === "All" || !selectedMainCategory
-                      ? "opacity-60 cursor-not-allowed bg-gray-100 dark:bg-[#1f1d1b]"
-                      : "cursor-pointer hover:border-gray-400"
-                  } ${
-                  theme === "dark" 
-                    ? "bg-[#2A2724] border-gray-600 text-white" 
-                    : "bg-white border-gray-300 text-gray-900"
-                }`}
-              >
-                <option value="">All {selectedMainCategory !== "All" ? selectedMainCategory : ""}</option>
-                {subCategories
-                  .filter((sub) => sub.parentCategory === selectedMainCategory)
-                  .map((sub) => (
-                    <option key={`sub-${sub.name}`} value={sub.name}>
-                      {sub.name}
-                    </option>
-                ))}
-              </select>
-            </div>
+            </select>
           </div>
         </div>
 
