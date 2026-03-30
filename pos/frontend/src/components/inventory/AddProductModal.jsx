@@ -480,6 +480,16 @@ const AddProductModal = ({
 
   // `hasVariants` is derived from current selections now (no toggle).
 
+  // Safety: if the form state ever holds the sentinel value, auto-open the
+  // "Add Brand Partner" modal (hook must be unconditional to avoid React hook order errors).
+  useEffect(() => {
+    if (!showAddModal) return;
+    if (newProduct.brandName === BRAND_ADD_SENTINEL) {
+      setNewProduct((prev) => ({ ...prev, brandName: "" }));
+      setShowBrandModal(true);
+    }
+  }, [showAddModal, newProduct.brandName, setNewProduct]);
+
   if (!showAddModal) return null;
 
   const partnerNames = Array.from(
@@ -501,15 +511,6 @@ const AddProductModal = ({
     }
     handleInputChange(e);
   };
-
-  useEffect(() => {
-    if (!showAddModal) return;
-    if (newProduct.brandName === BRAND_ADD_SENTINEL) {
-      setNewProduct((prev) => ({ ...prev, brandName: "" }));
-      setShowBrandModal(true);
-    }
-  }, [showAddModal, newProduct.brandName, setNewProduct]);
-
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
