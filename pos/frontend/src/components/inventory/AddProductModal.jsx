@@ -489,6 +489,15 @@ const AddProductModal = ({
     newProduct.brandName !== "Default" &&
     !partnerNames.includes(newProduct.brandName);
 
+  const handleBrandSelectChange = (e) => {
+    const { value } = e.target;
+    if (value === "__add_new_brand__") {
+      setShowBrandModal(true);
+      return;
+    }
+    handleInputChange(e);
+  };
+
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
@@ -659,10 +668,7 @@ const AddProductModal = ({
                 <div className="grid grid-cols-2 gap-4">
                         <div>
                     <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Brand Partner <span className="text-red-500">*</span></label>
-                    <select name="brandName" value={newProduct.brandName || ""} onChange={(e) => {
-                      if (e.target.value === "__add_new_brand__") { setShowBrandModal(true); return; }
-                              handleInputChange(e);
-                    }}
+                    <select name="brandName" value={newProduct.brandName || ""} onChange={handleBrandSelectChange}
                       className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.brandName ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
                       <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
@@ -805,10 +811,7 @@ const AddProductModal = ({
                     <div className="grid grid-cols-2 gap-4">
                           <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Brand Partner <span className="text-red-500">*</span></label>
-                        <select name="brandName" value={newProduct.brandName || ""} onChange={(e) => {
-                              if (e.target.value === "__add_new_brand__") { setShowBrandModal(true); return; }
-                              handleInputChange(e);
-                            }}
+                        <select name="brandName" value={newProduct.brandName || ""} onChange={handleBrandSelectChange}
                           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.brandName ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
                           <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
