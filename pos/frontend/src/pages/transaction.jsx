@@ -989,7 +989,10 @@ const Transaction = () => {
               variant,
               selectedVariation: variant,
               quantity: item.quantity,
-              price: item.price ?? orig?.price ?? orig?.itemPrice
+              price: item.price ?? orig?.price ?? orig?.itemPrice,
+              originalTransactionId: transaction._id,
+              originalLineIndex: item.originalIndex,
+              batchAllocations: orig?.batchAllocations
             };
           }),
           performedByName: transaction.performedByName || "System",

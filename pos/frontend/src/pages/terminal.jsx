@@ -1734,13 +1734,20 @@ const Terminal = () => {
       invalidateCache("transactions");
 
       try {
+        const newTxId =
+          transactionData.data?._id || transactionData.data?.id || null;
+        const stockItemsWithLine = stockItems.map((row, idx) => ({
+          ...row,
+          lineIndex: idx,
+        }));
         const stockRes = await fetch(`${API_BASE_URL}/api/products/update-stock`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             type: "Stock-Out",
             reason: "Sold",
-            items: stockItems,
+            linkTransactionId: newTxId,
+            items: stockItemsWithLine,
             performedByName:
               currentUser?.name ||
               `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||

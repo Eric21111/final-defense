@@ -1,6 +1,7 @@
 const Product = require("../models/Product");
 const StockMovement = require("../models/StockMovement");
 const Archive = require("../models/Archive");
+const SalesTransaction = require("../models/SalesTransaction");
 
 const ARCHIVE_CATEGORY_ENUM = new Set([
   "Tops",
@@ -1277,7 +1278,8 @@ const getSizePrice = (sizeData) => {
 // Update stock after successful transaction
 exports.updateStockAfterTransaction = async (req, res) => {
   try {
-    const { items, performedByName, performedById, type, reason } = req.body;
+    const { items, performedByName, performedById, type, reason, linkTransactionId } =
+      req.body;
 
     if (!items || !Array.isArray(items)) {
       return res.status(400).json({
@@ -1342,6 +1344,84 @@ exports.updateStockAfterTransaction = async (req, res) => {
       return next.filter((b) => safeNum(b.qty, 0) > 0 || b.batchSlotPadding === true);
     };
 
+    const consumeBatchesWithAllocations = (batches, removeQty) => {
+      let remaining = safeNum(removeQty, 0);
+      const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+      const allocations = [];
+      for (let i = 0; i < next.length && remaining > 0; i++) {
+        const avail = safeNum(next[i].qty, 0);
+        if (avail <= 0) continue;
+        const take = Math.min(avail, remaining);
+        if (take <= 0) continue;
+        const createdAt = next[i].createdAt || nowIso();
+        allocations.push({
+          createdAt: String(createdAt),
+          qty: take,
+          price: safeNum(next[i].price, 0),
+          costPrice: safeNum(next[i].costPrice, 0),
+        });
+        next[i].qty = avail - take;
+        remaining -= take;
+      }
+      const filtered = next.filter(
+        (b) => safeNum(b.qty, 0) > 0 || b.batchSlotPadding === true,
+      );
+      return { batches: filtered, allocations };
+    };
+
+    const allocationsForReturnQty = (fullAllocations, returnQty) => {
+      let rem = safeNum(returnQty, 0);
+      const out = [];
+      for (const a of fullAllocations || []) {
+        if (rem <= 0) break;
+        const q = safeNum(a.qty, 0);
+        if (q <= 0) continue;
+        const take = Math.min(q, rem);
+        out.push({
+          createdAt: a.createdAt,
+          qty: take,
+          price: safeNum(a.price, 0),
+          costPrice: safeNum(a.costPrice, 0),
+        });
+        rem -= take;
+      }
+      return out;
+    };
+
+    const restoreBatchesFromAllocations = (batches, allocations) => {
+      const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+      for (const alloc of allocations || []) {
+        const q = safeNum(alloc.qty, 0);
+        if (q <= 0) continue;
+        const target = String(alloc.createdAt || "");
+        const idx = next.findIndex((b) => String(b.createdAt || "") === target);
+        if (idx >= 0) {
+          next[idx].qty = safeNum(next[idx].qty, 0) + q;
+        } else {
+          next.push({
+            qty: q,
+            price: safeNum(alloc.price, 0),
+            costPrice: safeNum(alloc.costPrice, 0),
+            createdAt: alloc.createdAt || nowIso(),
+          });
+        }
+      }
+      next.sort((a, b) =>
+        String(a.createdAt || "").localeCompare(String(b.createdAt || "")),
+      );
+      return next;
+    };
+
+    const persistLineBatchAllocations = async (txId, lineIndex, allocations) => {
+      if (!txId || lineIndex == null || lineIndex < 0 || !allocations?.length) {
+        return;
+      }
+      await SalesTransaction.updateOne(
+        { _id: txId },
+        { $set: { [`items.${lineIndex}.batchAllocations`]: allocations } },
+      );
+    };
+
     // Process items sequentially to prevent race conditions when multiple
     // items reference the same product (e.g., same shirt in different sizes)
     const updatedProducts = [];
@@ -1365,6 +1445,35 @@ exports.updateStockAfterTransaction = async (req, res) => {
       }
 
       const stockBefore = product.currentStock;
+
+      const isReturnStockIn =
+        isStockIn &&
+        (String(reason || "").includes("Returned") ||
+          movementReason === "Returned Item");
+
+      let batchAllocationsForReturn = null;
+      if (isReturnStockIn) {
+        batchAllocationsForReturn = Array.isArray(item.batchAllocations)
+          ? item.batchAllocations
+          : null;
+        if (
+          (!batchAllocationsForReturn || !batchAllocationsForReturn.length) &&
+          item.originalTransactionId &&
+          item.originalLineIndex != null
+        ) {
+          const origTx = await SalesTransaction.findById(
+            item.originalTransactionId,
+          ).lean();
+          const line = origTx?.items?.[item.originalLineIndex];
+          batchAllocationsForReturn = line?.batchAllocations || null;
+        }
+        if (batchAllocationsForReturn?.length) {
+          batchAllocationsForReturn = allocationsForReturnQty(
+            batchAllocationsForReturn,
+            item.quantity,
+          );
+        }
+      }
 
       const sizeKeys = getSizeKeys(product.sizes);
       const hasSizes = sizeKeys.length > 0;
@@ -1482,24 +1591,49 @@ exports.updateStockAfterTransaction = async (req, res) => {
               );
             }
 
-            const nextVariantBatches = isStockIn
-              ? addBatch(
+            let nextVariantBatches;
+            if (isStockIn) {
+              if (batchAllocationsForReturn?.length > 0) {
+                nextVariantBatches = restoreBatchesFromAllocations(
+                  normalizedVariant.batches,
+                  batchAllocationsForReturn,
+                );
+              } else {
+                nextVariantBatches = addBatch(
+                  normalizedVariant.batches,
+                  item.quantity,
+                  safeNum(
+                    item.price,
+                    safeNum(fallbackVariantPrice, safeNum(product.itemPrice, 0)),
+                  ),
+                  safeNum(
+                    item.costPrice,
+                    safeNum(fallbackVariantCostPrice, safeNum(product.costPrice, 0)),
+                  ),
+                  {
+                    batchCode: item.batchCode,
+                    expirationDate: item.expirationDate,
+                  },
+                );
+              }
+            } else {
+              const cons = consumeBatchesWithAllocations(
                 normalizedVariant.batches,
                 item.quantity,
-                safeNum(
-                  item.price,
-                  safeNum(fallbackVariantPrice, safeNum(product.itemPrice, 0)),
-                ),
-                safeNum(
-                  item.costPrice,
-                  safeNum(fallbackVariantCostPrice, safeNum(product.costPrice, 0)),
-                ),
-                {
-                  batchCode: item.batchCode,
-                  expirationDate: item.expirationDate,
-                },
-              )
-              : consumeBatches(normalizedVariant.batches, item.quantity);
+              );
+              nextVariantBatches = cons.batches;
+              if (
+                linkTransactionId != null &&
+                item.lineIndex != null &&
+                cons.allocations?.length
+              ) {
+                await persistLineBatchAllocations(
+                  linkTransactionId,
+                  item.lineIndex,
+                  cons.allocations,
+                );
+              }
+            }
 
             const nextVariantQty = nextVariantBatches.reduce(
               (sum, b) => sum + safeNum(b.qty, 0),
@@ -1545,24 +1679,49 @@ exports.updateStockAfterTransaction = async (req, res) => {
               safeNum(currentSizeData?.costPrice, safeNum(product.costPrice, 0)),
             );
 
-            const nextSizeBatches = isStockIn
-              ? addBatch(
+            let nextSizeBatches;
+            if (isStockIn) {
+              if (batchAllocationsForReturn?.length > 0) {
+                nextSizeBatches = restoreBatchesFromAllocations(
+                  normalizedSize.batches,
+                  batchAllocationsForReturn,
+                );
+              } else {
+                nextSizeBatches = addBatch(
+                  normalizedSize.batches,
+                  item.quantity,
+                  safeNum(
+                    item.price,
+                    safeNum(normalizedSize.price, safeNum(product.itemPrice, 0)),
+                  ),
+                  safeNum(
+                    item.costPrice,
+                    safeNum(
+                      normalizedSize.costPrice,
+                      safeNum(product.costPrice, 0),
+                    ),
+                  ),
+                  { batchCode: item.batchCode, expirationDate: item.expirationDate },
+                );
+              }
+            } else {
+              const cons = consumeBatchesWithAllocations(
                 normalizedSize.batches,
                 item.quantity,
-                safeNum(
-                  item.price,
-                  safeNum(normalizedSize.price, safeNum(product.itemPrice, 0)),
-                ),
-                safeNum(
-                  item.costPrice,
-                  safeNum(
-                    normalizedSize.costPrice,
-                    safeNum(product.costPrice, 0),
-                  ),
-                ),
-                { batchCode: item.batchCode, expirationDate: item.expirationDate },
-              )
-              : consumeBatches(normalizedSize.batches, item.quantity);
+              );
+              nextSizeBatches = cons.batches;
+              if (
+                linkTransactionId != null &&
+                item.lineIndex != null &&
+                cons.allocations?.length
+              ) {
+                await persistLineBatchAllocations(
+                  linkTransactionId,
+                  item.lineIndex,
+                  cons.allocations,
+                );
+              }
+            }
 
             const newQuantity = nextSizeBatches.reduce(
               (sum, b) => sum + safeNum(b.qty, 0),

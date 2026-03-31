@@ -40,6 +40,18 @@ const transactionItemSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    // FIFO batches consumed on this line (filled when stock-out runs after sale) — used to return stock to the same batch slots
+    batchAllocations: {
+      type: [
+        {
+          createdAt: { type: String, default: "" },
+          qty: { type: Number, required: true },
+          price: { type: Number, default: 0 },
+          costPrice: { type: Number, default: 0 },
+        },
+      ],
+      default: undefined,
+    },
   },
   { _id: false },
 );
