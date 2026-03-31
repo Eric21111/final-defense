@@ -389,7 +389,7 @@ const Categories = () => {
   }, [groupedCategories]);
 
   return (
-    <div className={`p-8 min-h-screen ${theme === 'dark' ? 'bg-[#1E1B18]' : 'bg-[#F5F5F5]'}`}>
+    <div className={`p-8 min-h-screen ${theme === 'dark' ? 'bg-[#1E1B18]' : 'bg-[#F9FAFB]'}`}>
       <Header
         pageName="Categories"
         profileBackground={theme === 'dark' ? 'bg-[#2A2724]' : 'bg-gray-100'}
@@ -795,7 +795,7 @@ const Categories = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-gray-700 text-xl shadow-md border bg-[#AD7F65]">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white-700 text-xl shadow-md border bg-[#AD7F65]">
                   <FaPlus />
                 </div>
                 <h2 className="text-2xl font-bold">Add Subcategory</h2>
