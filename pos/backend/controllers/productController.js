@@ -1230,6 +1230,28 @@ const findSizeKey = (sizes = {}, size = "") => {
   return Object.keys(sizes).find((key) => key?.toLowerCase() === normalized);
 };
 
+const findVariantKey = (variants, name) => {
+  if (!name || typeof variants !== "object" || variants === null) {
+    return null;
+  }
+  if (Object.prototype.hasOwnProperty.call(variants, name)) {
+    return name;
+  }
+  const target = String(name).trim().toLowerCase();
+  return (
+    Object.keys(variants).find(
+      (k) => String(k).trim().toLowerCase() === target,
+    ) || null
+  );
+};
+
+const getSizeKeys = (sizes) => {
+  if (!sizes || typeof sizes !== "object") {
+    return [];
+  }
+  return sizes instanceof Map ? Array.from(sizes.keys()) : Object.keys(sizes);
+};
+
 const getSizeQuantity = (sizeData) => {
   if (
     typeof sizeData === "object" &&
@@ -1344,84 +1366,147 @@ exports.updateStockAfterTransaction = async (req, res) => {
 
       const stockBefore = product.currentStock;
 
-      // Handle products with sizes
-      if (product.sizes && item.size) {
-        const sizeKey = findSizeKey(product.sizes, item.size);
+      const sizeKeys = getSizeKeys(product.sizes);
+      const hasSizes = sizeKeys.length > 0;
+      let sizeForStock = item.size || item.selectedSize || null;
+      const rawVariant = item.variant || item.selectedVariation || "";
+      const variantForStock =
+        rawVariant && String(rawVariant).trim()
+          ? String(rawVariant).trim()
+          : null;
+
+      if (hasSizes && !sizeForStock && isStockIn && sizeKeys.length === 1) {
+        sizeForStock = sizeKeys[0];
+      }
+
+      if (hasSizes && !sizeForStock) {
+        throw new Error(
+          `Size is required to update stock for "${product.itemName}" (SKU: ${product.sku || "N/A"}).`,
+        );
+      }
+
+      // Handle products with per-size (and optional per-variant) inventory
+      if (hasSizes && sizeForStock) {
+        const sizeKey = findSizeKey(product.sizes, sizeForStock);
 
         if (!sizeKey) {
           if (isStockIn) {
-            const hasPriceStructure = Object.values(product.sizes).some(
+            const sizeVals =
+              product.sizes instanceof Map
+                ? Array.from(product.sizes.values())
+                : Object.values(product.sizes);
+            const hasPriceStructure = sizeVals.some(
               (s) =>
                 typeof s === "object" && s !== null && s.price !== undefined,
             );
             if (hasPriceStructure) {
-              product.sizes[item.size] = {
+              product.sizes[sizeForStock] = {
                 quantity: item.quantity,
                 price: item.price || product.itemPrice || 0,
               };
             } else {
-              product.sizes[item.size] = item.quantity;
+              product.sizes[sizeForStock] = item.quantity;
             }
             product.markModified("sizes");
           } else {
             throw new Error(
-              `Size ${item.size} not found for product ${product.itemName}`,
+              `Size ${sizeForStock} not found for product ${product.itemName}`,
             );
           }
         } else {
-          // Get current size data (handle both Map and object types)
           const currentSizeData = product.sizes.get
             ? product.sizes.get(sizeKey)
             : product.sizes[sizeKey];
           const currentQuantity = getSizeQuantity(currentSizeData);
           const currentPrice = getSizePrice(currentSizeData);
 
-          // Check if this size has variants and a variant is specified
-          if (item.variant && typeof currentSizeData === "object" && currentSizeData !== null && currentSizeData.variants) {
-            // Handle variant-specific stock
-            const variantData = currentSizeData.variants[item.variant];
+          const hasVariantBuckets =
+            typeof currentSizeData === "object" &&
+            currentSizeData !== null &&
+            currentSizeData.variants &&
+            typeof currentSizeData.variants === "object" &&
+            Object.keys(currentSizeData.variants).length > 0;
 
-            const fallbackVariantPrice =
-              safeNum(
-                currentSizeData.variantPrices?.[item.variant],
-                safeNum(currentPrice, safeNum(item.price, safeNum(product.itemPrice, 0))),
-              );
-            const fallbackVariantCostPrice =
-              safeNum(
-                currentSizeData.variantCostPrices?.[item.variant],
-                safeNum(currentSizeData.costPrice, safeNum(product.costPrice, 0)),
-              );
+          if (hasVariantBuckets && !variantForStock) {
+            throw new Error(
+              `Variant is required to update stock for ${product.itemName} (size ${sizeKey}).`,
+            );
+          }
 
-            const normalizedVariant = ensureBatches(variantData, fallbackVariantPrice, fallbackVariantCostPrice);
+          if (
+            variantForStock &&
+            hasVariantBuckets
+          ) {
+            const variantKey = findVariantKey(
+              currentSizeData.variants,
+              variantForStock,
+            );
+            if (!variantKey) {
+              throw new Error(
+                `Variant "${variantForStock}" not found for ${product.itemName} (size ${sizeKey}).`,
+              );
+            }
+
+            const variantData = currentSizeData.variants[variantKey];
+
+            const fallbackVariantPrice = safeNum(
+              currentSizeData.variantPrices?.[variantKey],
+              safeNum(
+                currentPrice,
+                safeNum(item.price, safeNum(product.itemPrice, 0)),
+              ),
+            );
+            const fallbackVariantCostPrice = safeNum(
+              currentSizeData.variantCostPrices?.[variantKey],
+              safeNum(currentSizeData.costPrice, safeNum(product.costPrice, 0)),
+            );
+
+            const normalizedVariant = ensureBatches(
+              variantData,
+              fallbackVariantPrice,
+              fallbackVariantCostPrice,
+            );
             const currentVariantQty = safeNum(normalizedVariant.quantity, 0);
 
             if (isStockOut && currentVariantQty < item.quantity) {
               throw new Error(
-                `Insufficient stock for ${product.itemName} (${item.size}, ${item.variant}). Available: ${currentVariantQty}, Requested: ${item.quantity}`,
+                `Insufficient stock for ${product.itemName} (${sizeForStock}, ${variantForStock}). Available: ${currentVariantQty}, Requested: ${item.quantity}`,
               );
             }
 
-            // Update variant batches FIFO (Batch 1 consumed first, stock-in creates new batch)
             const nextVariantBatches = isStockIn
               ? addBatch(
                 normalizedVariant.batches,
                 item.quantity,
-                safeNum(item.price, safeNum(fallbackVariantPrice, safeNum(product.itemPrice, 0))),
-                safeNum(item.costPrice, safeNum(fallbackVariantCostPrice, safeNum(product.costPrice, 0))),
-                { batchCode: item.batchCode, expirationDate: item.expirationDate },
+                safeNum(
+                  item.price,
+                  safeNum(fallbackVariantPrice, safeNum(product.itemPrice, 0)),
+                ),
+                safeNum(
+                  item.costPrice,
+                  safeNum(fallbackVariantCostPrice, safeNum(product.costPrice, 0)),
+                ),
+                {
+                  batchCode: item.batchCode,
+                  expirationDate: item.expirationDate,
+                },
               )
               : consumeBatches(normalizedVariant.batches, item.quantity);
 
-            const nextVariantQty = nextVariantBatches.reduce((sum, b) => sum + safeNum(b.qty, 0), 0);
-            currentSizeData.variants[item.variant] = {
+            const nextVariantQty = nextVariantBatches.reduce(
+              (sum, b) => sum + safeNum(b.qty, 0),
+              0,
+            );
+            currentSizeData.variants[variantKey] = {
               ...normalizedVariant,
               batches: nextVariantBatches,
               quantity: nextVariantQty,
             };
 
-            // Recalculate size total quantity from all variants
             let sizeTotal = 0;
-            for (const [varKey, varValue] of Object.entries(currentSizeData.variants)) {
+            for (const [, varValue] of Object.entries(
+              currentSizeData.variants,
+            )) {
               if (typeof varValue === "number") {
                 sizeTotal += varValue;
               } else if (typeof varValue === "object" && varValue !== null) {
@@ -1430,7 +1515,6 @@ exports.updateStockAfterTransaction = async (req, res) => {
             }
             currentSizeData.quantity = sizeTotal;
 
-            // Explicitly reassign the updated size data back to product.sizes (handle both Map and object types)
             if (product.sizes.set) {
               product.sizes.set(sizeKey, currentSizeData);
             } else {
@@ -1438,16 +1522,18 @@ exports.updateStockAfterTransaction = async (req, res) => {
             }
             product.markModified("sizes");
           } else {
-            // No variants, update size quantity directly
             if (isStockOut && currentQuantity < item.quantity) {
               throw new Error(
-                `Insufficient stock for ${product.itemName} (${item.size}). Available: ${currentQuantity}, Requested: ${item.quantity}`,
+                `Insufficient stock for ${product.itemName} (${sizeForStock}). Available: ${currentQuantity}, Requested: ${item.quantity}`,
               );
             }
 
             const normalizedSize = ensureBatches(
               currentSizeData,
-              safeNum(currentPrice, safeNum(item.price, safeNum(product.itemPrice, 0))),
+              safeNum(
+                currentPrice,
+                safeNum(item.price, safeNum(product.itemPrice, 0)),
+              ),
               safeNum(currentSizeData?.costPrice, safeNum(product.costPrice, 0)),
             );
 
@@ -1455,20 +1541,34 @@ exports.updateStockAfterTransaction = async (req, res) => {
               ? addBatch(
                 normalizedSize.batches,
                 item.quantity,
-                safeNum(item.price, safeNum(normalizedSize.price, safeNum(product.itemPrice, 0))),
-                safeNum(item.costPrice, safeNum(normalizedSize.costPrice, safeNum(product.costPrice, 0))),
+                safeNum(
+                  item.price,
+                  safeNum(normalizedSize.price, safeNum(product.itemPrice, 0)),
+                ),
+                safeNum(
+                  item.costPrice,
+                  safeNum(
+                    normalizedSize.costPrice,
+                    safeNum(product.costPrice, 0),
+                  ),
+                ),
                 { batchCode: item.batchCode, expirationDate: item.expirationDate },
               )
               : consumeBatches(normalizedSize.batches, item.quantity);
 
-            const newQuantity = nextSizeBatches.reduce((sum, b) => sum + safeNum(b.qty, 0), 0);
+            const newQuantity = nextSizeBatches.reduce(
+              (sum, b) => sum + safeNum(b.qty, 0),
+              0,
+            );
 
-            // Update size data (keep existing shape object for price fields)
             const updatedSizeData = {
               ...normalizedSize,
               batches: nextSizeBatches,
               quantity: newQuantity,
-              price: safeNum(currentPrice, safeNum(item.price, safeNum(product.itemPrice, 0))),
+              price: safeNum(
+                currentPrice,
+                safeNum(item.price, safeNum(product.itemPrice, 0)),
+              ),
             };
 
             if (product.sizes.set) {
@@ -1480,14 +1580,16 @@ exports.updateStockAfterTransaction = async (req, res) => {
           }
         }
 
-        // Recalculate total stock from all sizes
         let totalStock = 0;
-        for (const [key, value] of Object.entries(product.sizes)) {
+        const sizeEntries =
+          product.sizes instanceof Map
+            ? Array.from(product.sizes.entries())
+            : Object.entries(product.sizes);
+        for (const [, value] of sizeEntries) {
           totalStock += getSizeQuantity(value);
         }
         product.currentStock = totalStock;
       } else {
-        // Handle products without sizes
         if (isStockOut && product.currentStock < item.quantity) {
           throw new Error(
             `Insufficient stock for ${product.itemName}. Available: ${product.currentStock}, Requested: ${item.quantity}`,
@@ -1528,8 +1630,15 @@ exports.updateStockAfterTransaction = async (req, res) => {
         reason: movementReason,
         handledBy: performedByName || "System",
         handledById: performedById || "",
-        notes: item.size ? `Size: ${item.size}` : "",
-        sizeQuantities: item.size ? { [item.size]: item.quantity } : null,
+        notes: [
+          sizeForStock ? `Size: ${sizeForStock}` : null,
+          variantForStock ? `Variant: ${variantForStock}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        sizeQuantities: sizeForStock
+          ? { [sizeForStock]: item.quantity }
+          : null,
       });
 
       updatedProducts.push(product);

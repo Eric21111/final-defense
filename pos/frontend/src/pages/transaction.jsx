@@ -969,8 +969,10 @@ const Transaction = () => {
           items: returnableItems.map((item) => ({
             _id: item.productId,
             sku: item.sku,
-            size: item.selectedSize,
-            variant: item.variant || null,
+            size: item.selectedSize || item.size || null,
+            selectedSize: item.selectedSize || item.size || null,
+            variant: item.variant || item.selectedVariation || null,
+            selectedVariation: item.selectedVariation || item.variant || null,
             quantity: item.quantity
           })),
           performedByName: transaction.performedByName || "System",
