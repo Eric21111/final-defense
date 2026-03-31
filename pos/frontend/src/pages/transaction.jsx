@@ -964,17 +964,42 @@ const Transaction = () => {
       }
 
       // Stock-in items that are returned but NOT damaged/defective/expired
+      let stockUpdateFailed = false;
       if (returnableItems.length > 0) {
         const stockUpdatePayload = {
-          items: returnableItems.map((item) => ({
-            _id: item.productId,
-            sku: item.sku,
-            size: item.selectedSize || item.size || null,
-            selectedSize: item.selectedSize || item.size || null,
-            variant: item.variant || item.selectedVariation || null,
-            selectedVariation: item.selectedVariation || item.variant || null,
-            quantity: item.quantity
-          })),
+          items: returnableItems.map((item) => {
+            const orig = transaction.items?.[item.originalIndex];
+            const sizeRaw =
+              item.selectedSize ||
+              item.size ||
+              orig?.selectedSize ||
+              orig?.size ||
+              "";
+            const size =
+              sizeRaw && String(sizeRaw).trim()
+                ? String(sizeRaw).trim()
+                : null;
+            const variantRaw =
+              item.variant ||
+              item.selectedVariation ||
+              orig?.variant ||
+              orig?.selectedVariation ||
+              "";
+            const variant =
+              variantRaw && String(variantRaw).trim()
+                ? String(variantRaw).trim()
+                : null;
+            return {
+              _id: item.productId,
+              sku: item.sku || orig?.sku,
+              size,
+              selectedSize: size,
+              variant,
+              selectedVariation: variant,
+              quantity: item.quantity,
+              price: item.price ?? orig?.price ?? orig?.itemPrice
+            };
+          }),
           performedByName: transaction.performedByName || "System",
           performedById: transaction.performedById || "",
           reason: "Returned Item",
@@ -990,11 +1015,21 @@ const Transaction = () => {
             body: JSON.stringify(stockUpdatePayload)
           }
         );
-        const stockData = await stockResponse.json();
+        let stockData = {};
+        try {
+          stockData = await stockResponse.json();
+        } catch {
+          stockData = {};
+        }
         console.log("Stock update response:", stockData);
 
-        if (!stockData.success) {
+        if (!stockResponse.ok || !stockData.success) {
+          stockUpdateFailed = true;
           console.error("Failed to update stock:", stockData);
+          alert(
+            stockData.message ||
+              "Inventory could not be updated. Ensure this sale recorded size and variant correctly, then try again or adjust stock manually."
+          );
         }
       }
 
@@ -1039,7 +1074,9 @@ const Transaction = () => {
         console.log("Return transaction response:", returnTrxData);
       }
 
-      setShowReturnSuccessModal(true);
+      if (!stockUpdateFailed) {
+        setShowReturnSuccessModal(true);
+      }
     } catch (error) {
       console.error("Error processing return:", error);
       alert("Failed to process return. Please try again.");

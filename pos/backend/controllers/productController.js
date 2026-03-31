@@ -1368,9 +1368,11 @@ exports.updateStockAfterTransaction = async (req, res) => {
 
       const sizeKeys = getSizeKeys(product.sizes);
       const hasSizes = sizeKeys.length > 0;
-      let sizeForStock = item.size || item.selectedSize || null;
+      const rawSize = item.size || item.selectedSize || "";
+      let sizeForStock =
+        rawSize && String(rawSize).trim() ? String(rawSize).trim() : null;
       const rawVariant = item.variant || item.selectedVariation || "";
-      const variantForStock =
+      let variantForStock =
         rawVariant && String(rawVariant).trim()
           ? String(rawVariant).trim()
           : null;
@@ -1427,6 +1429,12 @@ exports.updateStockAfterTransaction = async (req, res) => {
             typeof currentSizeData.variants === "object" &&
             Object.keys(currentSizeData.variants).length > 0;
 
+          if (hasVariantBuckets && !variantForStock) {
+            const vKeys = Object.keys(currentSizeData.variants);
+            if (vKeys.length === 1) {
+              variantForStock = vKeys[0];
+            }
+          }
           if (hasVariantBuckets && !variantForStock) {
             throw new Error(
               `Variant is required to update stock for ${product.itemName} (size ${sizeKey}).`,
