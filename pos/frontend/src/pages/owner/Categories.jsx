@@ -2,6 +2,7 @@ import React, { memo, useEffect, useMemo, useState } from 'react';
 import { FaChevronDown, FaChevronRight, FaEdit, FaPlus, FaSearch, FaTimes, FaTrash, FaUndo } from 'react-icons/fa';
 import ViewCategoryProductsModal from '../../components/owner/ViewCategoryProductsModal';
 import Header from '../../components/shared/header';
+import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -48,10 +49,8 @@ const Categories = () => {
 
 
   useEffect(() => {
-    fetchCategories().then(cats => {
-      if (cats && cats.length > 0) {
-        initializeBuiltInCategories(cats);
-      }
+    fetchCategories().then((cats) => {
+      initializeBuiltInCategories(Array.isArray(cats) ? cats : []);
     });
   }, []);
 
@@ -65,7 +64,7 @@ const Categories = () => {
 
       if (othersCategories.length > 0) {
         const archivePromises = othersCategories.map((cat) =>
-        fetch(`http://localhost:5000/api/categories/${cat._id}/archive`, {
+        fetch(`${API_BASE_URL}/api/categories/${cat._id}/archive`, {
           method: 'PATCH'
         }).catch((error) => null)
         );
@@ -84,7 +83,7 @@ const Categories = () => {
             ([, subs]) => subs.includes(cat.name)
           )?.[0] || null;
           if (!parentName) return null;
-          return fetch(`http://localhost:5000/api/categories/${cat._id}`, {
+          return fetch(`${API_BASE_URL}/api/categories/${cat._id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ type: 'subcategory', parentCategory: parentName })
@@ -99,7 +98,7 @@ const Categories = () => {
       Object.keys(categoryStructure).forEach(parentName => {
         if (!existingCats.includes(parentName)) {
             createPromises.push(
-              fetch('http://localhost:5000/api/categories', {
+              fetch(`${API_BASE_URL}/api/categories`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: parentName, type: 'category', status: 'active' })
@@ -113,7 +112,7 @@ const Categories = () => {
               const subExists = existingSubs.some(s => s.name === subName && s.parentCategory === parentName);
               if (!subExists) {
                   createPromises.push(
-                      fetch('http://localhost:5000/api/categories', {
+                      fetch(`${API_BASE_URL}/api/categories`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ name: subName, type: 'subcategory', parentCategory: parentName, status: 'active' })
@@ -129,7 +128,7 @@ const Categories = () => {
       }
 
       if (needsRefresh) {
-        const response = await fetch('http://localhost:5000/api/categories');
+        const response = await fetch(`${API_BASE_URL}/api/categories`);
         const data = await response.json();
         if (data.success && Array.isArray(data.data)) {
           setCategories(data.data);
@@ -143,7 +142,7 @@ const Categories = () => {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://localhost:5000/api/categories');
+      const response = await fetch(`${API_BASE_URL}/api/categories`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -195,7 +194,7 @@ const Categories = () => {
         payload.parentCategory = selectedParentCategory;
       }
 
-      const response = await fetch('http://localhost:5000/api/categories', {
+      const response = await fetch(`${API_BASE_URL}/api/categories`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -230,7 +229,7 @@ const Categories = () => {
 
     try {
       setError('');
-      const response = await fetch(`http://localhost:5000/api/categories/${editingCategory._id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/categories/${editingCategory._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json'
@@ -258,7 +257,7 @@ const Categories = () => {
 
   const handleToggleStatus = async (id) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/categories/${id}/archive`, {
+      const response = await fetch(`${API_BASE_URL}/api/categories/${id}/archive`, {
         method: 'PATCH'
       });
 
@@ -285,7 +284,7 @@ const Categories = () => {
 
     try {
 
-      const response = await fetch(`http://localhost:5000/api/categories/${categoryToArchive._id}/archive`, {
+      const response = await fetch(`${API_BASE_URL}/api/categories/${categoryToArchive._id}/archive`, {
         method: 'PATCH'
       });
 

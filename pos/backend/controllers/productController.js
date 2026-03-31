@@ -1,5 +1,25 @@
 const Product = require("../models/Product");
 const StockMovement = require("../models/StockMovement");
+const Archive = require("../models/Archive");
+
+const ARCHIVE_CATEGORY_ENUM = new Set([
+  "Tops",
+  "Bottoms",
+  "Dresses",
+  "Makeup",
+  "Accessories",
+  "Essentials",
+  "Shoes",
+  "Head Wear",
+  "Foods",
+  "Others",
+]);
+
+const mapProductCategoryToArchiveCategory = (category) => {
+  const c = String(category || "").trim();
+  if (ARCHIVE_CATEGORY_ENUM.has(c)) return c;
+  return "Others";
+};
 
 exports.getAllProducts = async (req, res) => {
   try {
@@ -1124,10 +1144,51 @@ exports.archiveProduct = async (req, res) => {
       });
     }
 
+    if (product.isArchived) {
+      return res.json({
+        success: true,
+        message: "Product already archived",
+      });
+    }
+
+    const qty = Math.max(
+      1,
+      Number(product.currentStock) >= 0 ? Number(product.currentStock) : 0
+    );
+
+    const prevDisplayInTerminal = product.displayInTerminal;
     product.isArchived = true;
     product.displayInTerminal = false;
     product.lastUpdated = Date.now();
     await product.save();
+
+    try {
+      await Archive.create({
+        productId: product._id,
+        itemName: product.itemName,
+        sku: product.sku || "N/A",
+        variant: product.variant || "",
+        selectedSize: product.size || "",
+        category: mapProductCategoryToArchiveCategory(product.category),
+        brandName: product.brandName || "",
+        itemPrice: product.itemPrice ?? 0,
+        costPrice: product.costPrice ?? 0,
+        quantity: qty,
+        itemImage: product.itemImage || "",
+        reason: "Other",
+        returnReason: "",
+        originalTransactionId: null,
+        source: "stock-out",
+        archivedBy: req.body?.archivedByName || "Inventory",
+        archivedById: req.body?.archivedById || "",
+        notes: "Product archived from inventory",
+      });
+    } catch (archiveErr) {
+      product.isArchived = false;
+      product.displayInTerminal = prevDisplayInTerminal;
+      await product.save();
+      throw archiveErr;
+    }
 
     res.json({
       success: true,

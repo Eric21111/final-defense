@@ -14,7 +14,7 @@ const returnReasons = [
 { value: 'Damaged', label: 'Damaged' },
 { value: 'Defective', label: 'Defective' },
 { value: 'Wrong Item', label: 'Wrong Item' },
-{ value: 'Size Issue', label: 'Size Issue' },
+{ value: 'Wrong Size', label: 'Wrong Size' },
 { value: 'Customer Changed Mind', label: 'Customer Changed Mind' },
 { value: 'Expired', label: 'Expired' },
 { value: 'Other', label: 'Other' }];

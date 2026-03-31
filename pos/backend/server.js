@@ -87,8 +87,12 @@ connectDB();
 const allowedOrigins = [
   "http://localhost:5173",    // Vite dev server
   "http://localhost:3000",    // Alternate dev port
+  "http://localhost:8081",    // Expo Web dev server (default)
+  "http://localhost:19006",   // Expo Web legacy dev port
   "http://127.0.0.1:5173",
   "http://127.0.0.1:3000",
+  "http://127.0.0.1:8081",
+  "http://127.0.0.1:19006",
   "https://pos-hosting.vercel.app", // Explicitly added to prevent CORS blocks
   process.env.FRONTEND_URL,  // Production frontend URL (set in .env)
   process.env.WEBHOOK_BASE_URL, // ngrok tunnel URL

@@ -780,14 +780,24 @@ const Transaction = () => {
 
 
       // Rule:
-      // - Damaged / Defective / Expired -> Archive (and mark product as archived)
-      // - Other reasons -> Stock-In (back to inventory)
-      const archiveReasons = ["Damaged", "Defective", "Expired"];
+      // - Damaged / Defective / Expired (and similar) -> Archive only (no stock-in)
+      // - Wrong item, size issue, changed mind, Other, etc. -> Stock-In (restock sellable inventory)
+      const isArchiveReturnReason = (reason) => {
+        const raw = String(reason || "").trim();
+        const head = raw.split(":")[0].trim().toLowerCase();
+        const archiveHeads = new Set([
+          "damaged",
+          "defective",
+          "expired"
+        ]);
+        if (archiveHeads.has(head)) return true;
+        return false;
+      };
       const damagedItems = itemsToReturn.filter((item) =>
-        archiveReasons.includes(item.reason)
+        isArchiveReturnReason(item.reason)
       );
       const returnableItems = itemsToReturn.filter(
-        (item) => !archiveReasons.includes(item.reason)
+        (item) => !isArchiveReturnReason(item.reason)
       );
 
       console.log("Damaged items (to archive):", damagedItems.length);
@@ -923,7 +933,7 @@ const Transaction = () => {
           costPrice: productDetails?.costPrice || 0,
           quantity: item.quantity,
           itemImage: productDetails?.itemImage || "",
-          reason: item.reason === "Expired" ? "Other" : item.reason,
+          reason: item.reason,
           returnReason: item.reason,
           originalTransactionId: transaction._id,
           archivedBy: transaction.performedByName || "System",

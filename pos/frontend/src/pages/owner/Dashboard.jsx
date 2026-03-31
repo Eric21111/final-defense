@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import {
@@ -145,6 +145,42 @@ const Dashboard = () => {
   useEffect(() => {
     fetchLowStockProducts();
   }, [lowStockFilter]);
+
+  // Live refresh: poll metrics/charts and refetch when the tab becomes visible again (no full-page reload).
+  const refreshAllSilentRef = useRef(null);
+  refreshAllSilentRef.current = async () => {
+    if (timeframe === "Custom" && (!startDate || !endDate)) return;
+    try {
+      await Promise.all([
+        fetchDashboardStats(),
+        fetchSalesOverTime(),
+        fetchSalesByCategory(),
+        fetchTopSellingProducts(),
+        fetchLowStockProducts(),
+        fetchActiveEmployees()
+      ]);
+    } catch (e) {
+      console.error("Dashboard silent refresh:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (timeframe === "Custom" && (!startDate || !endDate)) return;
+    const intervalMs = 30000;
+    const id = setInterval(() => {
+      refreshAllSilentRef.current?.();
+    }, intervalMs);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshAllSilentRef.current?.();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [timeframe, startDate, endDate, topSellingSort, lowStockFilter]);
 
   const getQueryParams = () => {
     let params = `?timeframe=${timeframe}`;

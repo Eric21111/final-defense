@@ -174,6 +174,25 @@ const Settings = () => {
     }
   }, []);
 
+  const fetchArchives = useCallback(async () => {
+    setArchivesLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/archive`);
+      const data = await response.json();
+
+      if (data.success) {
+        setArchives(data.data || []);
+      } else {
+        setArchives([]);
+      }
+    } catch (error) {
+      console.error("Error fetching archives:", error);
+      setArchives([]);
+    } finally {
+      setArchivesLoading(false);
+    }
+  }, []);
+
   const handleGcashSave = async (e) => {
     e.preventDefault();
     setGcashMessage({ type: "", text: "" });
@@ -322,32 +341,29 @@ const Settings = () => {
   };
 
   useEffect(() => {
-    if (activeTab === "archives") {
+    if (activeTab !== "archives") return;
+    fetchArchives();
+    const intervalMs = 25000;
+    const id = setInterval(() => {
       fetchArchives();
-    }
+    }, intervalMs);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchArchives();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [activeTab, fetchArchives]);
+
+  useEffect(() => {
     if (activeTab === "gcash") {
       fetchGcashSettings();
     }
-  }, [activeTab]);
-
-  const fetchArchives = async () => {
-    setArchivesLoading(true);
-    try {
-      const response = await fetch(`${API_BASE}/api/archive`);
-      const data = await response.json();
-
-      if (data.success) {
-        setArchives(data.data || []);
-      } else {
-        setArchives([]);
-      }
-    } catch (error) {
-      console.error("Error fetching archives:", error);
-      setArchives([]);
-    } finally {
-      setArchivesLoading(false);
-    }
-  };
+  }, [activeTab, fetchGcashSettings]);
 
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";

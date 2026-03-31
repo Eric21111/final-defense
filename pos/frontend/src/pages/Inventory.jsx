@@ -1310,10 +1310,21 @@ const Inventory = () => {
     setShowArchiveModal(false);
 
     try {
+      const currentUser = JSON.parse(
+        localStorage.getItem("currentUser") || "{}"
+      );
+      const archivedByName =
+        currentUser.name ||
+        `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() ||
+        "Owner";
+      const archivedById = currentUser._id || currentUser.id || "";
+
       const response = await fetch(
         `${API_BASE_URL}/api/products/${productToArchive}/archive`,
         {
-          method: "PATCH"
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ archivedByName, archivedById })
         }
       );
 

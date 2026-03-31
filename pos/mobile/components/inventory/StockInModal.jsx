@@ -287,7 +287,7 @@ const StockInModal = ({ visible, onClose, product, onConfirm, loading }) => {
   const availableSizes = [...existingSizes, ...addedNewSizes];
 
   const allPossibleSizes = (() => {
-    const category = product.category || "";
+    const category = product?.category || "";
     let sizes = [];
     if (["Tops", "Bottoms", "Dresses"].includes(category)) {
       sizes = ["XS", "S", "M", "L", "XL", "XXL", "XXXL", "Free Size"];
@@ -296,7 +296,7 @@ const StockInModal = ({ visible, onClose, product, onConfirm, loading }) => {
     } else if (["Accessories", "Head Wear", "Makeup"].includes(category)) {
       sizes = ["Free Size"];
     } else if (category === "Foods") {
-      const subtype = product.foodSubtype || "";
+      const subtype = product?.foodSubtype || "";
       if (["Beverages", "Drinks"].includes(subtype)) {
         sizes = ["Small", "Medium", "Large", "Family Size", "Free Size"];
       } else {
