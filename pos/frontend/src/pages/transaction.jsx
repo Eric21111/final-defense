@@ -70,6 +70,9 @@ const formatCurrencyCompact = (value = 0) => {
   return n < 0 ? `-₱${abs}` : `₱${abs}`;
 };
 
+const sameTransactionId = (a, b) =>
+  String(a?._id ?? a ?? "") === String(b?._id ?? b ?? "");
+
 
 
 const generateTransactionNumber = (transaction) => {
@@ -179,8 +182,7 @@ const Dropdown = ({
 const Transaction = () => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
-  const { getCachedData, setCachedData, isCacheValid, invalidateCache } =
-    useDataCache();
+  const { setCachedData, invalidateCache } = useDataCache();
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -297,9 +299,15 @@ const Transaction = () => {
           [];
         setTransactions(payload);
         setCachedDataRef.current("transactions", payload);
-        if (payload.length > 0) {
-          setSelectedTransaction(payload[0]);
-        }
+        setSelectedTransaction((prev) => {
+          if (!payload.length) {
+            return null;
+          }
+          if (prev && payload.some((t) => sameTransactionId(t, prev))) {
+            return payload.find((t) => sameTransactionId(t, prev));
+          }
+          return payload[0];
+        });
       } else {
         setTransactions([]);
         setCachedDataRef.current("transactions", []);
@@ -321,32 +329,12 @@ const Transaction = () => {
 
     const loadInitialData = async () => {
       try {
-        const cachedTransactions = getCachedData("transactions");
-        if (
-          cachedTransactions &&
-          isCacheValid("transactions") &&
-          cachedTransactions.length > 0) {
-
-          const sortedCached = [...cachedTransactions].sort((a, b) => {
-            const dateA = new Date(
-              a.checkedOutAt || a.createdAt || a.updatedAt || 0
-            );
-            const dateB = new Date(
-              b.checkedOutAt || b.createdAt || b.updatedAt || 0
-            );
-            return dateB - dateA;
-          });
-          setTransactions(sortedCached);
-          if (sortedCached.length > 0) {
-            setSelectedTransaction(sortedCached[0]);
-          }
-          isInitialMount.current = false;
-          isInitialLoading.current = false;
-        } else {
-          await fetchTransactions();
-          isInitialMount.current = false;
-          isInitialLoading.current = false;
-        }
+        // Always refetch from the server when opening this page. Client-only cache was
+        // showing pre-return rows after navigating away (e.g. Inventory) and back.
+        invalidateCache("transactions");
+        await fetchTransactions();
+        isInitialMount.current = false;
+        isInitialLoading.current = false;
       } catch (error) {
         console.error("Error loading transactions:", error);
 
@@ -893,14 +881,18 @@ const Transaction = () => {
 
       setTransactions((prev) => {
         const next = prev.map((trx) =>
-          trx._id === transaction._id ? { ...trx, ...updatedOriginalTransaction } : trx
+          sameTransactionId(trx, transaction)
+            ? { ...trx, ...updatedOriginalTransaction }
+            : trx
         );
         setCachedDataRef.current("transactions", next);
         return next;
       });
 
       setSelectedTransaction((prev) => {
-        if (!prev || prev._id !== transaction._id) return prev;
+        if (!prev || !sameTransactionId(prev, transaction)) {
+          return prev;
+        }
         return { ...prev, ...updatedOriginalTransaction };
       });
 
@@ -1073,6 +1065,8 @@ const Transaction = () => {
         const returnTrxData = await returnTrxResponse.json();
         console.log("Return transaction response:", returnTrxData);
       }
+
+      await fetchTransactions();
 
       if (!stockUpdateFailed) {
         setShowReturnSuccessModal(true);

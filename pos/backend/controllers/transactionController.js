@@ -80,7 +80,8 @@ exports.getAllTransactions = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const transactions = await SalesTransaction.find({})
-      .select('-items.itemImage -items.variant -items.selectedSize -items.sku') // Optimized projection
+      // Keep variant/selectedSize/sku on items — needed for returns and receipts (only strip heavy image)
+      .select("-items.itemImage")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
