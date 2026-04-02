@@ -251,8 +251,13 @@ exports.createProduct = async (req, res) => {
                 }
               });
 
+              const totalQtySimple = Object.values(variants).reduce(
+                (sum, v) => sum + (v.quantity || 0),
+                0,
+              );
+
               productData.sizes[size] = {
-                quantity: totalQty,
+                quantity: totalQtySimple,
                 variants: variants,
               };
             } else {
@@ -261,6 +266,57 @@ exports.createProduct = async (req, res) => {
           }
         });
       }
+    }
+
+    // Opening stock = first FIFO batch when qty was set at create (otherwise first batch comes from stock-in)
+    if (productData.sizes && typeof productData.sizes === "object") {
+      const openingTs = new Date().toISOString();
+      const attachOpeningBatches = (sizes) => {
+        for (const sizeKey of Object.keys(sizes)) {
+          const sd = sizes[sizeKey];
+          if (typeof sd === "number") continue;
+          if (!sd || typeof sd !== "object") continue;
+          if (sd.variants && typeof sd.variants === "object") {
+            for (const vk of Object.keys(sd.variants)) {
+              const v = sd.variants[vk];
+              if (typeof v !== "object" || v === null) continue;
+              const q = parseInt(v.quantity, 10) || 0;
+              if (q <= 0) continue;
+              if (Array.isArray(v.batches) && v.batches.length > 0) continue;
+              sd.variants[vk] = {
+                ...v,
+                batches: [
+                  {
+                    qty: q,
+                    price: parseFloat(v.price) || 0,
+                    costPrice: parseFloat(v.costPrice) || 0,
+                    createdAt: openingTs,
+                  },
+                ],
+              };
+            }
+          } else if (sd.quantity !== undefined && !sd.variants) {
+            const q = parseInt(sd.quantity, 10) || 0;
+            if (
+              q > 0 &&
+              (!Array.isArray(sd.batches) || sd.batches.length === 0)
+            ) {
+              sizes[sizeKey] = {
+                ...sd,
+                batches: [
+                  {
+                    qty: q,
+                    price: parseFloat(sd.price) || 0,
+                    costPrice: parseFloat(sd.costPrice) || 0,
+                    createdAt: openingTs,
+                  },
+                ],
+              };
+            }
+          }
+        }
+      };
+      attachOpeningBatches(productData.sizes);
     }
 
     // Clean up temporary fields
@@ -538,17 +594,7 @@ exports.stockInProduct = async (req, res) => {
       expirationDate: stockData.expirationDate ? String(stockData.expirationDate) : "",
     };
 
-    const rawTargetSlot = stockData.targetBatchSlotIndex;
-    const parsedTargetSlot = parseInt(rawTargetSlot, 10);
-    const useExistingBatchSlot =
-      rawTargetSlot !== undefined &&
-      rawTargetSlot !== null &&
-      rawTargetSlot !== "" &&
-      Number.isInteger(parsedTargetSlot) &&
-      parsedTargetSlot >= 0;
-    const existingSlotMeta = {
-      expirationDate: batchMeta.expirationDate,
-    };
+    // Stock-in from inventory always appends a new FIFO batch (never merge into a prior slot).
 
     if (!product.sizes || typeof product.sizes !== "object" || Object.keys(product.sizes).length === 0) {
       // No sizes case: keep behavior same as before
@@ -640,25 +686,20 @@ exports.stockInProduct = async (req, res) => {
             incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
           }
 
-          const padLen = useExistingBatchSlot
-            ? Math.max(maxBatchLenBeforeAdd, parsedTargetSlot + 1)
-            : maxBatchLenBeforeAdd;
+          const padLen = maxBatchLenBeforeAdd;
           const alignedBatches = padBatchesToLengthBeforeAdd(
             normalizedVariant.batches,
             padLen,
             incomingPrice,
             incomingCost,
           );
-          const nextBatches = useExistingBatchSlot
-            ? addToExistingBatchSlot(
-                alignedBatches,
-                parsedTargetSlot,
-                qty,
-                existingSlotMeta,
-                incomingPrice,
-                incomingCost,
-              )
-            : addBatch(alignedBatches, qty, incomingPrice, incomingCost, batchMeta);
+          const nextBatches = addBatch(
+            alignedBatches,
+            qty,
+            incomingPrice,
+            incomingCost,
+            batchMeta,
+          );
           newVariants[variant] = {
             ...normalizedVariant,
             batches: nextBatches,
@@ -720,25 +761,20 @@ exports.stockInProduct = async (req, res) => {
           incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
         }
 
-        const padLenNoVar = useExistingBatchSlot
-          ? Math.max(maxBatchLenBeforeAddNoVar, parsedTargetSlot + 1)
-          : maxBatchLenBeforeAddNoVar;
+        const padLenNoVar = maxBatchLenBeforeAddNoVar;
         const alignedBatches = padBatchesToLengthBeforeAdd(
           currentSizeData.batches,
           padLenNoVar,
           incomingPrice,
           incomingCost,
         );
-        const nextBatches = useExistingBatchSlot
-          ? addToExistingBatchSlot(
-              alignedBatches,
-              parsedTargetSlot,
-              addQty,
-              existingSlotMeta,
-              incomingPrice,
-              incomingCost,
-            )
-          : addBatch(alignedBatches, addQty, incomingPrice, incomingCost, batchMeta);
+        const nextBatches = addBatch(
+          alignedBatches,
+          addQty,
+          incomingPrice,
+          incomingCost,
+          batchMeta,
+        );
         const nextQty = sumBatchesQty(nextBatches);
         updatedSizes[size] = {
           ...currentSizeData,
@@ -1412,6 +1448,32 @@ exports.updateStockAfterTransaction = async (req, res) => {
       return next;
     };
 
+    /** When allocations are missing, merge return qty into oldest FIFO batch (no new batch row). */
+    const restoreReturnQtyToOldestBatches = (batches, addQty, price, costPrice) => {
+      const q = safeNum(addQty, 0);
+      if (q <= 0) {
+        return Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+      }
+      const next = Array.isArray(batches) ? batches.map((b) => ({ ...b })) : [];
+      if (next.length === 0) {
+        return [
+          {
+            qty: q,
+            price: safeNum(price, 0),
+            costPrice: safeNum(costPrice, 0),
+            createdAt: nowIso(),
+          },
+        ];
+      }
+      next[0] = {
+        ...next[0],
+        qty: safeNum(next[0].qty, 0) + q,
+        price: safeNum(price, safeNum(next[0].price, 0)),
+        costPrice: safeNum(costPrice, safeNum(next[0].costPrice, 0)),
+      };
+      return next;
+    };
+
     const persistLineBatchAllocations = async (txId, lineIndex, allocations) => {
       if (!txId || lineIndex == null || lineIndex < 0 || !allocations?.length) {
         return;
@@ -1598,6 +1660,19 @@ exports.updateStockAfterTransaction = async (req, res) => {
                   normalizedVariant.batches,
                   batchAllocationsForReturn,
                 );
+              } else if (isReturnStockIn) {
+                nextVariantBatches = restoreReturnQtyToOldestBatches(
+                  normalizedVariant.batches,
+                  item.quantity,
+                  safeNum(
+                    item.price,
+                    safeNum(fallbackVariantPrice, safeNum(product.itemPrice, 0)),
+                  ),
+                  safeNum(
+                    item.costPrice,
+                    safeNum(fallbackVariantCostPrice, safeNum(product.costPrice, 0)),
+                  ),
+                );
               } else {
                 nextVariantBatches = addBatch(
                   normalizedVariant.batches,
@@ -1685,6 +1760,22 @@ exports.updateStockAfterTransaction = async (req, res) => {
                 nextSizeBatches = restoreBatchesFromAllocations(
                   normalizedSize.batches,
                   batchAllocationsForReturn,
+                );
+              } else if (isReturnStockIn) {
+                nextSizeBatches = restoreReturnQtyToOldestBatches(
+                  normalizedSize.batches,
+                  item.quantity,
+                  safeNum(
+                    item.price,
+                    safeNum(normalizedSize.price, safeNum(product.itemPrice, 0)),
+                  ),
+                  safeNum(
+                    item.costPrice,
+                    safeNum(
+                      normalizedSize.costPrice,
+                      safeNum(product.costPrice, 0),
+                    ),
+                  ),
                 );
               } else {
                 nextSizeBatches = addBatch(

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaPlus, FaSearch } from "react-icons/fa";
 import Header from "../components/shared/header";
 import { API_BASE_URL } from "../config/api";
@@ -628,6 +628,27 @@ const Inventory = () => {
       if (!silent) setLoading(false);
     }
   };
+
+  const fetchProductsRef = useRef(fetchProducts);
+  fetchProductsRef.current = fetchProducts;
+
+  useEffect(() => {
+    const syncProducts = () => {
+      invalidateCache("products");
+      fetchProductsRef.current({ silent: true });
+    };
+    window.addEventListener("pos-invalidate-products", syncProducts);
+    const onStorage = (e) => {
+      if (e.key === "pos-products-bump" && e.newValue != null) {
+        syncProducts();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("pos-invalidate-products", syncProducts);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [invalidateCache]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;

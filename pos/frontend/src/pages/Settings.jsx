@@ -36,13 +36,17 @@ import SuccessModal from "../components/inventory/SuccessModal";
 import Header from "../components/shared/header";
 import { API_BASE_URL as API_BASE } from "../config/api";
 import { useAuth } from "../context/AuthContext";
+import { useDataCache } from "../context/DataCacheContext";
 import { SidebarContext } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
+
+const PRODUCTS_BUMP_KEY = "pos-products-bump";
 
 const Settings = () => {
   const { isExpanded } = useContext(SidebarContext);
   const { isOwner, currentUser, login } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { invalidateCache } = useDataCache();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("personal");
   const [currentPin, setCurrentPin] = useState(["", "", "", "", "", ""]);
@@ -268,6 +272,15 @@ const Settings = () => {
       await fetchArchives();
       setSelectedArchiveIds((prev) => prev.filter((id) => !removed.includes(id)));
       setShowBulkRestoreModal(false);
+      if (removed.length > 0) {
+        invalidateCache("products");
+        try {
+          localStorage.setItem(PRODUCTS_BUMP_KEY, String(Date.now()));
+        } catch (e) {
+          /* ignore */
+        }
+        window.dispatchEvent(new CustomEvent("pos-invalidate-products"));
+      }
       if (failed.length === 0) {
         setSuccessMessage(
           removed.length === 1
