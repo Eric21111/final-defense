@@ -36,6 +36,16 @@ const ViewProductModal = ({
     return hasRealBatchHistory(batches);
   };
 
+  /** When viewing a specific batch tab, only list variants that have a real entry in that slot (not "—"). */
+  const shouldShowRowForBatchSlot = (batches, slotIndex) => {
+    const list = Array.isArray(batches) ? batches : [];
+    const b = list[slotIndex];
+    if (!b) return false;
+    if (b.batchSlotPadding && toNum(b.qty) === 0) return false;
+    if (toNum(b.qty) > 0) return true;
+    return !b.batchSlotPadding;
+  };
+
   const formatMoneyRange = (nums, fallbackStr) => {
     const arr = (nums || []).filter((n) => typeof n === "number" && Number.isFinite(n));
     if (arr.length === 0) return fallbackStr;
@@ -604,7 +614,9 @@ const ViewProductModal = ({
                     : "Table: total + price per option"}
                 </div>
                 <div className={`text-[11px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
-                  Showing options that have stock or past batch history. Never-stocked combinations are hidden.
+                  {showPerBatchColumn && typeof batchTab === "number"
+                    ? `Only variants with data in batch ${batchTab + 1} are listed. Switch to Totals to see all options with any stock.`
+                    : "Showing options that have stock or past batch history. Never-stocked combinations are hidden."}
                 </div>
               </div>
 
@@ -655,7 +667,11 @@ const ViewProductModal = ({
                                 const variantQty = typeof variantData === 'number' ? variantData : (variantData && typeof variantData === 'object' ? variantData.quantity || 0 : 0);
                                 const batches = getBatchList(typeof variantData === "object" && variantData !== null ? variantData : null);
 
-                                if (!shouldShowStockRow(variantQty, batches)) return;
+                                if (showPerBatchColumn && typeof batchTab === "number") {
+                                  if (!shouldShowRowForBatchSlot(batches, batchTab)) return;
+                                } else if (!shouldShowStockRow(variantQty, batches)) {
+                                  return;
+                                }
 
                                 // Format Variant for SKU
                                 const dynamicSku = generateDynamicSku(baseSku, variantName, size);
@@ -706,7 +722,11 @@ const ViewProductModal = ({
                             } else {
                               const stock = typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined ? sizeData.quantity : (typeof sizeData === "number" ? sizeData : 0);
                               const batches = getBatchList(typeof sizeData === "object" && sizeData !== null ? sizeData : null);
-                              if (!shouldShowStockRow(stock, batches)) return;
+                              if (showPerBatchColumn && typeof batchTab === "number") {
+                                if (!shouldShowRowForBatchSlot(batches, batchTab)) return;
+                              } else if (!shouldShowStockRow(stock, batches)) {
+                                return;
+                              }
 
                               const dynamicSku = generateDynamicSku(baseSku, null, size);
 
@@ -762,7 +782,9 @@ const ViewProductModal = ({
                                   colSpan={showPerBatchColumn ? 4 : 5}
                                   className={`px-4 py-6 text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
                                 >
-                                  No options with stock or batch history yet. Stock in to add inventory for a variant.
+                                  {showPerBatchColumn && typeof batchTab === "number"
+                                    ? `No variants have data in batch ${batchTab + 1}. Try another batch tab or Totals.`
+                                    : "No options with stock or batch history yet. Stock in to add inventory for a variant."}
                                 </td>
                               </tr>
                             );
