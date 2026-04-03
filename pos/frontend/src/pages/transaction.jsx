@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "framer-motion";
-import { startOfDay } from "date-fns";
+import { endOfDay, isWithinInterval, startOfDay } from "date-fns";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import React, {
@@ -49,7 +49,7 @@ const STATUS_STYLES = {
 const paymentOptions = ["All", "cash", "gcash"];
 const statusOptions = ["All", "Completed", "Returned", "Partially Returned"];
 const userOptions = ["All"];
-const dateOptions = ["All", "Today", "Last 7 days", "Last 30 days", "Custom"];
+const dateOptions = ["Today", "All", "Last 7 days", "Last 30 days", "Custom"];
 
 const CalendarTrigger = forwardRef(({ onClick, className }, ref) => (
   <button
@@ -91,7 +91,12 @@ const formatCurrencyCompact = (value = 0) => {
 const sameTransactionId = (a, b) =>
   String(a?._id ?? a ?? "") === String(b?._id ?? b ?? "");
 
-
+const saleDate = (trx) => {
+  if (trx.checkedOutAt != null && trx.checkedOutAt !== "") {
+    return new Date(trx.checkedOutAt);
+  }
+  return new Date(trx.createdAt);
+};
 
 const generateTransactionNumber = (transaction) => {
   if (!transaction) return "---";
@@ -126,7 +131,8 @@ const Dropdown = ({
   selected,
   onSelect,
   isOpen,
-  setIsOpen
+  setIsOpen,
+  showAllAsOptionLabel = false
 }) => {
   const dropdownRef = React.useRef(null);
   const { theme } = useTheme();
@@ -171,7 +177,11 @@ const Dropdown = ({
         }>
 
         <span className="text-sm font-medium">
-          {selected === "All" ? label : selectedLabel}
+          {selected === "All" ?
+            showAllAsOptionLabel ?
+              "All" :
+              label :
+            selectedLabel}
         </span>
         <FaChevronDown
           className={`text-xs text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -230,7 +240,7 @@ const Transaction = () => {
     user: false
   });
   const [filters, setFilters] = useState({
-    date: "All",
+    date: "Today",
     method: "All",
     status: "All",
     user: "All"
@@ -293,7 +303,7 @@ const Transaction = () => {
       if (filters.user !== "All") params.append("userId", filters.user);
 
 
-      params.append("limit", "500");
+      params.append("limit", "3000");
       const qs = params.toString() ? `?${params.toString()}` : "";
 
       const response = await fetch(
@@ -430,22 +440,13 @@ const Transaction = () => {
     );
   }, [transactions]);
 
-  const filteredTransactions = useMemo(() => {
-
-
-    const filtered = transactions.filter((trx) => {
-
+  const matchesTransactionFilters = useCallback(
+    (trx) => {
       if (trx.paymentMethod === "return" && trx.originalTransactionId) {
         return false;
       }
 
-
       if (trx.status === "Voided") {
-        return false;
-      }
-
-
-      if (trx.status === "Pending" || trx.status === "Failed") {
         return false;
       }
 
@@ -484,11 +485,11 @@ const Transaction = () => {
             startOfDay(startDate) <= startOfDay(end) ?
               startOfDay(end) :
               startOfDay(startDate);
-          const trxDay = startOfDay(new Date(trx.checkedOutAt || trx.createdAt));
+          const trxDay = startOfDay(saleDate(trx));
           matchesDate = trxDay >= lo && trxDay <= hi;
         }
       } else if (filters.date !== "All") {
-        const trxDate = new Date(trx.checkedOutAt || trx.createdAt);
+        const trxDate = saleDate(trx);
         const now = new Date();
         const today = new Date(
           now.getFullYear(),
@@ -497,12 +498,10 @@ const Transaction = () => {
         );
 
         if (filters.date === "Today") {
-          const trxDay = new Date(
-            trxDate.getFullYear(),
-            trxDate.getMonth(),
-            trxDate.getDate()
-          );
-          matchesDate = trxDay.getTime() === today.getTime();
+          matchesDate = isWithinInterval(trxDate, {
+            start: startOfDay(now),
+            end: endOfDay(now)
+          });
         } else if (filters.date === "Last 7 days") {
           const sevenDaysAgo = new Date(today);
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -521,16 +520,27 @@ const Transaction = () => {
         matchesUser &&
         matchesDate);
 
-    });
+    },
+    [search, filters, startDate, endDate, staffList]
+  );
 
-
+  const kpiFilteredTransactions = useMemo(() => {
+    const filtered = transactions.filter((trx) => matchesTransactionFilters(trx));
 
     return filtered.sort((a, b) => {
       const dateA = new Date(a.checkedOutAt || a.createdAt || a.updatedAt || 0);
       const dateB = new Date(b.checkedOutAt || b.createdAt || b.updatedAt || 0);
       return dateB - dateA;
     });
-  }, [transactions, search, filters, startDate, endDate, staffList]);
+  }, [transactions, matchesTransactionFilters]);
+
+  const filteredTransactions = useMemo(
+    () =>
+      kpiFilteredTransactions.filter(
+        (trx) => trx.status !== "Pending" && trx.status !== "Failed"
+      ),
+    [kpiFilteredTransactions]
+  );
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -548,16 +558,17 @@ const Transaction = () => {
   );
 
   const kpis = useMemo(() => {
-    const list = filteredTransactions;
-    const completed = list.filter((trx) => trx.status === "Completed");
-    const totalSales = completed.reduce(
-      (sum, trx) => sum + (parseFloat(trx.totalAmount) || 0),
-      0
-    );
+    const list = kpiFilteredTransactions;
+    const totalSales = list.reduce((sum, trx) => {
+      if (String(trx.paymentMethod || "").toLowerCase() === "return") return sum;
+      return sum + (parseFloat(trx.totalAmount) || 0);
+    }, 0);
 
-    const transactionTotal = list.filter((trx) =>
-      ["Completed", "Returned", "Partially Returned"].includes(trx.status)
-    ).length;
+    const transactionTotal = list.filter((trx) => {
+      if (/^voided$/i.test(String(trx.status || ""))) return false;
+      if (String(trx.paymentMethod || "").toLowerCase() === "return") return false;
+      return true;
+    }).length;
 
     const returnedItems = list.reduce((sum, trx) => {
       const items = Array.isArray(trx.items) ? trx.items : [];
@@ -569,7 +580,7 @@ const Transaction = () => {
     }, 0);
 
     return { totalSales, transactionTotal, returnedItems };
-  }, [filteredTransactions]);
+  }, [kpiFilteredTransactions]);
 
   useEffect(() => {
     setSelectedTransactionIds((prev) =>
@@ -1333,6 +1344,7 @@ const Transaction = () => {
                   label="Date"
                   options={dateOptions}
                   selected={filters.date}
+                  showAllAsOptionLabel
                   onSelect={(value) => {
                     setCurrentPage(1);
                     if (value !== "Custom") {
