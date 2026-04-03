@@ -1,5 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { startOfDay } from "date-fns";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import React, {
+  forwardRef,
   memo,
   useCallback,
   useEffect,
@@ -9,6 +13,7 @@ import React, {
 } from
   "react";
 import {
+  FaCalendarAlt,
   FaCheckCircle,
   FaChevronDown,
   FaChevronLeft,
@@ -44,7 +49,20 @@ const STATUS_STYLES = {
 const paymentOptions = ["All", "cash", "gcash"];
 const statusOptions = ["All", "Completed", "Returned", "Partially Returned"];
 const userOptions = ["All"];
-const dateOptions = ["All", "Today", "Last 7 days", "Last 30 days"];
+const dateOptions = ["All", "Today", "Last 7 days", "Last 30 days", "Custom"];
+
+const CalendarTrigger = forwardRef(({ onClick, className }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={onClick}
+    className={className}
+    aria-label="Pick date range"
+  >
+    <FaCalendarAlt className="text-gray-500 text-sm" />
+  </button>
+));
+CalendarTrigger.displayName = "CalendarTrigger";
 
 const getInitials = (name = "") =>
   name.
@@ -201,6 +219,9 @@ const Transaction = () => {
     status: "All",
     user: "All"
   });
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [startDate, endDate] = dateRange;
   const [currentPage, setCurrentPage] = useState(1);
   const [showViewModal, setShowViewModal] = useState(false);
   const [transactionToView, setTransactionToView] = useState(null);
@@ -413,7 +434,21 @@ const Transaction = () => {
 
 
       let matchesDate = true;
-      if (filters.date !== "All") {
+      if (filters.date === "Custom") {
+        if (startDate) {
+          const end = endDate || startDate;
+          const lo =
+            startOfDay(startDate) <= startOfDay(end) ?
+              startOfDay(startDate) :
+              startOfDay(end);
+          const hi =
+            startOfDay(startDate) <= startOfDay(end) ?
+              startOfDay(end) :
+              startOfDay(startDate);
+          const trxDay = startOfDay(new Date(trx.checkedOutAt || trx.createdAt));
+          matchesDate = trxDay >= lo && trxDay <= hi;
+        }
+      } else if (filters.date !== "All") {
         const trxDate = new Date(trx.checkedOutAt || trx.createdAt);
         const now = new Date();
         const today = new Date(
@@ -456,7 +491,7 @@ const Transaction = () => {
       const dateB = new Date(b.checkedOutAt || b.createdAt || b.updatedAt || 0);
       return dateB - dateA;
     });
-  }, [transactions, search, filters]);
+  }, [transactions, search, filters, startDate, endDate]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -1231,7 +1266,7 @@ const Transaction = () => {
             }>
 
             <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-4">
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0 w-full xl:max-w-xs 2xl:max-w-sm">
                 <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AD7F65]" />
                 <input
                   value={search}
@@ -1246,18 +1281,56 @@ const Transaction = () => {
                   } />
 
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Dropdown
                   label="Date"
                   options={dateOptions}
                   selected={filters.date}
-                  onSelect={(value) =>
-                    setFilters((prev) => ({ ...prev, date: value }))
-                  }
+                  onSelect={(value) => {
+                    setCurrentPage(1);
+                    if (value !== "Custom") {
+                      setDateRange([null, null]);
+                    }
+                    if (value === "Custom") {
+                      setPickerOpen(true);
+                    }
+                    setFilters((prev) => ({ ...prev, date: value }));
+                  }}
                   isOpen={dropdownOpen.date}
                   setIsOpen={(value) =>
                     setDropdownOpen((prev) => ({ ...prev, date: value }))
                   } />
+
+                <div className="relative z-[100] flex-shrink-0">
+                  <DatePicker
+                    selectsRange
+                    selected={startDate}
+                    onChange={(update) => {
+                      setDateRange(update);
+                      setFilters((prev) => ({ ...prev, date: "Custom" }));
+                      setCurrentPage(1);
+                      if (update?.[0] && update?.[1]) setPickerOpen(false);
+                    }}
+                    startDate={startDate}
+                    endDate={endDate}
+                    open={pickerOpen}
+                    onInputClick={() => setPickerOpen(true)}
+                    onClickOutside={() => setPickerOpen(false)}
+                    dateFormat="MMM d, yyyy"
+                    popperPlacement="bottom-start"
+                    popperClassName="z-[100]"
+                    customInput={
+                      <CalendarTrigger
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer ${filters.date === "Custom" && startDate && endDate ?
+                          "border-[#AD7F65] bg-[#AD7F65]/10" :
+                          theme === "dark" ?
+                            "border-gray-600 bg-[#2A2724] hover:border-[#AD7F65]" :
+                            "border-gray-200 bg-white hover:border-[#AD7F65]"
+                        }`}
+                      />
+                    }
+                  />
+                </div>
 
                 <Dropdown
                   label="Payment Method"
