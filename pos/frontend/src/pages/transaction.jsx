@@ -509,20 +509,18 @@ const Transaction = () => {
   );
 
   const kpis = useMemo(() => {
-    const nonVoided = (transactions || []).filter((trx) => trx.status !== "Voided");
-    const completed = nonVoided.filter((trx) => trx.status === "Completed");
+    const list = filteredTransactions;
+    const completed = list.filter((trx) => trx.status === "Completed");
     const totalSales = completed.reduce(
       (sum, trx) => sum + (parseFloat(trx.totalAmount) || 0),
       0
     );
 
-    const transactionTotal = nonVoided.filter((trx) => [
-      "Completed",
-      "Returned",
-      "Partially Returned"
-    ].includes(trx.status)).length;
+    const transactionTotal = list.filter((trx) =>
+      ["Completed", "Returned", "Partially Returned"].includes(trx.status)
+    ).length;
 
-    const returnedItems = nonVoided.reduce((sum, trx) => {
+    const returnedItems = list.reduce((sum, trx) => {
       const items = Array.isArray(trx.items) ? trx.items : [];
       const returnedCount = items.filter((item) => {
         const rs = item?.returnStatus;
@@ -532,7 +530,7 @@ const Transaction = () => {
     }, 0);
 
     return { totalSales, transactionTotal, returnedItems };
-  }, [transactions]);
+  }, [filteredTransactions]);
 
   useEffect(() => {
     setSelectedTransactionIds((prev) =>
