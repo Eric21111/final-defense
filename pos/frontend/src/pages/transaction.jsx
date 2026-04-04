@@ -35,6 +35,10 @@ import RemittanceModal from "../components/transaction/RemittanceModal";
 import ReturnItemsModal from "../components/transaction/ReturnItemsModal";
 import ViewTransactionModal from "../components/transaction/ViewTransactionModal";
 import { API_BASE_URL, API_ENDPOINTS } from "../config/api";
+import {
+  lineSubtotalFromItems,
+  resolveTransactionDiscount
+} from "../utils/transactionDisplay";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { useTheme } from "../context/ThemeContext";
@@ -581,6 +585,20 @@ const Transaction = () => {
 
     return { totalSales, transactionTotal, returnedItems };
   }, [kpiFilteredTransactions]);
+
+  const sidebarReceiptTotals = useMemo(() => {
+    const trx = selectedTransaction;
+    if (!trx) return { lineSub: 0, discount: 0 };
+    const lineSub = lineSubtotalFromItems(trx) || trx.totalAmount || 0;
+    const hasReturnActivity =
+      (trx.returnTransactions?.length || 0) > 0 ||
+      trx.status === "Returned" ||
+      trx.status === "Partially Returned";
+    const discount = resolveTransactionDiscount(trx, lineSub, {
+      skipInference: hasReturnActivity
+    });
+    return { lineSub, discount };
+  }, [selectedTransaction]);
 
   useEffect(() => {
     setSelectedTransactionIds((prev) =>
@@ -1809,6 +1827,18 @@ const Transaction = () => {
                   <span>Payment Method:</span>
                   <span className="uppercase">
                     {selectedTransaction?.paymentMethod}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>
+                    {formatCurrency(sidebarReceiptTotals.lineSub)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Discount:</span>
+                  <span>
+                    {formatCurrency(sidebarReceiptTotals.discount)}
                   </span>
                 </div>
                 <div
