@@ -14,10 +14,19 @@
  * - Frontend never receives private keys
  */
 
+const apicache = require("apicache");
 const SalesTransaction = require("../models/SalesTransaction");
 const Product = require("../models/Product");
 const Discount = require("../models/Discount");
 const gcashService = require("../services/gcashPaymentService");
+
+const clearTransactionAnalyticsCache = () => {
+  try {
+    apicache.clear();
+  } catch (_) {
+    /* ignore */
+  }
+};
 
 // In-memory WebSocket clients map: merchantOrderId → Set<ws>
 // Populated by server.js WebSocket setup

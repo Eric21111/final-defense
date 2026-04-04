@@ -90,7 +90,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [showSlip, setShowSlip] = useState(false);
     const [openingFloat, setOpeningFloat] = useState(2000);
-    const [quickTotalOpen, setQuickTotalOpen] = useState(false);
+    const [quickTotalOpen, setQuickTotalOpen] = useState(true);
     const [manualTotalInput, setManualTotalInput] = useState("");
 
     const totalFromDenominations = React.useMemo(
@@ -154,7 +154,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
             setReceivedBy("");
             setSubmitSuccess(false);
             setShowSlip(false);
-            setQuickTotalOpen(false);
+            setQuickTotalOpen(true);
             setManualTotalInput("");
             fetchSummary();
             fetchGlobalFloat();
@@ -294,8 +294,9 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
 
                         {step === 2 && (
                             <p className="text-xs text-gray-500 px-6 pt-2">
-                                Count all cash in your drawer including the float. Enter bills/coins per denomination, or use
-                                quick total (optional).
+                                Count all cash in your drawer (including the float). Use{" "}
+                                <span className="font-semibold text-gray-700">Quick entry</span> below to type one total,{" "}
+                                <span className="font-semibold text-gray-700">or</span> enter quantity per denomination.
                             </p>
                         )}
 
@@ -415,7 +416,12 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                             onClick={() => setQuickTotalOpen((o) => !o)}
                                             className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
                                         >
-                                            <span>Quick entry: total cash counted</span>
+                                            <span className="flex items-center gap-2 flex-wrap">
+                                                Quick entry — total cash counted
+                                                <span className="text-[10px] font-bold uppercase tracking-wide text-[#16A34A] bg-green-100 px-1.5 py-0.5 rounded">
+                                                    Optional
+                                                </span>
+                                            </span>
                                             <FaChevronDown
                                                 className={`text-gray-400 shrink-0 transition-transform ${quickTotalOpen ? "rotate-180" : ""}`}
                                             />
@@ -455,7 +461,15 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                             </div>
                                         )}
                                     </div>
+                                    {!quickTotalOpen && (
+                                        <p className="text-[11px] text-[#16A34A] mb-2 -mt-1 px-0.5">
+                                            Tip: open <span className="font-semibold">Quick entry</span> above to type the total instead of counting each bill.
+                                        </p>
+                                    )}
 
+                                    <p className="text-[11px] font-semibold text-gray-500 mb-2 mt-1">
+                                        {useManualTotal ? "Denomination breakdown (disabled while using quick entry)" : "Or count by denomination"}
+                                    </p>
                                     <div className="grid grid-cols-4 gap-2 mb-4">
                                         {DENOMINATIONS.map((d) => (
                                             <div key={d.key} className="flex flex-col items-center">

@@ -2008,6 +2008,11 @@ exports.getInventoryStats = async (req, res) => {
   try {
     const stats = await Product.aggregate([
       {
+        $match: {
+          isArchived: { $ne: true },
+        },
+      },
+      {
         $group: {
           _id: null,
           totalItems: { $sum: 1 },

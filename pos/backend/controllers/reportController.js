@@ -98,6 +98,11 @@ exports.getInventoryAnalytics = async (req, res) => {
       // 1. Product inventory aggregation (replaces Product.find({}).lean())
       Product.aggregate([
         {
+          $match: {
+            isArchived: { $ne: true }
+          }
+        },
+        {
           $group: {
             _id: null,
             totalItems: { $sum: 1 },

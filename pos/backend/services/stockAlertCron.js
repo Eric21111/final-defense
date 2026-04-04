@@ -15,6 +15,7 @@ const getLowStockItems = async () => {
     const products = await Product.find({});
     
     const lowStockItems = products.filter(p => {
+      if (p.isArchived) return false;
       const stock = p.currentStock || 0;
       const reorder = p.reorderNumber || 5;
       return stock <= reorder && stock >= 0;

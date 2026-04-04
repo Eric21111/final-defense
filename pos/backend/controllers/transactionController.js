@@ -850,6 +850,7 @@ exports.getDashboardStats = async (req, res) => {
       Product.aggregate([
         {
           $match: {
+            isArchived: { $ne: true },
             $expr: {
               $lte: ['$currentStock', { $max: [{ $ifNull: ['$reorderNumber', 0] }, 10] }]
             }
