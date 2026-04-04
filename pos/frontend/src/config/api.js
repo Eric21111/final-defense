@@ -116,6 +116,7 @@ export const API_ENDPOINTS = {
 
   remittances: `${API_BASE_URL}/api/remittances`,
   remittanceSummary: `${API_BASE_URL}/api/remittances/summary`,
+  remittanceKpiStats: `${API_BASE_URL}/api/remittances/kpi-stats`,
 
   globalSettings: `${API_BASE_URL}/api/global-settings`,
 };

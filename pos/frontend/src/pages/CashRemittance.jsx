@@ -80,7 +80,8 @@ const KpiCard = ({
     barGradient = "linear-gradient(180deg, #2563EB 0%, #3B82F6 100%)",
     iconBg = "bg-blue-50",
     iconColor = "text-blue-500",
-    textColor = "text-blue-500"
+    textColor = "text-blue-500",
+    valueColor = "text-gray-900"
 }) => (
     <div className="relative bg-white rounded-2xl shadow-sm border border-gray-100 p-5 min-w-0 min-h-[88px] overflow-hidden">
         <div
@@ -89,7 +90,7 @@ const KpiCard = ({
         />
         <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-                <p className="text-2xl lg:text-3xl font-black text-gray-800 truncate tracking-tight">{value}</p>
+                <p className={`text-2xl lg:text-3xl font-black truncate tracking-tight ${valueColor}`}>{value}</p>
                 <p className={`text-xs lg:text-sm font-bold truncate ${textColor}`}>{label}</p>
             </div>
             <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
@@ -430,22 +431,82 @@ const CashRemittance = () => {
         return "All dates";
     }, [datePreset, startDate, endDate]);
 
-    // ─── KPIs: date/range only (all loaded remittances when preset is "all"); table still uses search/status ──────────────
-    const kpis = useMemo(() => {
-        const targetList = dateFilteredRemittances;
-        const totalNetSales = targetList.reduce((sum, r) => sum + (r.netSales || 0), 0);
-        const totalRemitted = targetList.reduce((sum, r) => sum + (r.cashToRemit || 0), 0);
-        const totalVariance = targetList.reduce((sum, r) => sum + (r.variance || 0), 0);
-        const unremittedCash = totalNetSales - totalRemitted;
-
+    /** Same date window as KPI API (POS + remittance aggregates), aligned with date preset. */
+    const kpiQueryKey = useMemo(() => {
+        if (datePreset === "all") return { all: true };
+        if (datePreset === "custom" && !startDate) return { all: true };
+        if (datePreset === "custom") {
+            const end = endDate || startDate;
+            const lo = startOfDay(startDate) <= startOfDay(end) ? startOfDay(startDate) : startOfDay(end);
+            const hi = startOfDay(startDate) <= startOfDay(end) ? startOfDay(end) : startOfDay(startDate);
+            return { startDate: lo.toISOString(), endDate: hi.toISOString() };
+        }
+        const b = getPresetBounds(datePreset);
+        if (!b) return { all: true };
         return {
-            totalNetSales,
-            totalRemitted,
-            totalVariance,
-            unremittedCash: unremittedCash > 0 ? unremittedCash : 0,
-            count: targetList.length
+            startDate: startOfDay(b.start).toISOString(),
+            endDate: startOfDay(b.end).toISOString()
         };
-    }, [dateFilteredRemittances]);
+    }, [datePreset, startDate, endDate]);
+
+    const [kpiStats, setKpiStats] = useState({
+        posNetSales: 0,
+        totalRemitted: 0,
+        totalVariance: 0,
+        unremittedCash: 0
+    });
+    const [kpiLoading, setKpiLoading] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setKpiLoading(true);
+            try {
+                const params = new URLSearchParams();
+                if (!kpiQueryKey.all) {
+                    if (kpiQueryKey.startDate) params.set("startDate", kpiQueryKey.startDate);
+                    if (kpiQueryKey.endDate) params.set("endDate", kpiQueryKey.endDate);
+                }
+                if (userFilter) params.set("employeeId", userFilter);
+                const qs = params.toString();
+                const res = await fetch(
+                    `${API_ENDPOINTS.remittanceKpiStats}${qs ? `?${qs}` : ""}`
+                );
+                const data = await res.json();
+                if (cancelled) return;
+                if (data.success && data.data) {
+                    setKpiStats({
+                        posNetSales: data.data.posNetSales ?? 0,
+                        totalRemitted: data.data.totalRemitted ?? 0,
+                        totalVariance: data.data.totalVariance ?? 0,
+                        unremittedCash: data.data.unremittedCash ?? 0
+                    });
+                } else {
+                    setKpiStats({
+                        posNetSales: 0,
+                        totalRemitted: 0,
+                        totalVariance: 0,
+                        unremittedCash: 0
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading remittance KPI stats:", err);
+                if (!cancelled) {
+                    setKpiStats({
+                        posNetSales: 0,
+                        totalRemitted: 0,
+                        totalVariance: 0,
+                        unremittedCash: 0
+                    });
+                }
+            } finally {
+                if (!cancelled) setKpiLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [kpiQueryKey, userFilter]);
 
     useEffect(() => {
         if (displayRows.length === 0) {
@@ -509,43 +570,50 @@ const CashRemittance = () => {
             <div className="flex gap-6 items-start mb-6 mt-4">
                 {/* Left: 4 KPI Cards */}
                 <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-400 mb-2">Totals — {kpiPeriodLabel}</p>
-                    <div className="grid grid-cols-4 gap-3 min-w-0">
+                    <p className="text-xs font-semibold text-gray-400 mb-2">
+                        Totals — {kpiPeriodLabel}
+                        {userFilterLabel ? ` · ${userFilterLabel}` : ""}
+                    </p>
+                    <div className={`grid grid-cols-4 gap-3 min-w-0 ${kpiLoading ? "opacity-70" : ""}`}>
                     <KpiCard
                         icon={FaChartLine}
                         label="Total Net Sales"
-                        value={formatCurrency(kpis.totalNetSales)}
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.posNetSales)}
                         barGradient="linear-gradient(180deg, #2563EB 0%, #3B82F6 100%)"
                         iconBg="bg-blue-50"
                         iconColor="text-blue-500"
                         textColor="text-blue-500"
+                        valueColor="text-blue-600"
                     />
                     <KpiCard
                         icon={FaHandHoldingUsd}
                         label="Total Remitted"
-                        value={formatCurrency(kpis.totalRemitted)}
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.totalRemitted)}
                         barGradient="linear-gradient(180deg, #0EA5A4 0%, #22C55E 100%)"
                         iconBg="bg-green-50"
                         iconColor="text-green-500"
                         textColor="text-green-500"
+                        valueColor="text-green-600"
                     />
                     <KpiCard
                         icon={FaBalanceScale}
                         label="Total Variance"
-                        value={`${kpis.totalVariance > 0 ? '+' : ''}${formatCurrency(kpis.totalVariance)}`}
+                        value={kpiLoading ? "…" : `${kpiStats.totalVariance > 0 ? "+" : ""}${formatCurrency(kpiStats.totalVariance)}`}
                         barGradient="linear-gradient(180deg, #D97706 0%, #F59E0B 100%)"
                         iconBg="bg-amber-50"
                         iconColor="text-amber-500"
                         textColor="text-amber-500"
+                        valueColor="text-amber-600"
                     />
                     <KpiCard
                         icon={FaClock}
                         label="Unremitted"
-                        value={formatCurrency(kpis.unremittedCash)}
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.unremittedCash)}
                         barGradient="linear-gradient(180deg, #B91C1C 0%, #EF4444 100%)"
                         iconBg="bg-red-50"
                         iconColor="text-red-500"
                         textColor="text-red-500"
+                        valueColor="text-red-600"
                     />
                     </div>
                 </div>

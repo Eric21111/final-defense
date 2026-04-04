@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Remittance = require('../models/Remittance');
 const SalesTransaction = require('../models/SalesTransaction');
 
@@ -148,6 +149,126 @@ exports.createRemittance = async (req, res) => {
     } catch (error) {
         console.error('Error creating remittance:', error);
         res.status(500).json({ success: false, message: 'Error creating remittance', error: error.message });
+    }
+};
+
+/**
+ * GET /api/remittances/kpi-stats?startDate=&endDate=&employeeId=
+ * POS net sales from transactions vs remittance slips — for dashboard KPIs.
+ * Omit startDate/endDate for all-time (epoch → now).
+ */
+exports.getRemittanceKpiStats = async (req, res) => {
+    try {
+        const { startDate, endDate, employeeId } = req.query;
+
+        let lo = new Date(0);
+        let hi = new Date();
+        hi.setHours(23, 59, 59, 999);
+
+        if (startDate) {
+            lo = new Date(startDate);
+            if (Number.isNaN(lo.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid startDate' });
+            }
+            lo.setHours(0, 0, 0, 0);
+        }
+        if (endDate) {
+            hi = new Date(endDate);
+            if (Number.isNaN(hi.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid endDate' });
+            }
+            hi.setHours(23, 59, 59, 999);
+        }
+
+        const empIdStr =
+            employeeId && String(employeeId).trim() ? String(employeeId).trim() : null;
+
+        const dateOr = {
+            $or: [
+                { checkedOutAt: { $gte: lo, $lte: hi } },
+                { checkedOutAt: { $exists: false }, createdAt: { $gte: lo, $lte: hi } }
+            ]
+        };
+
+        const salesMatch = {
+            ...dateOr,
+            status: { $in: ['Completed', 'Partially Returned'] },
+            paymentMethod: { $ne: 'return' }
+        };
+        if (empIdStr) {
+            salesMatch.performedById = empIdStr;
+        }
+
+        const returnMatch = {
+            ...dateOr,
+            paymentMethod: 'return'
+        };
+        if (empIdStr) {
+            returnMatch.performedById = empIdStr;
+        }
+
+        const [completedTransactions, returnTransactions, remitAgg] = await Promise.all([
+            SalesTransaction.find(salesMatch).select('totalAmount').lean(),
+            SalesTransaction.find(returnMatch).select('totalAmount').lean(),
+            (() => {
+                const shiftMatch = {
+                    shiftDate: { $gte: lo, $lte: hi }
+                };
+                if (empIdStr && mongoose.Types.ObjectId.isValid(empIdStr)) {
+                    shiftMatch.employeeId = new mongoose.Types.ObjectId(empIdStr);
+                }
+                return Remittance.aggregate([
+                    { $match: shiftMatch },
+                    {
+                        $group: {
+                            _id: null,
+                            totalRemitted: { $sum: { $ifNull: ['$cashToRemit', 0] } },
+                            totalVariance: { $sum: { $ifNull: ['$variance', 0] } },
+                            slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } }
+                        }
+                    }
+                ]);
+            })()
+        ]);
+
+        const grossSales = completedTransactions.reduce(
+            (s, t) => s + (Number(t.totalAmount) || 0),
+            0
+        );
+        const returns = returnTransactions.reduce(
+            (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
+            0
+        );
+        const posNetSales = grossSales - returns;
+
+        const row = remitAgg[0] || {
+            totalRemitted: 0,
+            totalVariance: 0,
+            slipNetSales: 0
+        };
+        const totalRemitted = row.totalRemitted || 0;
+        const totalVariance = row.totalVariance || 0;
+        const unremittedCash = Math.max(0, posNetSales - totalRemitted);
+
+        res.json({
+            success: true,
+            data: {
+                posNetSales,
+                grossSales,
+                returns,
+                totalRemitted,
+                totalVariance,
+                slipNetSalesSum: row.slipNetSales || 0,
+                unremittedCash
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching remittance KPI stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching remittance KPI stats',
+            error: error.message
+        });
     }
 };
 
