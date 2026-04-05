@@ -6,7 +6,7 @@ const AddBrandModal = ({ show, onClose, onAdd }) => {
   const { theme } = useTheme();
   const [newBrand, setNewBrand] = useState('');
   const [loading, setLoading] = useState(false);
-//hi
+
   if (!show) return null;
 
   const handleSubmit = async (e) => {

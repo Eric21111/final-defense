@@ -19,14 +19,15 @@ export function formatItemVariantSizeLabel(item) {
   return variant;
 }
 
-/** Line subtotal from item prices × qty (pre-discount). */
+/** Line subtotal from item prices × qty (pre-discount). Excludes fully returned lines (qty is not zeroed in DB). */
 export function lineSubtotalFromItems(transaction) {
   if (!transaction?.items?.length) return 0;
-  return transaction.items.reduce(
-    (sum, item) =>
-      sum + (item.price || item.itemPrice || 0) * (item.quantity || 1),
-    0
-  );
+  return transaction.items.reduce((sum, item) => {
+    if (item.returnStatus === "Returned") return sum;
+    return (
+      sum + (item.price || item.itemPrice || 0) * (item.quantity || 1)
+    );
+  }, 0);
 }
 
 /**

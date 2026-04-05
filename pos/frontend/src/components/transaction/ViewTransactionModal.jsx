@@ -70,7 +70,6 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
   });
 
   const originalTotal = subtotal - discountAmount;
-  const adjustedTotal = originalTotal - totalReturned;
 
   const amountPaid = transaction.amountReceived || 0;
   const change = transaction.changeGiven || 0;
@@ -257,7 +256,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                 }
                 <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-200">
                   <span className="text-orange-500">{hasReturns ? 'Adjusted Total:' : 'Total:'}</span>
-                  <span className="text-orange-500">₱{(hasReturns ? adjustedTotal : originalTotal).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-orange-500">₱{originalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 {!hasReturns &&
                 <>
