@@ -415,7 +415,7 @@ const Dashboard = () => {
               }
             `}</style>
             <a
-              href="https://expo.dev/accounts/consolve_studio/projects/cysmob/builds/8d3dee4b-1027-4234-9594-5ce70c445df7"
+              href="https://expo.dev/accounts/consolve_studio/projects/cysmob/builds/d5631649-4cbe-4be1-9fb1-c582d760147c"
               target="_blank"
               rel="noopener noreferrer"
               className="download-app-btn px-5 py-2.5 text-sm font-bold rounded-lg shadow-md transition-all flex items-center gap-2 text-white">
