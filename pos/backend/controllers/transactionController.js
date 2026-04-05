@@ -251,7 +251,11 @@ exports.createTransaction = async (req, res) => {
       pwdId: pwdId || null,
       referenceNo: referenceNo || null,
       originalTransactionId: originalTransactionId || null,
-      checkedOutAt: checkedOutAt || new Date()
+      checkedOutAt: checkedOutAt || new Date(),
+      appliedDiscountIds:
+        Array.isArray(appliedDiscountIds) && appliedDiscountIds.length > 0 ?
+          appliedDiscountIds.map((id) => toObjectId(id)).filter(Boolean) :
+          undefined
     };
 
     // Validate that we have at least one valid item
@@ -810,13 +814,24 @@ exports.getDashboardStats = async (req, res) => {
                 }
               },
               {
+                $addFields: {
+                  effectiveSoldQty: {
+                    $cond: [
+                      { $eq: ['$items.returnStatus', 'Returned'] },
+                      0,
+                      { $ifNull: ['$items.quantity', 1] }
+                    ]
+                  }
+                }
+              },
+              {
                 $group: {
                   _id: null,
                   totalProfit: {
                     $sum: {
                       $multiply: [
                         { $subtract: [{ $ifNull: ['$items.price', 0] }, '$itemCostPrice'] },
-                        { $ifNull: ['$items.quantity', 1] }
+                        '$effectiveSoldQty'
                       ]
                     }
                   }
@@ -835,6 +850,7 @@ exports.getDashboardStats = async (req, res) => {
       Product.aggregate([
         {
           $match: {
+            isArchived: { $ne: true },
             $expr: {
               $lte: ['$currentStock', { $max: [{ $ifNull: ['$reorderNumber', 0] }, 10] }]
             }

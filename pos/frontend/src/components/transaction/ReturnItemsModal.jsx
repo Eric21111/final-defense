@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FaTimes, FaExclamationTriangle, FaMinus, FaPlus, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import {
+  cleanItemNameForDisplay,
+  formatItemVariantSizeLabel
+} from '../../utils/transactionDisplay';
 
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
@@ -135,7 +139,7 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
             sku: item.sku,
             variant: item.variant || item.selectedVariation || "",
             selectedSize: item.selectedSize || item.size || "",
-            quantity: returnQuantities[idx] || 1,
+            quantity: (returnQuantities[idx] === "" ? 1 : returnQuantities[idx]) || 1,
             price: item.price || item.itemPrice,
             reason: finalReason,
             originalIndex: idx
@@ -167,9 +171,33 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
     const item = transaction.items[index];
     const maxQty = item.quantity || 1;
     setReturnQuantities((prev) => {
-      const current = prev[index] || 1;
-      const newQty = Math.max(1, Math.min(current + delta, maxQty));
+      const current = prev[index] === "" ? 1 : prev[index] || 1;
+      const newQty = Math.max(1, Math.min(Number(current) + delta, maxQty));
       return { ...prev, [index]: newQty };
+    });
+  };
+
+  const clampReturnQty = (index, maxQty, raw) => {
+    if (raw === "") {
+      setReturnQuantities((prev) => ({ ...prev, [index]: "" }));
+      return;
+    }
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n)) return;
+    setReturnQuantities((prev) => ({
+      ...prev,
+      [index]: Math.max(1, Math.min(n, maxQty)),
+    }));
+  };
+
+  const blurReturnQty = (index, maxQty) => {
+    setReturnQuantities((prev) => {
+      const v = prev[index];
+      if (v === "" || v === undefined || v === null) {
+        return { ...prev, [index]: 1 };
+      }
+      const n = Math.max(1, Math.min(Number(v) || 1, maxQty));
+      return { ...prev, [index]: n };
     });
   };
 
@@ -292,6 +320,7 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
                 const isPartiallyReturned = item.returnStatus === 'Partially Returned';
                 const canReturn = !isFullyReturned && item.quantity > 0;
                 const availableQty = item.quantity;
+                const variantLabel = formatItemVariantSizeLabel(item);
 
                 return (
                   <div
@@ -316,8 +345,10 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
                         className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                       
                         <span className={`text-sm truncate ${isFullyReturned ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
-                          {item.itemName}
-                          {item.selectedSize && <span className="text-gray-500 text-xs ml-1">({item.selectedSize})</span>}
+                          {cleanItemNameForDisplay(item)}
+                          {variantLabel ? (
+                            <span className="text-gray-500 text-xs ml-1">({variantLabel})</span>
+                          ) : null}
                           {isPartiallyReturned && <span className="text-amber-500 text-xs ml-1">({item.returnedQuantity} already returned)</span>}
                         </span>
                       </div>
@@ -346,24 +377,34 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
                       selectedItems[idx] ?
                       <>
                             <button
+                          type="button"
                           onClick={() => handleQuantityChange(idx, -1)}
-                          disabled={returnQuantities[idx] <= 1}
+                          disabled={(returnQuantities[idx] === "" ? 1 : returnQuantities[idx] || 1) <= 1}
                           className={`w-6 h-6 flex items-center justify-center rounded-full transition-all ${
-                          returnQuantities[idx] <= 1 ?
+                          (returnQuantities[idx] === "" ? 1 : returnQuantities[idx] || 1) <= 1 ?
                           'bg-gray-200 text-gray-400 cursor-not-allowed' :
                           'bg-[#AD7F65] text-white hover:bg-[#8B5F45]'}`
                           }>
                           
                               <FaMinus className="text-[8px]" />
                             </button>
-                            <span className="w-6 text-center text-sm font-medium">
-                              {returnQuantities[idx] || 1}
-                            </span>
+                            <input
+                              type="number"
+                              inputMode="numeric"
+                              min={1}
+                              max={availableQty}
+                              disabled={!canReturn}
+                              value={returnQuantities[idx] === "" ? "" : (returnQuantities[idx] ?? 1)}
+                              onChange={(e) => clampReturnQty(idx, availableQty, e.target.value)}
+                              onBlur={() => blurReturnQty(idx, availableQty)}
+                              className="w-12 min-w-[2.75rem] max-w-[4rem] text-center text-sm font-medium border border-gray-200 rounded-md px-1 py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
                             <button
+                          type="button"
                           onClick={() => handleQuantityChange(idx, 1)}
-                          disabled={returnQuantities[idx] >= availableQty}
+                          disabled={(returnQuantities[idx] === "" ? 1 : returnQuantities[idx] || 1) >= availableQty}
                           className={`w-6 h-6 flex items-center justify-center rounded-full transition-all ${
-                          returnQuantities[idx] >= availableQty ?
+                          (returnQuantities[idx] === "" ? 1 : returnQuantities[idx] || 1) >= availableQty ?
                           'bg-gray-200 text-gray-400 cursor-not-allowed' :
                           'bg-[#AD7F65] text-white hover:bg-[#8B5F45]'}`
                           }>

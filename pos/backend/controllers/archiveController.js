@@ -1,4 +1,5 @@
 const Archive = require('../models/Archive');
+const Product = require('../models/Product');
 
 exports.createArchiveItem = async (req, res) => {
   try {
@@ -210,11 +211,56 @@ exports.restoreArchiveItem = async (req, res) => {
       });
     }
 
+    const product = await Product.findById(archiveItem.productId);
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product no longer exists. Remove this archive entry with Clear instead.'
+      });
+    }
+
+    const qty = Math.max(0, Number(archiveItem.quantity) || 0);
+    const wasArchived = product.isArchived === true;
+    const prevDisplay = product.displayInTerminal;
+
+    const hasSizes =
+      product.sizes &&
+      typeof product.sizes === 'object' &&
+      Object.keys(product.sizes).length > 0;
+
+    if (wasArchived) {
+      product.isArchived = false;
+      product.displayInTerminal = true;
+      product.lastUpdated = Date.now();
+      if (!hasSizes) {
+        product.currentStock = qty;
+      }
+      await product.save();
+    }
+
+    const deleteResult = await Archive.deleteOne({ _id: archiveItem._id });
+    if (deleteResult.deletedCount === 0) {
+      if (wasArchived) {
+        try {
+          product.isArchived = true;
+          product.displayInTerminal = prevDisplay;
+          await product.save();
+        } catch (rollbackErr) {
+          console.error('Restore rollback failed:', rollbackErr);
+        }
+      }
+      return res.status(500).json({
+        success: false,
+        message: 'Could not remove archive row. Nothing was changed. Try again.'
+      });
+    }
 
     res.json({
       success: true,
-      message: 'Item data retrieved for restoration',
-      data: archiveItem.itemData
+      message: wasArchived
+        ? 'Item restored to inventory'
+        : 'Archive entry removed (product was already active)'
     });
   } catch (error) {
     console.error('Error restoring archive item:', error);

@@ -81,6 +81,26 @@ const salesTransactionSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    subtotal: {
+      type: Number,
+      default: null,
+    },
+    discount: {
+      type: Number,
+      default: 0,
+    },
+    discountType: {
+      type: String,
+      default: null,
+    },
+    discountValue: {
+      type: Number,
+      default: 0,
+    },
+    appliedDiscountIds: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Discount" }],
+      default: undefined,
+    },
     status: {
       type: String,
       enum: ["Completed", "Returned", "Partially Returned", "Voided", "Pending", "Failed"],

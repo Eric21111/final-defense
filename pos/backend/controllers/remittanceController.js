@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Remittance = require('../models/Remittance');
 const SalesTransaction = require('../models/SalesTransaction');
 
@@ -148,6 +149,146 @@ exports.createRemittance = async (req, res) => {
     } catch (error) {
         console.error('Error creating remittance:', error);
         res.status(500).json({ success: false, message: 'Error creating remittance', error: error.message });
+    }
+};
+
+/**
+ * GET /api/remittances/kpi-stats?startMs=&endMs=&employeeId=
+ * Total Net Sales = sum of POS transaction totals (Completed / Partially Returned, excl. returns); opening float is not in transactions.
+ * Total Remitted = sum of cashToRemit. Total Variance = sum of variance. Outstanding = max(0, net sales - remitted).
+ * Prefer startMs/endMs (browser local window, epoch ms). No date params = all-time (no artificial end date; includes null checkedOutAt via createdAt).
+ */
+exports.getRemittanceKpiStats = async (req, res) => {
+    try {
+        const { startMs, endMs, startDate, endDate, employeeId } = req.query;
+
+        let lo;
+        let hi;
+        let allTime = false;
+
+        if (startMs != null && endMs != null && String(startMs).trim() !== '' && String(endMs).trim() !== '') {
+            const sm = Number(startMs);
+            const em = Number(endMs);
+            if (!Number.isFinite(sm) || !Number.isFinite(em)) {
+                return res.status(400).json({ success: false, message: 'Invalid startMs or endMs' });
+            }
+            lo = new Date(sm);
+            hi = new Date(em);
+        } else if (startDate || endDate) {
+            lo = startDate ? new Date(startDate) : new Date(0);
+            hi = endDate ? new Date(endDate) : new Date(8640000000000000);
+            if (Number.isNaN(lo.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid startDate' });
+            }
+            if (Number.isNaN(hi.getTime())) {
+                return res.status(400).json({ success: false, message: 'Invalid endDate' });
+            }
+        } else {
+            allTime = true;
+        }
+
+        const empIdStr =
+            employeeId && String(employeeId).trim() ? String(employeeId).trim() : null;
+
+        const transactionDateOr = allTime
+            ? null
+            : {
+                  $or: [
+                      { checkedOutAt: { $gte: lo, $lte: hi } },
+                      {
+                          $and: [
+                              {
+                                  $or: [
+                                      { checkedOutAt: { $exists: false } },
+                                      { checkedOutAt: null }
+                                  ]
+                              },
+                              { createdAt: { $gte: lo, $lte: hi } }
+                          ]
+                      }
+                  ]
+              };
+
+        const salesMatch = {
+            status: { $in: ['Completed', 'Partially Returned'] },
+            paymentMethod: { $ne: 'return' },
+            ...(transactionDateOr || {})
+        };
+        if (empIdStr) {
+            salesMatch.performedById = empIdStr;
+        }
+
+        const returnMatch = {
+            paymentMethod: 'return',
+            ...(transactionDateOr || {})
+        };
+        if (empIdStr) {
+            returnMatch.performedById = empIdStr;
+        }
+
+        const [completedTransactions, returnTransactions, remitAgg] = await Promise.all([
+            SalesTransaction.find(salesMatch).select('totalAmount').lean(),
+            SalesTransaction.find(returnMatch).select('totalAmount').lean(),
+            (() => {
+                const shiftMatch = {};
+                if (!allTime) {
+                    shiftMatch.shiftDate = { $gte: lo, $lte: hi };
+                }
+                if (empIdStr && mongoose.Types.ObjectId.isValid(empIdStr)) {
+                    shiftMatch.employeeId = new mongoose.Types.ObjectId(empIdStr);
+                }
+                return Remittance.aggregate([
+                    { $match: shiftMatch },
+                    {
+                        $group: {
+                            _id: null,
+                            totalRemitted: { $sum: { $ifNull: ['$cashToRemit', 0] } },
+                            totalVariance: { $sum: { $ifNull: ['$variance', 0] } },
+                            slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } }
+                        }
+                    }
+                ]);
+            })()
+        ]);
+
+        const grossSales = completedTransactions.reduce(
+            (s, t) => s + (Number(t.totalAmount) || 0),
+            0
+        );
+        const returns = returnTransactions.reduce(
+            (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
+            0
+        );
+        const posNetSales = grossSales - returns;
+
+        const row = remitAgg[0] || {
+            totalRemitted: 0,
+            totalVariance: 0,
+            slipNetSales: 0
+        };
+        const totalRemitted = row.totalRemitted || 0;
+        const totalVariance = row.totalVariance || 0;
+        const unremittedCash = Math.max(0, posNetSales - totalRemitted);
+
+        res.json({
+            success: true,
+            data: {
+                posNetSales,
+                grossSales,
+                returns,
+                totalRemitted,
+                totalVariance,
+                slipNetSalesSum: row.slipNetSales || 0,
+                unremittedCash
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching remittance KPI stats:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching remittance KPI stats',
+            error: error.message
+        });
     }
 };
 

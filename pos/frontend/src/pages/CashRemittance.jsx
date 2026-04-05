@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, forwardRef } from "react";
+import { startOfDay, endOfDay, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from "date-fns";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import { useAuth } from "../context/AuthContext";
 import { API_ENDPOINTS } from "../config/api";
 import Header from "../components/shared/header";
@@ -32,6 +35,43 @@ const formatCurrency = (val) => {
 const formatAbs = (val) =>
     `₱${Math.abs(val || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const weekOpts = { weekStartsOn: 1 };
+
+const getPresetBounds = (preset) => {
+    const now = new Date();
+    switch (preset) {
+        case "today": {
+            const s = startOfDay(now);
+            return { start: s, end: s };
+        }
+        case "yesterday": {
+            const y = subDays(startOfDay(now), 1);
+            return { start: y, end: y };
+        }
+        case "week": {
+            return {
+                start: startOfWeek(now, weekOpts),
+                end: startOfDay(endOfWeek(now, weekOpts))
+            };
+        }
+        case "month": {
+            return {
+                start: startOfMonth(now),
+                end: startOfDay(endOfMonth(now))
+            };
+        }
+        default:
+            return null;
+    }
+};
+
+const remitDay = (r) => startOfDay(new Date(r.shiftDate || r.createdAt));
+
+const isWithinDayBounds = (r, start, end) => {
+    const d = remitDay(r);
+    return d >= start && d <= end;
+};
+
 
 const KpiCard = ({
     icon: Icon,
@@ -40,7 +80,8 @@ const KpiCard = ({
     barGradient = "linear-gradient(180deg, #2563EB 0%, #3B82F6 100%)",
     iconBg = "bg-blue-50",
     iconColor = "text-blue-500",
-    textColor = "text-blue-500"
+    textColor = "text-blue-500",
+    valueColor = "text-gray-900"
 }) => (
     <div className="relative bg-white rounded-2xl shadow-sm border border-gray-100 p-5 min-w-0 min-h-[88px] overflow-hidden">
         <div
@@ -49,7 +90,7 @@ const KpiCard = ({
         />
         <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
-                <p className="text-2xl lg:text-3xl font-black text-gray-800 truncate tracking-tight">{value}</p>
+                <p className={`text-2xl lg:text-3xl font-black truncate tracking-tight ${valueColor}`}>{value}</p>
                 <p className={`text-xs lg:text-sm font-bold truncate ${textColor}`}>{label}</p>
             </div>
             <div className={`w-11 h-11 rounded-xl ${iconBg} flex items-center justify-center flex-shrink-0`}>
@@ -195,6 +236,19 @@ const ReceiptContent = ({ remit }) => {
     );
 };
 
+const CalendarTrigger = forwardRef(({ onClick, className }, ref) => (
+    <button
+        ref={ref}
+        type="button"
+        onClick={onClick}
+        className={className}
+        aria-label="Pick date range"
+    >
+        <FaCalendarAlt className="text-gray-500 text-sm" />
+    </button>
+));
+CalendarTrigger.displayName = "CalendarTrigger";
+
 // ─── Main Page ───────────────────────────────────────────────
 const CashRemittance = () => {
     const { isOwner, hasPermission } = useAuth();
@@ -203,7 +257,13 @@ const CashRemittance = () => {
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("ALL");
+    const [salesSort, setSalesSort] = useState("");
+    const [datePreset, setDatePreset] = useState("today");
+    const [dateRange, setDateRange] = useState([null, null]);
+    const [pickerOpen, setPickerOpen] = useState(false);
     const [selectedRemittance, setSelectedRemittance] = useState(null);
+    const [userFilter, setUserFilter] = useState("");
+    const [staffList, setStaffList] = useState([]);
 
     // Global Opening Float
     const [globalFloat, setGlobalFloat] = useState(2000);
@@ -264,48 +324,215 @@ const CashRemittance = () => {
         }
     };
 
-    useEffect(() => { fetchRemittances(); fetchGlobalFloat(); }, []);
-
-    // Auto-select first remittance when data loads
     useEffect(() => {
-        if (remittances.length > 0 && !selectedRemittance) {
-            setSelectedRemittance(remittances[0]);
+        fetchRemittances();
+        fetchGlobalFloat();
+        (async () => {
+            try {
+                const res = await fetch(API_ENDPOINTS.employees);
+                const data = await res.json();
+                if (data.success && Array.isArray(data.data)) {
+                    setStaffList(data.data.filter((e) => e.status === "Active"));
+                }
+            } catch (err) {
+                console.error("Error fetching employees:", err);
+            }
+        })();
+    }, []);
+
+    const [startDate, endDate] = dateRange;
+
+    const dateFilteredRemittances = useMemo(() => {
+        if (datePreset === "all") return remittances;
+        if (datePreset === "custom") {
+            if (!startDate) return remittances;
+            const end = endDate || startDate;
+            const lo = startOfDay(startDate) <= startOfDay(end) ? startOfDay(startDate) : startOfDay(end);
+            const hi = startOfDay(startDate) <= startOfDay(end) ? startOfDay(end) : startOfDay(startDate);
+            return remittances.filter((remit) => isWithinDayBounds(remit, lo, hi));
         }
-    }, [remittances]);
+        const bounds = getPresetBounds(datePreset);
+        if (!bounds) return remittances;
+        return remittances.filter((remit) => isWithinDayBounds(remit, bounds.start, bounds.end));
+    }, [remittances, datePreset, startDate, endDate]);
 
-    // ─── Compute KPIs from all loaded remittances ──────────────
-    const kpis = useMemo(() => {
-        // Calculate based on filteredRemittances so it respects search & status filters natively
-        // but if that feels wrong, we can just use `remittances` (all data).
-        // For now, using all `remittances` makes the top line "Global" totals.
-        const targetList = remittances;
+    const userDropdownOptions = useMemo(() => {
+        const map = new Map();
+        staffList.forEach((e) => {
+            if (e?._id) {
+                const label = (e.name || `${e.firstName || ""} ${e.lastName || ""}`).trim() || "Unknown";
+                map.set(String(e._id), label);
+            }
+        });
+        remittances.forEach((r) => {
+            const id = r.employeeId ? String(r.employeeId) : "";
+            if (id && r.employeeName && !map.has(id)) map.set(id, r.employeeName);
+        });
+        return Array.from(map.entries())
+            .map(([id, name]) => ({ id, name }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [staffList, remittances]);
 
-        const totalNetSales = targetList.reduce((sum, r) => sum + (r.netSales || 0), 0);
-        const totalRemitted = targetList.reduce((sum, r) => sum + (r.cashToRemit || 0), 0);
-        const totalVariance = targetList.reduce((sum, r) => sum + (r.variance || 0), 0);
-        const unremittedCash = totalNetSales - totalRemitted;
+    const userFilterLabel = useMemo(() => {
+        if (!userFilter) return "";
+        return userDropdownOptions.find((o) => o.id === userFilter)?.name || "";
+    }, [userFilter, userDropdownOptions]);
 
+    const baseFiltered = useMemo(() => {
+        const q = searchTerm.trim().toLowerCase();
+        return dateFilteredRemittances.filter((remit) => {
+            const matchesSearch =
+                !q ||
+                remit.employeeName?.toLowerCase().includes(q) ||
+                remit._id.slice(-6).toLowerCase().includes(q);
+
+            const matchesUser =
+                !userFilter ||
+                String(remit.employeeId || "") === userFilter ||
+                (!remit.employeeId && userFilterLabel && remit.employeeName === userFilterLabel);
+
+            const variance = remit.variance || 0;
+            let matchesStatus = true;
+            if (statusFilter === "BALANCED") matchesStatus = variance === 0;
+            if (statusFilter === "OVER") matchesStatus = variance > 0;
+            if (statusFilter === "SHORT") matchesStatus = variance < 0;
+
+            return matchesSearch && matchesUser && matchesStatus;
+        });
+    }, [dateFilteredRemittances, searchTerm, statusFilter, userFilter, userFilterLabel]);
+
+    const displayRows = useMemo(() => {
+        if (salesSort === "highest") {
+            return [...baseFiltered].sort((a, b) => (b.netSales || 0) - (a.netSales || 0));
+        }
+        if (salesSort === "lowest") {
+            return [...baseFiltered].sort((a, b) => (a.netSales || 0) - (b.netSales || 0));
+        }
+        return baseFiltered;
+    }, [baseFiltered, salesSort]);
+
+    const kpiPeriodLabel = useMemo(() => {
+        if (datePreset === "all") return "All dates";
+        if (datePreset === "custom" && !startDate) return "Select a range in the calendar";
+        if (datePreset === "custom" && startDate && endDate) {
+            const lo = startOfDay(startDate) <= startOfDay(endDate) ? startDate : endDate;
+            const hi = startOfDay(startDate) <= startOfDay(endDate) ? endDate : startDate;
+            const s = lo.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const e = hi.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            return startOfDay(lo).getTime() === startOfDay(hi).getTime() ? s : `${s} – ${e}`;
+        }
+        if (datePreset === "custom" && startDate) {
+            return startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        }
+        if (datePreset === "today") return "Today";
+        if (datePreset === "yesterday") return "Yesterday";
+        if (datePreset === "week") return "This week";
+        if (datePreset === "month") return "This month";
+        return "All dates";
+    }, [datePreset, startDate, endDate]);
+
+    /** Same local calendar window as the table; send ms so the server matches without TZ drift from toISOString+setHours. */
+    const kpiQueryKey = useMemo(() => {
+        if (datePreset === "all") return { all: true };
+        if (datePreset === "custom" && !startDate) return { all: true };
+        if (datePreset === "custom") {
+            const end = endDate || startDate;
+            const first = startOfDay(startDate) <= startOfDay(end) ? startDate : end;
+            const last = startOfDay(startDate) <= startOfDay(end) ? endDate || startDate : startDate;
+            return {
+                startMs: startOfDay(first).getTime(),
+                endMs: endOfDay(last).getTime()
+            };
+        }
+        const b = getPresetBounds(datePreset);
+        if (!b) return { all: true };
         return {
-            totalNetSales,
-            totalRemitted,
-            totalVariance,
-            unremittedCash: unremittedCash > 0 ? unremittedCash : 0,
-            count: targetList.length
+            startMs: startOfDay(b.start).getTime(),
+            endMs: endOfDay(b.end).getTime()
         };
-    }, [remittances]);
+    }, [datePreset, startDate, endDate]);
 
-    const filteredRemittances = remittances.filter(remit => {
-        const matchesSearch = remit.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            remit._id.slice(-6).includes(searchTerm);
-
-        const variance = remit.variance || 0;
-        let matchesStatus = true;
-        if (statusFilter === "BALANCED") matchesStatus = variance === 0;
-        if (statusFilter === "OVER") matchesStatus = variance > 0;
-        if (statusFilter === "SHORT") matchesStatus = variance < 0;
-
-        return matchesSearch && matchesStatus;
+    const [kpiStats, setKpiStats] = useState({
+        posNetSales: 0,
+        totalRemitted: 0,
+        totalVariance: 0,
+        unremittedCash: 0
     });
+    const [kpiLoading, setKpiLoading] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            setKpiLoading(true);
+            try {
+                const params = new URLSearchParams();
+                if (!kpiQueryKey.all) {
+                    params.set("startMs", String(kpiQueryKey.startMs));
+                    params.set("endMs", String(kpiQueryKey.endMs));
+                }
+                if (userFilter) params.set("employeeId", userFilter);
+                const qs = params.toString();
+                const res = await fetch(
+                    `${API_ENDPOINTS.remittanceKpiStats}${qs ? `?${qs}` : ""}`
+                );
+                const data = await res.json();
+                if (cancelled) return;
+                if (data.success && data.data) {
+                    setKpiStats({
+                        posNetSales: data.data.posNetSales ?? 0,
+                        totalRemitted: data.data.totalRemitted ?? 0,
+                        totalVariance: data.data.totalVariance ?? 0,
+                        unremittedCash: data.data.unremittedCash ?? 0
+                    });
+                } else {
+                    setKpiStats({
+                        posNetSales: 0,
+                        totalRemitted: 0,
+                        totalVariance: 0,
+                        unremittedCash: 0
+                    });
+                }
+            } catch (err) {
+                console.error("Error loading remittance KPI stats:", err);
+                if (!cancelled) {
+                    setKpiStats({
+                        posNetSales: 0,
+                        totalRemitted: 0,
+                        totalVariance: 0,
+                        unremittedCash: 0
+                    });
+                }
+            } finally {
+                if (!cancelled) setKpiLoading(false);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [kpiQueryKey, userFilter]);
+
+    useEffect(() => {
+        if (displayRows.length === 0) {
+            setSelectedRemittance(null);
+            return;
+        }
+        const id = selectedRemittance?._id;
+        const still = id && displayRows.some((r) => r._id === id);
+        if (!still) setSelectedRemittance(displayRows[0]);
+    }, [displayRows, selectedRemittance?._id]);
+
+    const handleDatePresetChange = (e) => {
+        const v = e.target.value;
+        setDatePreset(v);
+        if (v === "all") {
+            setDateRange([null, null]);
+        } else if (v === "custom") {
+            setPickerOpen(true);
+        } else {
+            const b = getPresetBounds(v);
+            if (b) setDateRange([b.start, b.end]);
+        }
+    };
 
     const handlePrint = () => {
         if (!selectedRemittance) return;
@@ -345,43 +572,58 @@ const CashRemittance = () => {
             {/* ═══════ ROW 1: KPIs (left) | Opening Float (right) ═══════ */}
             <div className="flex gap-6 items-start mb-6 mt-4">
                 {/* Left: 4 KPI Cards */}
-                <div className="flex-1 grid grid-cols-4 gap-3 min-w-0">
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-400 mb-2">
+                        Totals — {kpiPeriodLabel}
+                        {userFilterLabel ? ` · ${userFilterLabel}` : ""}
+                    </p>
+                    <div className={`grid grid-cols-4 gap-3 min-w-0 ${kpiLoading ? "opacity-70" : ""}`}>
                     <KpiCard
                         icon={FaChartLine}
                         label="Total Net Sales"
-                        value={formatCurrency(kpis.totalNetSales)}
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.posNetSales)}
                         barGradient="linear-gradient(180deg, #2563EB 0%, #3B82F6 100%)"
                         iconBg="bg-blue-50"
                         iconColor="text-blue-500"
                         textColor="text-blue-500"
+                        valueColor="text-blue-600"
                     />
                     <KpiCard
                         icon={FaHandHoldingUsd}
                         label="Total Remitted"
-                        value={formatCurrency(kpis.totalRemitted)}
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.totalRemitted)}
                         barGradient="linear-gradient(180deg, #0EA5A4 0%, #22C55E 100%)"
                         iconBg="bg-green-50"
                         iconColor="text-green-500"
                         textColor="text-green-500"
+                        valueColor="text-green-600"
                     />
                     <KpiCard
                         icon={FaBalanceScale}
                         label="Total Variance"
-                        value={`${kpis.totalVariance > 0 ? '+' : ''}${formatCurrency(kpis.totalVariance)}`}
+                        value={kpiLoading ? "…" : `${kpiStats.totalVariance > 0 ? "+" : ""}${formatCurrency(kpiStats.totalVariance)}`}
                         barGradient="linear-gradient(180deg, #D97706 0%, #F59E0B 100%)"
                         iconBg="bg-amber-50"
                         iconColor="text-amber-500"
                         textColor="text-amber-500"
+                        valueColor="text-amber-600"
                     />
                     <KpiCard
                         icon={FaClock}
-                        label="Unremitted"
-                        value={formatCurrency(kpis.unremittedCash)}
+                        label="Outstanding (Unremitted)"
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.unremittedCash)}
                         barGradient="linear-gradient(180deg, #B91C1C 0%, #EF4444 100%)"
                         iconBg="bg-red-50"
                         iconColor="text-red-500"
                         textColor="text-red-500"
+                        valueColor="text-red-600"
                     />
+                    </div>
+                    {datePreset === "all" && (
+                        <p className="text-[10px] text-gray-400 mt-2 leading-snug">
+                            All dates: totals include every sale and every slip in the system.
+                        </p>
+                    )}
                 </div>
 
                 {/* Right: Opening Float — white card matching reference */}
@@ -407,7 +649,7 @@ const CashRemittance = () => {
 
             {/* ═══════ Opening Float Edit Modal ═══════ */}
             {showFloatModal && (
-                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={() => setShowFloatModal(false)}>
+                <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center" onClick={() => setShowFloatModal(false)}>
                     <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-gray-800">Set Opening Float</h3>
@@ -461,7 +703,8 @@ const CashRemittance = () => {
                         {/* Filter dropdowns */}
                         <select
                             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
-                            defaultValue=""
+                            value={salesSort}
+                            onChange={(e) => setSalesSort(e.target.value)}
                         >
                             <option value="">By Sales</option>
                             <option value="highest">Highest First</option>
@@ -469,9 +712,13 @@ const CashRemittance = () => {
                         </select>
                         <select
                             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
-                            defaultValue=""
+                            value={userFilter}
+                            onChange={(e) => setUserFilter(e.target.value)}
                         >
-                            <option value="">By User</option>
+                            <option value="">All users</option>
+                            {userDropdownOptions.map(({ id, name }) => (
+                                <option key={id} value={id}>{name}</option>
+                            ))}
                         </select>
                         <select
                             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
@@ -485,18 +732,41 @@ const CashRemittance = () => {
                         </select>
                         <select
                             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300 cursor-pointer appearance-none pr-7 bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%23666%22%20d%3D%22M6%208L1%203h10z%22%2F%3E%3C%2Fsvg%3E')] bg-no-repeat bg-[right_8px_center]"
-                            defaultValue=""
+                            value={datePreset}
+                            onChange={handleDatePresetChange}
                         >
-                            <option value="">By Date</option>
+                            <option value="all">All dates</option>
                             <option value="today">Today</option>
                             <option value="yesterday">Yesterday</option>
                             <option value="week">This Week</option>
                             <option value="month">This Month</option>
+                            <option value="custom">Custom range…</option>
                         </select>
-                        {/* Calendar icon */}
-                        <button className="w-10 h-10 rounded-xl border border-gray-200 bg-gray-50 flex items-center justify-center flex-shrink-0 hover:bg-gray-100 transition-colors cursor-pointer">
-                            <FaCalendarAlt className="text-gray-500 text-sm" />
-                        </button>
+                        <div className="relative flex-shrink-0 z-[100]">
+                            <DatePicker
+                                selectsRange
+                                selected={startDate}
+                                onChange={(update) => {
+                                    setDateRange(update);
+                                    setDatePreset("custom");
+                                    if (update?.[0] && update?.[1]) setPickerOpen(false);
+                                }}
+                                startDate={startDate}
+                                endDate={endDate}
+                                open={pickerOpen}
+                                onInputClick={() => setPickerOpen(true)}
+                                onClickOutside={() => setPickerOpen(false)}
+                                dateFormat="MMM d, yyyy"
+                                popperPlacement="bottom-end"
+                                popperClassName="z-[100]"
+                                customInput={
+                                    <CalendarTrigger className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer ${datePreset === "custom" && startDate && endDate
+                                        ? "border-[#AD7F65] bg-amber-50/50"
+                                        : "border-gray-200 bg-gray-50 hover:bg-gray-100"
+                                        }`} />
+                                }
+                            />
+                        </div>
                     </div>
 
                     {/* Logs Table */}
@@ -531,7 +801,7 @@ const CashRemittance = () => {
                                                 <p className="text-xs text-red-500 mt-1">{error}</p>
                                             </td>
                                         </tr>
-                                    ) : filteredRemittances.length === 0 ? (
+                                    ) : displayRows.length === 0 ? (
                                         <tr>
                                             <td colSpan="6" className="py-16 text-center">
                                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4 border border-gray-100">
@@ -539,14 +809,14 @@ const CashRemittance = () => {
                                                 </div>
                                                 <h3 className="text-sm font-bold text-gray-800 mb-1">No Remittances Found</h3>
                                                 <p className="text-xs text-gray-500">
-                                                    {searchTerm || statusFilter !== 'ALL'
+                                                    {searchTerm || statusFilter !== 'ALL' || datePreset !== 'all' || userFilter
                                                         ? "Try adjusting your filters."
                                                         : "No cash remittances have been submitted yet."}
                                                 </p>
                                             </td>
                                         </tr>
                                     ) : (
-                                        filteredRemittances.map((remit) => (
+                                        displayRows.map((remit) => (
                                             <tr
                                                 key={remit._id}
                                                 onClick={() => setSelectedRemittance(remit)}

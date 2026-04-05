@@ -1,6 +1,10 @@
 import { useState, useRef } from 'react';
 import { FaTimes, FaPrint } from 'react-icons/fa';
 import { sendReceiptToPrinter } from '../../utils/printBridge';
+import {
+  lineSubtotalFromItems,
+  resolveTransactionDiscount
+} from '../../utils/transactionDisplay';
 
 const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
 
@@ -39,12 +43,15 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
   if (!isOpen || !transaction) return null;
 
 
-  const subtotal = transaction.items?.reduce((sum, item) => {
-    return sum + (item.price || item.itemPrice || 0) * (item.quantity || 1);
-  }, 0) || transaction.totalAmount || 0;
-
-
-  const discountAmount = transaction.discountAmount || 0;
+  const lineSub = lineSubtotalFromItems(transaction) || transaction.totalAmount || 0;
+  const hasReturnActivity =
+    (transaction.returnTransactions?.length || 0) > 0 ||
+    transaction.status === 'Returned' ||
+    transaction.status === 'Partially Returned';
+  const discountAmount = resolveTransactionDiscount(transaction, lineSub, {
+    skipInference: hasReturnActivity
+  });
+  const subtotal = lineSub;
 
   const handlePrint = async () => {
     setIsPrinting(true);

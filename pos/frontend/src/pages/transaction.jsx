@@ -1,5 +1,9 @@
 import { AnimatePresence, motion } from "framer-motion";
+import { endOfDay, isWithinInterval, startOfDay } from "date-fns";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import React, {
+  forwardRef,
   memo,
   useCallback,
   useEffect,
@@ -9,6 +13,7 @@ import React, {
 } from
   "react";
 import {
+  FaCalendarAlt,
   FaCheckCircle,
   FaChevronDown,
   FaChevronLeft,
@@ -29,7 +34,11 @@ import PrintReceiptModal from "../components/transaction/PrintReceiptModal";
 import RemittanceModal from "../components/transaction/RemittanceModal";
 import ReturnItemsModal from "../components/transaction/ReturnItemsModal";
 import ViewTransactionModal from "../components/transaction/ViewTransactionModal";
-import { API_BASE_URL } from "../config/api";
+import { API_BASE_URL, API_ENDPOINTS } from "../config/api";
+import {
+  lineSubtotalFromItems,
+  resolveTransactionDiscount
+} from "../utils/transactionDisplay";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { useTheme } from "../context/ThemeContext";
@@ -44,7 +53,20 @@ const STATUS_STYLES = {
 const paymentOptions = ["All", "cash", "gcash"];
 const statusOptions = ["All", "Completed", "Returned", "Partially Returned"];
 const userOptions = ["All"];
-const dateOptions = ["All", "Today", "Last 7 days", "Last 30 days"];
+const dateOptions = ["Today", "All", "Last 7 days", "Last 30 days", "Custom"];
+
+const CalendarTrigger = forwardRef(({ onClick, className }, ref) => (
+  <button
+    ref={ref}
+    type="button"
+    onClick={onClick}
+    className={className}
+    aria-label="Pick date range"
+  >
+    <FaCalendarAlt className="text-gray-500 text-sm" />
+  </button>
+));
+CalendarTrigger.displayName = "CalendarTrigger";
 
 const getInitials = (name = "") =>
   name.
@@ -73,7 +95,12 @@ const formatCurrencyCompact = (value = 0) => {
 const sameTransactionId = (a, b) =>
   String(a?._id ?? a ?? "") === String(b?._id ?? b ?? "");
 
-
+const saleDate = (trx) => {
+  if (trx.checkedOutAt != null && trx.checkedOutAt !== "") {
+    return new Date(trx.checkedOutAt);
+  }
+  return new Date(trx.createdAt);
+};
 
 const generateTransactionNumber = (transaction) => {
   if (!transaction) return "---";
@@ -91,16 +118,33 @@ const statusIcon = {
   Voided: <FaExclamationTriangle className="text-red-500" />
 };
 
+const normalizeDropdownOptions = (options) => {
+  if (!options?.length) return [];
+  if (typeof options[0] === "object" && options[0] !== null && "value" in options[0]) {
+    return options.map((o) => ({
+      value: String(o.value),
+      label: o.label ?? String(o.value)
+    }));
+  }
+  return options.map((o) => ({ value: o, label: o }));
+};
+
 const Dropdown = ({
   label,
   options,
   selected,
   onSelect,
   isOpen,
-  setIsOpen
+  setIsOpen,
+  showAllAsOptionLabel = false
 }) => {
   const dropdownRef = React.useRef(null);
   const { theme } = useTheme();
+  const normalizedOptions = React.useMemo(
+    () => normalizeDropdownOptions(options),
+    [options]
+  );
+  const selectedLabel = normalizedOptions.find((o) => o.value === selected)?.label ?? selected;
 
   React.useEffect(() => {
     const handleClickOutside = (event) => {
@@ -137,7 +181,11 @@ const Dropdown = ({
         }>
 
         <span className="text-sm font-medium">
-          {selected === "All" ? label : selected}
+          {selected === "All" ?
+            showAllAsOptionLabel ?
+              "All" :
+              label :
+            selectedLabel}
         </span>
         <FaChevronDown
           className={`text-xs text-gray-500 transition-transform ${isOpen ? "rotate-180" : ""}`} />
@@ -155,21 +203,21 @@ const Dropdown = ({
             }
             onClick={(e) => e.stopPropagation()}>
 
-            {options.map((option) =>
+            {normalizedOptions.map((option) =>
               <li
-                key={option}
+                key={option.value}
                 onClick={() => {
-                  onSelect(option);
+                  onSelect(option.value);
                   setIsOpen(false);
                 }}
-                className={`px-4 py-2 text-sm cursor-pointer transition-colors ${option === selected ?
+                className={`px-4 py-2 text-sm cursor-pointer transition-colors ${option.value === selected ?
                   "bg-[#F6EEE7] text-[#76462B] font-semibold" :
                   theme === "dark" ?
                     "text-gray-300 hover:bg-[#352F2A]" :
                     "text-gray-700 hover:bg-gray-50"}`
                 }>
 
-                {option}
+                {option.label}
               </li>
             )}
           </motion.ul>
@@ -196,11 +244,14 @@ const Transaction = () => {
     user: false
   });
   const [filters, setFilters] = useState({
-    date: "All",
+    date: "Today",
     method: "All",
     status: "All",
     user: "All"
   });
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [startDate, endDate] = dateRange;
   const [currentPage, setCurrentPage] = useState(1);
   const [showViewModal, setShowViewModal] = useState(false);
   const [transactionToView, setTransactionToView] = useState(null);
@@ -213,11 +264,26 @@ const Transaction = () => {
   const [selectedTransactionIds, setSelectedTransactionIds] = useState([]);
   const [isExportSelectionMode, setIsExportSelectionMode] = useState(false);
   const [showRemittanceModal, setShowRemittanceModal] = useState(false);
+  const [staffList, setStaffList] = useState([]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
     return () => clearTimeout(timer);
   }, [search]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(API_ENDPOINTS.employees);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data)) {
+          setStaffList(data.data.filter((e) => e.status === "Active"));
+        }
+      } catch (err) {
+        console.error("Failed to load employees:", err);
+      }
+    })();
+  }, []);
 
   const isInitialMount = useRef(true);
   const hasLoaded = useRef(false);
@@ -241,7 +307,7 @@ const Transaction = () => {
       if (filters.user !== "All") params.append("userId", filters.user);
 
 
-      params.append("limit", "500");
+      params.append("limit", "3000");
       const qs = params.toString() ? `?${params.toString()}` : "";
 
       const response = await fetch(
@@ -378,22 +444,13 @@ const Transaction = () => {
     );
   }, [transactions]);
 
-  const filteredTransactions = useMemo(() => {
-
-
-    const filtered = transactions.filter((trx) => {
-
+  const matchesTransactionFilters = useCallback(
+    (trx) => {
       if (trx.paymentMethod === "return" && trx.originalTransactionId) {
         return false;
       }
 
-
       if (trx.status === "Voided") {
-        return false;
-      }
-
-
-      if (trx.status === "Pending" || trx.status === "Failed") {
         return false;
       }
 
@@ -408,13 +465,35 @@ const Transaction = () => {
       const matchesStatus =
         filters.status === "All" || trx.status === filters.status;
 
+      const selectedEmp =
+        filters.user !== "All" ?
+          staffList.find((e) => String(e._id) === filters.user) :
+          null;
+      const selectedEmpName = selectedEmp ?
+        (selectedEmp.name || `${selectedEmp.firstName || ""} ${selectedEmp.lastName || ""}`).trim() :
+        "";
       const matchesUser =
-        filters.user === "All" || trx.performedByName === filters.user;
-
+        filters.user === "All" ||
+        String(trx.performedById || "") === filters.user ||
+        (selectedEmpName && trx.performedByName === selectedEmpName);
 
       let matchesDate = true;
-      if (filters.date !== "All") {
-        const trxDate = new Date(trx.checkedOutAt || trx.createdAt);
+      if (filters.date === "Custom") {
+        if (startDate) {
+          const end = endDate || startDate;
+          const lo =
+            startOfDay(startDate) <= startOfDay(end) ?
+              startOfDay(startDate) :
+              startOfDay(end);
+          const hi =
+            startOfDay(startDate) <= startOfDay(end) ?
+              startOfDay(end) :
+              startOfDay(startDate);
+          const trxDay = startOfDay(saleDate(trx));
+          matchesDate = trxDay >= lo && trxDay <= hi;
+        }
+      } else if (filters.date !== "All") {
+        const trxDate = saleDate(trx);
         const now = new Date();
         const today = new Date(
           now.getFullYear(),
@@ -423,12 +502,10 @@ const Transaction = () => {
         );
 
         if (filters.date === "Today") {
-          const trxDay = new Date(
-            trxDate.getFullYear(),
-            trxDate.getMonth(),
-            trxDate.getDate()
-          );
-          matchesDate = trxDay.getTime() === today.getTime();
+          matchesDate = isWithinInterval(trxDate, {
+            start: startOfDay(now),
+            end: endOfDay(now)
+          });
         } else if (filters.date === "Last 7 days") {
           const sevenDaysAgo = new Date(today);
           sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -447,16 +524,27 @@ const Transaction = () => {
         matchesUser &&
         matchesDate);
 
-    });
+    },
+    [search, filters, startDate, endDate, staffList]
+  );
 
-
+  const kpiFilteredTransactions = useMemo(() => {
+    const filtered = transactions.filter((trx) => matchesTransactionFilters(trx));
 
     return filtered.sort((a, b) => {
       const dateA = new Date(a.checkedOutAt || a.createdAt || a.updatedAt || 0);
       const dateB = new Date(b.checkedOutAt || b.createdAt || b.updatedAt || 0);
       return dateB - dateA;
     });
-  }, [transactions, search, filters]);
+  }, [transactions, matchesTransactionFilters]);
+
+  const filteredTransactions = useMemo(
+    () =>
+      kpiFilteredTransactions.filter(
+        (trx) => trx.status !== "Pending" && trx.status !== "Failed"
+      ),
+    [kpiFilteredTransactions]
+  );
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -474,20 +562,19 @@ const Transaction = () => {
   );
 
   const kpis = useMemo(() => {
-    const nonVoided = (transactions || []).filter((trx) => trx.status !== "Voided");
-    const completed = nonVoided.filter((trx) => trx.status === "Completed");
-    const totalSales = completed.reduce(
-      (sum, trx) => sum + (parseFloat(trx.totalAmount) || 0),
-      0
-    );
+    const list = kpiFilteredTransactions;
+    const totalSales = list.reduce((sum, trx) => {
+      if (String(trx.paymentMethod || "").toLowerCase() === "return") return sum;
+      return sum + (parseFloat(trx.totalAmount) || 0);
+    }, 0);
 
-    const transactionTotal = nonVoided.filter((trx) => [
-      "Completed",
-      "Returned",
-      "Partially Returned"
-    ].includes(trx.status)).length;
+    const transactionTotal = list.filter((trx) => {
+      if (/^voided$/i.test(String(trx.status || ""))) return false;
+      if (String(trx.paymentMethod || "").toLowerCase() === "return") return false;
+      return true;
+    }).length;
 
-    const returnedItems = nonVoided.reduce((sum, trx) => {
+    const returnedItems = list.reduce((sum, trx) => {
       const items = Array.isArray(trx.items) ? trx.items : [];
       const returnedCount = items.filter((item) => {
         const rs = item?.returnStatus;
@@ -497,7 +584,21 @@ const Transaction = () => {
     }, 0);
 
     return { totalSales, transactionTotal, returnedItems };
-  }, [transactions]);
+  }, [kpiFilteredTransactions]);
+
+  const sidebarReceiptTotals = useMemo(() => {
+    const trx = selectedTransaction;
+    if (!trx) return { lineSub: 0, discount: 0 };
+    const lineSub = lineSubtotalFromItems(trx) || trx.totalAmount || 0;
+    const hasReturnActivity =
+      (trx.returnTransactions?.length || 0) > 0 ||
+      trx.status === "Returned" ||
+      trx.status === "Partially Returned";
+    const discount = resolveTransactionDiscount(trx, lineSub, {
+      skipInference: hasReturnActivity
+    });
+    return { lineSub, discount };
+  }, [selectedTransaction]);
 
   useEffect(() => {
     setSelectedTransactionIds((prev) =>
@@ -520,14 +621,24 @@ const Transaction = () => {
 
 
   const userDropdownOptions = useMemo(() => {
-    const uniqueUsers = new Set();
+    const fromStaff = staffList
+      .map((e) => ({
+        value: String(e._id),
+        label: (e.name || `${e.firstName || ""} ${e.lastName || ""}`).trim() || "Unknown"
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const seen = new Set(fromStaff.map((r) => r.value));
+    const fromTx = [];
     transactions.forEach((t) => {
-      if (t.performedByName) {
-        uniqueUsers.add(t.performedByName);
+      const id = t.performedById ? String(t.performedById) : "";
+      if (id && t.performedByName && !seen.has(id)) {
+        fromTx.push({ value: id, label: t.performedByName });
+        seen.add(id);
       }
     });
-    return ["All", ...Array.from(uniqueUsers).sort()];
-  }, [transactions]);
+    fromTx.sort((a, b) => a.label.localeCompare(b.label));
+    return [{ value: "All", label: "All" }, ...fromStaff, ...fromTx];
+  }, [staffList, transactions]);
 
   const handleRowClick = (trx) => {
     setSelectedTransaction(trx);
@@ -1198,7 +1309,7 @@ const Transaction = () => {
                   Ready to Remit?
                 </p>
                 <p className={`text-xs mt-0.5 ${theme === "dark" ? "text-blue-400/70" : "text-[#5a7a9a]"}`}>
-                  You can submit your remittance anytime
+                  Submit you remittance by the end of the day.
                 </p>
                 <button
                   className="mt-2 bg-[#1a3a5c] hover:bg-[#0f2a4a] text-white text-xs font-semibold px-4 py-2 rounded-lg flex items-center gap-2 transition-colors cursor-pointer"
@@ -1231,7 +1342,7 @@ const Transaction = () => {
             }>
 
             <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-4">
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-0 w-full xl:max-w-xs 2xl:max-w-sm">
                 <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AD7F65]" />
                 <input
                   value={search}
@@ -1246,18 +1357,57 @@ const Transaction = () => {
                   } />
 
               </div>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Dropdown
                   label="Date"
                   options={dateOptions}
                   selected={filters.date}
-                  onSelect={(value) =>
-                    setFilters((prev) => ({ ...prev, date: value }))
-                  }
+                  showAllAsOptionLabel
+                  onSelect={(value) => {
+                    setCurrentPage(1);
+                    if (value !== "Custom") {
+                      setDateRange([null, null]);
+                    }
+                    if (value === "Custom") {
+                      setPickerOpen(true);
+                    }
+                    setFilters((prev) => ({ ...prev, date: value }));
+                  }}
                   isOpen={dropdownOpen.date}
                   setIsOpen={(value) =>
                     setDropdownOpen((prev) => ({ ...prev, date: value }))
                   } />
+
+                <div className="relative z-[100] flex-shrink-0">
+                  <DatePicker
+                    selectsRange
+                    selected={startDate}
+                    onChange={(update) => {
+                      setDateRange(update);
+                      setFilters((prev) => ({ ...prev, date: "Custom" }));
+                      setCurrentPage(1);
+                      if (update?.[0] && update?.[1]) setPickerOpen(false);
+                    }}
+                    startDate={startDate}
+                    endDate={endDate}
+                    open={pickerOpen}
+                    onInputClick={() => setPickerOpen(true)}
+                    onClickOutside={() => setPickerOpen(false)}
+                    dateFormat="MMM d, yyyy"
+                    popperPlacement="bottom-start"
+                    popperClassName="z-[100]"
+                    customInput={
+                      <CalendarTrigger
+                        className={`w-10 h-10 rounded-xl border flex items-center justify-center flex-shrink-0 transition-colors cursor-pointer ${filters.date === "Custom" && startDate && endDate ?
+                          "border-[#AD7F65] bg-[#AD7F65]/10" :
+                          theme === "dark" ?
+                            "border-gray-600 bg-[#2A2724] hover:border-[#AD7F65]" :
+                            "border-gray-200 bg-white hover:border-[#AD7F65]"
+                        }`}
+                      />
+                    }
+                  />
+                </div>
 
                 <Dropdown
                   label="Payment Method"
@@ -1275,9 +1425,10 @@ const Transaction = () => {
                   label="User"
                   options={userDropdownOptions}
                   selected={filters.user}
-                  onSelect={(value) =>
-                    setFilters((prev) => ({ ...prev, user: value }))
-                  }
+                  onSelect={(value) => {
+                    setFilters((prev) => ({ ...prev, user: value }));
+                    setCurrentPage(1);
+                  }}
                   isOpen={dropdownOpen.user}
                   setIsOpen={(value) =>
                     setDropdownOpen((prev) => ({ ...prev, user: value }))
@@ -1676,6 +1827,18 @@ const Transaction = () => {
                   <span>Payment Method:</span>
                   <span className="uppercase">
                     {selectedTransaction?.paymentMethod}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>
+                    {formatCurrency(sidebarReceiptTotals.lineSub)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Discount:</span>
+                  <span>
+                    {formatCurrency(sidebarReceiptTotals.discount)}
                   </span>
                 </div>
                 <div

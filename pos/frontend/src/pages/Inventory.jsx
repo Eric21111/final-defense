@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FaPlus, FaSearch } from "react-icons/fa";
 import Header from "../components/shared/header";
 import { API_BASE_URL } from "../config/api";
@@ -591,6 +591,14 @@ const Inventory = () => {
   }, [selectedMainCategory, selectedSubCategory, filterBrand, filterStatus, searchQuery, sortBy]);
 
   useEffect(() => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(filteredProducts.length / itemsPerPage)
+    );
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [filteredProducts.length, itemsPerPage, currentPage]);
+
+  useEffect(() => {
     setSelectedProductIds((prev) =>
       prev.filter((id) =>
         filteredProducts.some((product) => product._id === id)
@@ -598,10 +606,13 @@ const Inventory = () => {
     );
   }, [filteredProducts]);
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (opts) => {
+    const silent = typeof opts === "boolean" ? opts : opts?.silent;
     try {
-      setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/products`);
+      if (!silent) setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/products`, {
+        cache: "no-store"
+      });
       const data = await response.json();
 
       if (data.success) {
@@ -614,9 +625,30 @@ const Inventory = () => {
         "Failed to fetch products. Make sure the backend server is running."
       );
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
+
+  const fetchProductsRef = useRef(fetchProducts);
+  fetchProductsRef.current = fetchProducts;
+
+  useEffect(() => {
+    const syncProducts = () => {
+      invalidateCache("products");
+      fetchProductsRef.current({ silent: true });
+    };
+    window.addEventListener("pos-invalidate-products", syncProducts);
+    const onStorage = (e) => {
+      if (e.key === "pos-products-bump" && e.newValue != null) {
+        syncProducts();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("pos-invalidate-products", syncProducts);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [invalidateCache]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -1034,7 +1066,7 @@ const Inventory = () => {
             setCachedData("products", next);
             return next;
           });
-          fetchProducts(true);
+          fetchProducts({ silent: true });
         } else {
           invalidateCache("products");
           fetchProducts();
@@ -1307,6 +1339,7 @@ const Inventory = () => {
   const confirmArchiveProduct = async () => {
     if (!productToArchive) return;
 
+    const archiveId = String(productToArchive);
     setShowArchiveModal(false);
 
     try {
@@ -1320,9 +1353,10 @@ const Inventory = () => {
       const archivedById = currentUser._id || currentUser.id || "";
 
       const response = await fetch(
-        `${API_BASE_URL}/api/products/${productToArchive}/archive`,
+        `${API_BASE_URL}/api/products/${archiveId}/archive`,
         {
           method: "PATCH",
+          cache: "no-store",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ archivedByName, archivedById })
         }
@@ -1331,15 +1365,13 @@ const Inventory = () => {
       const data = await response.json();
 
       if (data.success) {
-
         setProducts((prev) =>
-          prev.filter((p) => (p._id || p.id) !== productToArchive)
+          prev.filter((p) => String(p._id || p.id) !== archiveId)
         );
         setShowSuccessModal(true);
         setSuccessMessage("The item was archived successfully!");
         invalidateCache("products");
-
-        fetchProducts();
+        fetchProducts({ silent: true });
       } else {
         alert(data.message || "Failed to archive product");
       }

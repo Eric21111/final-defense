@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaClipboardList, FaCoins, FaFileAlt, FaTimes, FaCheck } from "react-icons/fa";
+import { FaClipboardList, FaCoins, FaFileAlt, FaTimes, FaCheck, FaChevronDown } from "react-icons/fa";
 import { API_ENDPOINTS } from "../../config/api";
 import CashTurnOverSlipModal from "./CashTurnOverSlipModal";
 
@@ -90,11 +90,27 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
     const [submitSuccess, setSubmitSuccess] = useState(false);
     const [showSlip, setShowSlip] = useState(false);
     const [openingFloat, setOpeningFloat] = useState(2000);
+    const [quickTotalOpen, setQuickTotalOpen] = useState(true);
+    const [manualTotalInput, setManualTotalInput] = useState("");
 
-    const totalCashOnHand = DENOMINATIONS.reduce(
-        (sum, d) => sum + (denominations[d.key] || 0) * d.value,
-        0
+    const totalFromDenominations = React.useMemo(
+        () =>
+            DENOMINATIONS.reduce(
+                (sum, d) => sum + (denominations[d.key] || 0) * d.value,
+                0
+            ),
+        [denominations]
     );
+
+    const parsedManualTotal = React.useMemo(() => {
+        const t = manualTotalInput.trim().replace(/,/g, "");
+        if (t === "") return null;
+        const n = parseFloat(t);
+        return Number.isFinite(n) && n >= 0 ? n : null;
+    }, [manualTotalInput]);
+
+    const useManualTotal = parsedManualTotal !== null;
+    const totalCashOnHand = useManualTotal ? parsedManualTotal : totalFromDenominations;
     const cashToRemit = totalCashOnHand - openingFloat;
     const variance = cashToRemit - summary.netSales;
 
@@ -138,6 +154,8 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
             setReceivedBy("");
             setSubmitSuccess(false);
             setShowSlip(false);
+            setQuickTotalOpen(true);
+            setManualTotalInput("");
             fetchSummary();
             fetchGlobalFloat();
         }
@@ -238,7 +256,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
             )}
 
             {isOpen && !showSlip && (
-                <div className="fixed inset-0 flex items-center justify-center z-50 p-4 pointer-events-none">
+                <div className="fixed inset-0 flex items-center justify-center z-[200] p-4 pointer-events-none">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -276,7 +294,9 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
 
                         {step === 2 && (
                             <p className="text-xs text-gray-500 px-6 pt-2">
-                                Count all cash in your drawer including the float. Enter the quantity of each denomination.
+                                Count all cash in your drawer (including the float). Use{" "}
+                                <span className="font-semibold text-gray-700">Quick entry</span> below to type one total,{" "}
+                                <span className="font-semibold text-gray-700">or</span> enter quantity per denomination.
                             </p>
                         )}
 
@@ -390,6 +410,66 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                             {/* Step 2: Count Your Cash Drawer */}
                             {step === 2 && !submitSuccess && (
                                 <div>
+                                    <div className="mb-4 border border-gray-200 rounded-xl overflow-hidden">
+                                        <button
+                                            type="button"
+                                            onClick={() => setQuickTotalOpen((o) => !o)}
+                                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
+                                        >
+                                            <span className="flex items-center gap-2 flex-wrap">
+                                                Quick entry — total cash counted
+                                                <span className="text-[10px] font-bold uppercase tracking-wide text-[#16A34A] bg-green-100 px-1.5 py-0.5 rounded">
+                                                    Optional
+                                                </span>
+                                            </span>
+                                            <FaChevronDown
+                                                className={`text-gray-400 shrink-0 transition-transform ${quickTotalOpen ? "rotate-180" : ""}`}
+                                            />
+                                        </button>
+                                        {quickTotalOpen && (
+                                            <div className="px-3 pb-3 pt-1 border-t border-gray-100 bg-white">
+                                                <p className="text-[11px] text-gray-500 mb-2">
+                                                    Enter the full amount you counted. Leave empty to use denomination quantities
+                                                    below.
+                                                </p>
+                                                <div className="flex gap-2 items-center">
+                                                    <span className="text-sm text-gray-600 shrink-0">₱</span>
+                                                    <input
+                                                        type="text"
+                                                        inputMode="decimal"
+                                                        value={manualTotalInput}
+                                                        onChange={(e) => setManualTotalInput(e.target.value)}
+                                                        placeholder="e.g. 6520.50"
+                                                        className="flex-1 border border-gray-200 rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-[#22C55E] focus:ring-1 focus:ring-[#22C55E]/30"
+                                                    />
+                                                    {manualTotalInput.trim() !== "" && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setManualTotalInput("")}
+                                                            className="text-xs font-medium text-[#22C55E] hover:underline shrink-0"
+                                                        >
+                                                            Clear
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                {useManualTotal && (
+                                                    <p className="text-[11px] text-amber-700 mt-2 bg-amber-50 rounded-lg px-2 py-1.5">
+                                                        Using this total. Denomination fields are disabled — clear quick entry to
+                                                        count by bill/coin.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    {!quickTotalOpen && (
+                                        <p className="text-[11px] text-[#16A34A] mb-2 -mt-1 px-0.5">
+                                            Tip: open <span className="font-semibold">Quick entry</span> above to type the total instead of counting each bill.
+                                        </p>
+                                    )}
+
+                                    <p className="text-[11px] font-semibold text-gray-500 mb-2 mt-1">
+                                        {useManualTotal ? "Denomination breakdown (disabled while using quick entry)" : "Or count by denomination"}
+                                    </p>
                                     <div className="grid grid-cols-4 gap-2 mb-4">
                                         {DENOMINATIONS.map((d) => (
                                             <div key={d.key} className="flex flex-col items-center">
@@ -402,12 +482,13 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                                 <input
                                                     type="number"
                                                     min="0"
+                                                    disabled={useManualTotal}
                                                     value={denominations[d.key] || ""}
                                                     onChange={(e) =>
                                                         handleDenominationChange(d.key, e.target.value)
                                                     }
                                                     placeholder="0"
-                                                    className="w-full text-center border border-gray-200 rounded-lg py-1.5 text-sm focus:outline-none focus:border-[#22C55E] focus:ring-1 focus:ring-[#22C55E]/30"
+                                                    className={`w-full text-center border border-gray-200 rounded-lg py-1.5 text-sm focus:outline-none focus:border-[#22C55E] focus:ring-1 focus:ring-[#22C55E]/30 ${useManualTotal ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
                                                 />
                                                 <span className="text-[10px] text-gray-400 mt-0.5">
                                                     {formatCurrency((denominations[d.key] || 0) * d.value)}
@@ -418,8 +499,15 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
 
                                     {/* Totals */}
                                     <div className="bg-green-50 border border-green-100 rounded-xl p-3 mb-3">
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-sm font-semibold text-green-700">Total Counted</span>
+                                        <div className="flex justify-between items-center gap-2">
+                                            <div>
+                                                <span className="text-sm font-semibold text-green-700">Total Counted</span>
+                                                {useManualTotal && (
+                                                    <span className="ml-2 text-[10px] font-medium text-green-600 bg-green-100 px-1.5 py-0.5 rounded">
+                                                        Quick entry
+                                                    </span>
+                                                )}
+                                            </div>
                                             <span className="text-lg font-bold text-green-700">
                                                 {formatCurrency(totalCashOnHand)}
                                             </span>

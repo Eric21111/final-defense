@@ -87,7 +87,7 @@ const CashTurnOverSlipModal = ({
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 flex flex-col items-center justify-center z-[60] p-4 sm:p-6 pointer-events-none">
+                <div className="fixed inset-0 flex flex-col items-center justify-center z-[200] p-4 sm:p-6 pointer-events-none">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -183,6 +183,11 @@ const CashTurnOverSlipModal = ({
                                                 </div>
                                             ))}
                                         </div>
+                                    ) : totalCashOnHand > 0 ? (
+                                        <p className="text-xs text-gray-600">
+                                            Quick total: <span className="font-semibold">{formatCurrency(totalCashOnHand)}</span>
+                                            {" "}(no per-denomination breakdown).
+                                        </p>
                                     ) : (
                                         <p className="text-xs text-gray-400 italic">No cash counted.</p>
                                     )}

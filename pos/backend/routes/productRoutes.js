@@ -43,6 +43,11 @@ router.get('/low-stock', async (req, res) => {
     // reorderNumber defaults to 0 in DB, so we use max with 10 as the minimum threshold
     const stockAlertItems = await Product.aggregate([
       {
+        $match: {
+          isArchived: { $ne: true }
+        }
+      },
+      {
         $project: {
           itemName: 1,
           sku: 1,

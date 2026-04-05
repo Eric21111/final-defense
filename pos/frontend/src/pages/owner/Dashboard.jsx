@@ -36,13 +36,14 @@ import { API_ENDPOINTS, API_BASE_URL } from "../../config/api";
 const formatCompactPeso = (n) => {
   const abs = Math.abs(Number(n) || 0);
   if (abs === 0) return "₱0";
+  const trimTwoDec = (s) => (s.endsWith(".00") ? s.slice(0, -3) : s);
   if (abs >= 1_000_000) {
     const v = abs / 1_000_000;
-    return `₱${v >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "")}M`;
+    return `₱${trimTwoDec(v.toFixed(2))}M`;
   }
   if (abs >= 1000) {
     const v = abs / 1000;
-    return `₱${v >= 10 ? v.toFixed(0) : v.toFixed(1).replace(/\.0$/, "")}k`;
+    return `₱${trimTwoDec(v.toFixed(2))}k`;
   }
   return `₱${abs.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 };

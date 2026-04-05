@@ -1682,6 +1682,15 @@ const Terminal = () => {
       // If the transaction fails, we'll roll back from the snapshot.
       applyStockOutOptimistically(stockItems, { capturePrev: true });
 
+      const lineSubtotal = cartSnapshot.reduce(
+        (s, item) => s + (item.itemPrice || 0) * (item.quantity || 1),
+        0
+      );
+      const discountSaved = Math.max(
+        0,
+        Math.round((lineSubtotal - currentTotal) * 100) / 100
+      );
+
       const transactionResponse = await fetch(
         `${API_BASE_URL}/api/transactions`,
         {
@@ -1697,6 +1706,8 @@ const Terminal = () => {
             changeGiven: meta.change,
             referenceNo: meta.referenceNo,
             receiptNo: meta.receiptNo,
+            subtotal: lineSubtotal,
+            discount: discountSaved,
             totalAmount: currentTotal,
             performedById: currentUser?._id || currentUser?.id,
             performedByName: currentUser?.name,

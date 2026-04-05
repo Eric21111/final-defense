@@ -98,6 +98,11 @@ exports.getInventoryAnalytics = async (req, res) => {
       // 1. Product inventory aggregation (replaces Product.find({}).lean())
       Product.aggregate([
         {
+          $match: {
+            isArchived: { $ne: true }
+          }
+        },
+        {
           $group: {
             _id: null,
             totalItems: { $sum: 1 },
@@ -343,15 +348,26 @@ exports.getInventoryAnalytics = async (req, res) => {
           },
         },
         {
+          $addFields: {
+            effectiveSoldQty: {
+              $cond: [
+                { $eq: ["$items.returnStatus", "Returned"] },
+                0,
+                { $ifNull: ["$items.quantity", 1] },
+              ],
+            },
+          },
+        },
+        {
           $group: {
             _id: "$_id",
             totalAmount: { $first: "$totalAmount" },
-            totalUnitsSold: { $sum: { $ifNull: ["$items.quantity", 1] } },
+            totalUnitsSold: { $sum: "$effectiveSoldQty" },
             cogs: {
               $sum: {
                 $multiply: [
                   { $ifNull: ["$itemCostPrice", 0] },
-                  { $ifNull: ["$items.quantity", 1] },
+                  "$effectiveSoldQty",
                 ],
               },
             },
@@ -606,6 +622,13 @@ exports.getInventoryAnalytics = async (req, res) => {
                 },
               },
             },
+            effectiveSoldQty: {
+              $cond: [
+                { $eq: ["$items.returnStatus", "Returned"] },
+                0,
+                { $ifNull: ["$items.quantity", 1] },
+              ],
+            },
             dateField: { $ifNull: ["$checkedOutAt", "$createdAt"] },
           },
         },
@@ -620,7 +643,7 @@ exports.getInventoryAnalytics = async (req, res) => {
               $sum: {
                 $multiply: [
                   { $ifNull: ["$itemCostPrice", 0] },
-                  { $ifNull: ["$items.quantity", 1] },
+                  "$effectiveSoldQty",
                 ],
               },
             },
