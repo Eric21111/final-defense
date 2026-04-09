@@ -10,6 +10,7 @@ class DatabaseManager {
     this.isOnline = false;
     this.connectionCheckInterval = null;
     this.isReconnecting = false;
+    this.connectPromise = null;
     // Cloud-only mode: meaningful for hosted backend (no local fallback)
     this.cloudOnlyMode = process.env.CLOUD_ONLY === "true";
   }
@@ -93,95 +94,109 @@ class DatabaseManager {
   }
 
   async connect() {
-    try {
-      if (process.env.MONGODB_URI) {
-        this.cloudURI = process.env.MONGODB_URI;
-      }
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
 
-      if (mongoose.connection.readyState === 1 && !this.isReconnecting) {
-        return mongoose.connection;
-      }
+    this.connectPromise = (async () => {
+      try {
+        if (process.env.MONGODB_URI) {
+          this.cloudURI = process.env.MONGODB_URI;
+        }
 
-      // CLOUD ONLY MODE (Hosted Backend)
-      if (this.cloudOnlyMode) {
-        this.currentURI = this.cloudURI;
-        this.isOnline = true; // Assume online in cloud environment
-        console.log("[Connection] Cloud-Only Mode - Connecting to Cloud DB...");
-      }
-      // HYBRID MODE (Local Backend)
-      else {
-        this.isOnline = await this.checkInternetConnection();
+        if (mongoose.connection.readyState === 1 && !this.isReconnecting) {
+          return mongoose.connection;
+        }
 
-        console.log("DEBUG: isOnline =", this.isOnline);
-        console.log(
-          "DEBUG: cloudURI =",
-          this.cloudURI ? "Configured" : "Not Configured",
-        );
-
-        if (this.isOnline && this.cloudURI) {
+        // CLOUD ONLY MODE (Hosted Backend)
+        if (this.cloudOnlyMode) {
           this.currentURI = this.cloudURI;
-          console.log("[Connection] Internet ONLINE - Forcing CLOUD database");
-        } else {
-          this.currentURI = this.localURI;
-          if (!this.cloudURI) {
-            console.log(
-              "[Connection] No cloud URI configured - Using LOCAL database",
-            );
+          this.isOnline = true; // Assume online in cloud environment
+          console.log("[Connection] Cloud-Only Mode - Connecting to Cloud DB...");
+        }
+        // HYBRID MODE (Local Backend)
+        else {
+          this.isOnline = await this.checkInternetConnection();
+
+          console.log("DEBUG: isOnline =", this.isOnline);
+          console.log(
+            "DEBUG: cloudURI =",
+            this.cloudURI ? "Configured" : "Not Configured",
+          );
+
+          if (this.isOnline && this.cloudURI) {
+            this.currentURI = this.cloudURI;
+            console.log("[Connection] Internet ONLINE - Forcing CLOUD database");
           } else {
-            console.log("[Connection] Internet OFFLINE - Using LOCAL database");
+            this.currentURI = this.localURI;
+            if (!this.cloudURI) {
+              console.log(
+                "[Connection] No cloud URI configured - Using LOCAL database",
+              );
+            } else {
+              console.log("[Connection] Internet OFFLINE - Using LOCAL database");
+            }
           }
         }
-      }
 
-      await mongoose.connect(this.currentURI, {
-        maxPoolSize: 10,          // Max connections in pool (default is 5, 10 handles concurrent mobile+web)
-        minPoolSize: 2,           // Keep 2 warm connections ready
-        socketTimeoutMS: 45000,   // Close sockets after 45s of inactivity
-        serverSelectionTimeoutMS: 10000,  // Fail fast if no server available (10s vs default 30s)
-      });
+        await mongoose.connect(this.currentURI, {
+          maxPoolSize: 10,          // Max connections in pool (default is 5, 10 handles concurrent mobile+web)
+          minPoolSize: 2,           // Keep 2 warm connections ready
+          socketTimeoutMS: 45000,   // Close sockets after 45s of inactivity
+          serverSelectionTimeoutMS: 10000,  // Fail fast if no server available (10s vs default 30s)
+        });
 
-      console.log(`✓ MongoDB Connected: ${mongoose.connection.host}`);
-      console.log(
-        `✓ Database mode: ${this.isOnline && this.cloudURI ? "CLOUD" : "LOCAL"}`,
-      );
-
-      this.connection = mongoose.connection;
-
-      mongoose.connection.on("disconnected", () => {
-        console.log("[Warning] Database disconnected");
-      });
-
-      mongoose.connection.on("error", (err) => {
-        console.error("[Error] Database connection error:", err.message);
-      });
-
-      return mongoose.connection;
-    } catch (error) {
-      console.error("[Error] Failed to connect to MongoDB:", error.message);
-
-      if (this.isOnline && this.currentURI === this.cloudURI) {
+        console.log(`✓ MongoDB Connected: ${mongoose.connection.host}`);
         console.log(
-          "[Fallback] Cloud database failed - Attempting local database...",
+          `✓ Database mode: ${this.isOnline && this.cloudURI ? "CLOUD" : "LOCAL"}`,
         );
-        try {
-          this.currentURI = this.localURI;
-          await mongoose.connect(this.currentURI);
-          console.log(
-            `✓ MongoDB Connected (Local Fallback): ${mongoose.connection.host}`,
-          );
-          this.connection = mongoose.connection;
-          return mongoose.connection;
-        } catch (fallbackError) {
-          console.error(
-            "[Error] Local database fallback failed:",
-            fallbackError.message,
-          );
-          throw fallbackError;
-        }
-      }
 
-      throw error;
-    }
+        this.connection = mongoose.connection;
+
+        // Ensure we only attach these global handlers once
+        if (!mongoose.connection.listeners('disconnected').length) {
+          mongoose.connection.on("disconnected", () => {
+            console.log("[Warning] Database disconnected");
+          });
+        }
+        if (!mongoose.connection.listeners('error').length) {
+          mongoose.connection.on("error", (err) => {
+            console.error("[Error] Database connection error:", err.message);
+          });
+        }
+
+        return mongoose.connection;
+      } catch (error) {
+        console.error("[Error] Failed to connect to MongoDB:", error.message);
+
+        if (this.isOnline && this.currentURI === this.cloudURI) {
+          console.log(
+            "[Fallback] Cloud database failed - Attempting local database...",
+          );
+          try {
+            this.currentURI = this.localURI;
+            await mongoose.connect(this.currentURI);
+            console.log(
+              `✓ MongoDB Connected (Local Fallback): ${mongoose.connection.host}`,
+            );
+            this.connection = mongoose.connection;
+            return mongoose.connection;
+          } catch (fallbackError) {
+            console.error(
+              "[Error] Local database fallback failed:",
+              fallbackError.message,
+            );
+            throw fallbackError;
+          }
+        }
+
+        throw error;
+      } finally {
+        this.connectPromise = null;
+      }
+    })();
+
+    return this.connectPromise;
   }
 
   getConnection() {
