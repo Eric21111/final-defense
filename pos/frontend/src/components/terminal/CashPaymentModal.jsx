@@ -82,6 +82,8 @@ const CashPaymentModal = ({
 
   const handleConfirmCheckout = async () => {
     const received = parseFloat(amountReceived);
+    // Always compute change freshly here to avoid stale state
+    const changeAmount = Math.max(0, received - totalAmount);
     setShowConfirmation(false);
     setShowSuccess(true);
 
@@ -90,7 +92,7 @@ const CashPaymentModal = ({
       const generatedReceiptNo = generateReceiptNumber();
       const savedTransaction = await onProceed(
         received,
-        change,
+        changeAmount,
         generatedReceiptNo
       );
 
@@ -120,7 +122,7 @@ const CashPaymentModal = ({
         })),
         total: totalAmount,
         cash: received,
-        change: change,
+        change: changeAmount,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString()
       };

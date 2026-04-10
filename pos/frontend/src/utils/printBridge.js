@@ -105,7 +105,7 @@ export const buildReceiptLines = (receipt) => {
 
 
 const buildReceiptHTML = (receipt) => {
-  const storeName = receipt.storeName || 'Create Your Style';
+  const storeName = 'Create Your Style';
   const location = receipt.location || 'Pasonanca, Zamboanga City';
   const receiptNo = receipt.receiptNo || '000000';
   const paymentMethod = receipt.paymentMethod || 'Cash';
