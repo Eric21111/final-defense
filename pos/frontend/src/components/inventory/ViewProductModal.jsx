@@ -17,6 +17,7 @@ const ViewProductModal = ({
   const [stockViewOpen, setStockViewOpen] = useState(false);
   const [stockViewQuery, setStockViewQuery] = useState("");
   const [batchSortOrder, setBatchSortOrder] = useState("oldest");
+  const [productImgIdx, setProductImgIdx] = useState(0);
 
   const toNum = (v) => {
     const n = typeof v === "number" ? v : parseInt(v);
@@ -297,6 +298,10 @@ const ViewProductModal = ({
       ? "Totals"
       : getBatchLabel(batchTab);
 
+  const productImages = Array.isArray(viewingProduct?.productImages) && viewingProduct.productImages.length > 0
+    ? viewingProduct.productImages
+    : (viewingProduct?.itemImage ? [viewingProduct.itemImage] : []);
+
   /** Prices, variant labels, lot/exp for the selected batch slot (null when Totals) */
   const selectedBatchInsights = useMemo(() => {
     if (!viewingProduct?.sizes || typeof viewingProduct.sizes !== "object") return null;
@@ -359,6 +364,7 @@ const ViewProductModal = ({
     setStockViewOpen(false);
     setStockViewQuery("");
     setBatchSortOrder("oldest");
+    setProductImgIdx(0);
   }, [viewingProduct?._id]);
 
   if (!showViewModal || !viewingProduct) return null;
@@ -622,12 +628,42 @@ const ViewProductModal = ({
                     </div>
                   </div>
                   <div className={`p-6 flex items-center justify-center ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
-                    {viewingProduct.itemImage && viewingProduct.itemImage.trim() !== "" ? (
-                      <img
-                        src={viewingProduct.itemImage}
-                        alt={viewingProduct.itemName}
-                        className="w-full max-h-[320px] object-contain rounded-xl"
-                      />
+                    {productImages.length > 0 && productImages[productImgIdx] ? (
+                      <div className="relative w-full">
+                        <img
+                          src={productImages[productImgIdx]}
+                          alt={viewingProduct.itemName}
+                          className="w-full max-h-[320px] object-contain rounded-xl"
+                        />
+                        {productImages.length > 1 && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => setProductImgIdx((i) => (i - 1 + productImages.length) % productImages.length)}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center"
+                            >
+                              ‹
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setProductImgIdx((i) => (i + 1) % productImages.length)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center"
+                            >
+                              ›
+                            </button>
+                            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1">
+                              {productImages.map((_, idx) => (
+                                <button
+                                  key={idx}
+                                  type="button"
+                                  onClick={() => setProductImgIdx(idx)}
+                                  className={`w-2 h-2 rounded-full ${idx === productImgIdx ? "bg-white" : "bg-white/40"}`}
+                                />
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     ) : (
                       <div className="text-center text-gray-400">
                         <svg className="w-24 h-24 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
