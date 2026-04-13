@@ -15,6 +15,7 @@ const ViewProductModal = ({
   const [batchTab, setBatchTab] = useState("totals");
   const [stockViewOpen, setStockViewOpen] = useState(false);
   const [stockViewQuery, setStockViewQuery] = useState("");
+  const [batchSortOrder, setBatchSortOrder] = useState("oldest");
 
   const toNum = (v) => {
     const n = typeof v === "number" ? v : parseInt(v);
@@ -273,11 +274,16 @@ const ViewProductModal = ({
 
   const stockViewOptions = useMemo(() => {
     const options = [{ value: "totals", label: "Totals" }];
-    for (let i = 0; i < maxBatchDepth; i += 1) {
+    const batchSlots = Array.from({ length: maxBatchDepth }, (_, i) => i);
+    const sortedBatchSlots =
+      batchSortOrder === "latest"
+        ? [...batchSlots].reverse()
+        : batchSlots;
+    sortedBatchSlots.forEach((i) => {
       options.push({ value: i, label: getBatchLabel(i) });
-    }
+    });
     return options;
-  }, [maxBatchDepth, batchSlotLots]);
+  }, [maxBatchDepth, batchSlotLots, batchSortOrder]);
 
   const filteredStockViewOptions = useMemo(() => {
     const q = stockViewQuery.trim().toLowerCase();
@@ -351,6 +357,7 @@ const ViewProductModal = ({
     setBatchTab("totals");
     setStockViewOpen(false);
     setStockViewQuery("");
+    setBatchSortOrder("oldest");
   }, [viewingProduct?._id]);
 
   if (!showViewModal || !viewingProduct) return null;
@@ -535,16 +542,29 @@ const ViewProductModal = ({
                         }`}
                     >
                       <div className={`p-2 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-100"}`}>
-                        <input
-                          type="text"
-                          value={stockViewQuery}
-                          onChange={(e) => setStockViewQuery(e.target.value)}
-                          placeholder="Search batch..."
-                          className={`w-full px-2.5 py-2 rounded-md text-xs border outline-none ${theme === "dark"
-                            ? "bg-[#2A2724] border-gray-600 text-gray-200 placeholder:text-gray-500"
-                            : "bg-white border-gray-300 text-gray-700 placeholder:text-gray-400"
-                            }`}
-                        />
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={stockViewQuery}
+                            onChange={(e) => setStockViewQuery(e.target.value)}
+                            placeholder="Search batch..."
+                            className={`flex-1 px-2.5 py-2 rounded-md text-xs border outline-none ${theme === "dark"
+                              ? "bg-[#2A2724] border-gray-600 text-gray-200 placeholder:text-gray-500"
+                              : "bg-white border-gray-300 text-gray-700 placeholder:text-gray-400"
+                              }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setBatchSortOrder((prev) => (prev === "oldest" ? "latest" : "oldest"))}
+                            title={`Sort: ${batchSortOrder === "oldest" ? "Oldest first" : "Latest first"}`}
+                            className={`inline-flex items-center justify-center w-9 h-9 rounded-md border text-xs font-semibold ${theme === "dark"
+                              ? "bg-[#2A2724] border-gray-600 text-gray-200 hover:border-[#AD7F65]"
+                              : "bg-white border-gray-300 text-gray-700 hover:border-[#AD7F65]"
+                              }`}
+                          >
+                            {batchSortOrder === "oldest" ? "↑" : "↓"}
+                          </button>
+                        </div>
                       </div>
                       <div className="max-h-56 overflow-y-auto p-1.5">
                         {filteredStockViewOptions.length > 0 ? filteredStockViewOptions.map((option) => (
