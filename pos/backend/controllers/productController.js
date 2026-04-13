@@ -721,7 +721,7 @@ exports.stockInProduct = async (req, res) => {
           let incomingPrice = fallbackExistingPrice;
           let incomingCost = fallbackExistingCost;
 
-          if (stockData.diffPricesPerVariant?.[size] && stockData.stockVariantPrices?.[size]?.[variant]) {
+          if (stockData.stockVariantPrices?.[size]?.[variant]) {
             incomingPrice = safeNum(stockData.stockVariantPrices[size][variant].price, incomingPrice);
             incomingCost = safeNum(stockData.stockVariantPrices[size][variant].costPrice, incomingCost);
           } else if (stockData.newVariantPrices?.[variant]) {
