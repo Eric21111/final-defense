@@ -1,5 +1,5 @@
 
-const PRODUCTION_URL = 'https://pos-hosting-np5d.onrender.com';
+const PRODUCTION_URL = 'https://final-defense-w44w.onrender.com';
 const LOCAL_IP = '192.168.56.1';
 const LOCALHOST = 'localhost';
 const PORT = 5000;

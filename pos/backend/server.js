@@ -93,7 +93,7 @@ const allowedOrigins = [
   "http://127.0.0.1:3000",
   "http://127.0.0.1:8081",
   "http://127.0.0.1:19006",
-  "https://final-defense-orpin.vercel.app", // Explicitly added to prevent CORS blocks
+  "https://createyourstyle.me", // Explicitly added to prevent CORS blocks
   process.env.FRONTEND_URL,  // Production frontend URL (set in .env)
   process.env.WEBHOOK_BASE_URL, // ngrok tunnel URL
 ].filter(Boolean); // Remove undefined values
