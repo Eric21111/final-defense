@@ -1192,7 +1192,7 @@ const AddProductModal = ({
                           </div>
                           <div>
                               <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Selling Price ₱</label>
-                              <input type="number" step="0.01" name="itemPrice" value={newProduct.itemPrice} onChange={handleInputChange} required placeholder="Enter selling price"
+                              <input type="number" step="0.01" name="itemPrice" value={newProduct.itemPrice} onChange={handleInputChange} placeholder="Enter selling price"
                                 className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
                           </div>
                         </div>

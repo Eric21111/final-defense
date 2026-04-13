@@ -808,28 +808,6 @@ const Inventory = () => {
       }
 
 
-      if (
-        newProduct.differentPricesPerSize &&
-        newProduct.selectedSizes?.length > 0) {
-        const invalidSizes = newProduct.selectedSizes.filter((size) => {
-          const price = newProduct.sizePrices?.[size];
-          return !price || price === "" || parseFloat(price) <= 0;
-        });
-
-        if (invalidSizes.length > 0) {
-          alert(
-            `Please enter prices for all selected sizes: ${invalidSizes.join(", ")}`
-          );
-          return;
-        }
-      } else if (!newProduct.differentPricesPerSize) {
-
-        if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) {
-          alert("Please enter a selling price.");
-          return;
-        }
-      }
-
       setShowConfirmModal(true);
     } else {
       setProductToEdit(editingProduct);
