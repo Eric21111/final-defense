@@ -1318,7 +1318,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                 {/* Step 3: Review */}
                 {currentStep === 3 && (() => {
                   const reviewRows = [];
-                  if (hasSizes && hasVariants) {
+                  if (hasVariants) {
                     const allCombos = [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos];
                     allCombos.forEach(({ size, variant }) => {
                       const key = `${size}|${variant}`;
@@ -1326,7 +1326,12 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                       const qty = parseInt(variantQuantities[size]?.[variant]) || 0;
                       if (qty <= 0) return;
                       const sizeData = product.sizes?.[size];
-                      const existingStock = typeof sizeData?.variants?.[variant] === 'object' ? (sizeData.variants[variant].quantity || 0) : (typeof sizeData?.variants?.[variant] === 'number' ? sizeData.variants[variant] : 0);
+                      const existingStock =
+                        typeof sizeData?.variants?.[variant] === 'object'
+                          ? (sizeData.variants[variant].quantity || 0)
+                          : (typeof sizeData?.variants?.[variant] === 'number'
+                            ? sizeData.variants[variant]
+                            : 0);
                       const cost = stockVariantPrices[size]?.[variant]?.costPrice || 0;
                       const sell = stockVariantPrices[size]?.[variant]?.price || 0;
                       reviewRows.push({ variant, size, stock: existingStock, qtyIn: qty, cost, sell });
