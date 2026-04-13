@@ -278,6 +278,18 @@ exports.createProduct = async (req, res) => {
               `${String(dr).slice(0, 10)}T12:00:00`,
             ).toISOString()
           : new Date().toISOString();
+      const openingBatchCode = (() => {
+        if (productData.batchCode && String(productData.batchCode).trim()) {
+          return String(productData.batchCode).trim();
+        }
+        const d = new Date();
+        const y = d.getFullYear();
+        const mo = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        const h = String(d.getHours()).padStart(2, "0");
+        const min = String(d.getMinutes()).padStart(2, "0");
+        return `B${y}${mo}${day}-${h}${min}`;
+      })();
       const openingExp = productData.expirationDate
         ? String(productData.expirationDate).slice(0, 10)
         : "";
@@ -301,6 +313,7 @@ exports.createProduct = async (req, res) => {
                     price: parseFloat(v.price) || 0,
                     costPrice: parseFloat(v.costPrice) || 0,
                     createdAt: openingTs,
+                    ...(openingBatchCode ? { batchCode: openingBatchCode } : {}),
                     ...(openingExp ? { expirationDate: openingExp } : {}),
                   },
                 ],
@@ -320,6 +333,7 @@ exports.createProduct = async (req, res) => {
                     price: parseFloat(sd.price) || 0,
                     costPrice: parseFloat(sd.costPrice) || 0,
                     createdAt: openingTs,
+                    ...(openingBatchCode ? { batchCode: openingBatchCode } : {}),
                     ...(openingExp ? { expirationDate: openingExp } : {}),
                   },
                 ],
