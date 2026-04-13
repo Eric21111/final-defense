@@ -6,6 +6,20 @@ const { sendEmail } = require('../utils/emailService');
 // In-memory cache for fast PIN logins avoiding O(N) bcrypt hashes. Map<sha256(pin), employeeId>
 const pinCache = new Map();
 
+const getFastPinHash = (rawPin) => {
+  const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
+  return crypto.createHmac('sha256', hmacSecret).update(String(rawPin)).digest('hex');
+};
+
+const isPinAlreadyUsedByOther = async (rawPin, excludeEmployeeId = null) => {
+  const fastPinHash = getFastPinHash(rawPin);
+  const query = excludeEmployeeId
+    ? { fastPinHash, _id: { $ne: excludeEmployeeId } }
+    : { fastPinHash };
+  const existing = await Employee.exists(query);
+  return !!existing;
+};
+
 // Get all employees
 exports.getAllEmployees = async (req, res) => {
   try {
@@ -131,6 +145,12 @@ exports.createEmployee = async (req, res) => {
 
     // Store the raw PIN before it gets hashed (for email)
     const rawPin = pin;
+    if (await isPinAlreadyUsedByOther(rawPin)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please use other pin'
+      });
+    }
 
     // Don't hash PIN here - the model's pre-save hook will handle it
     const employeeData = {
@@ -238,12 +258,17 @@ exports.updateEmployee = async (req, res) => {
 
     // If PIN is being updated, hash it
     if (updateData.pin) {
-      const salt = await bcrypt.genSalt(10);
       const rawPin = updateData.pin.toString();
+      if (await isPinAlreadyUsedByOther(rawPin, id)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please use other pin'
+        });
+      }
+      const salt = await bcrypt.genSalt(10);
       updateData.pin = await bcrypt.hash(rawPin, salt);
 
-      const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
-      updateData.fastPinHash = crypto.createHmac('sha256', hmacSecret).update(rawPin).digest('hex');
+      updateData.fastPinHash = getFastPinHash(rawPin);
     }
 
     updateData.lastUpdated = Date.now();
@@ -417,11 +442,17 @@ exports.resetPin = async (req, res) => {
       });
     }
 
+    if (await isPinAlreadyUsedByOther(newPin.toString(), id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please use other pin'
+      });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPin = await bcrypt.hash(newPin.toString(), salt);
 
-    const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
-    const fastPinHash = crypto.createHmac('sha256', hmacSecret).update(newPin.toString()).digest('hex');
+    const fastPinHash = getFastPinHash(newPin.toString());
 
     const employee = await Employee.findByIdAndUpdate(
       id,
@@ -666,11 +697,17 @@ exports.updatePin = async (req, res) => {
       });
     }
 
+    if (await isPinAlreadyUsedByOther(pinToSet.toString(), id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please use other pin'
+      });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPin = await bcrypt.hash(pinToSet.toString(), salt);
 
-    const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
-    const fastPinHash = crypto.createHmac('sha256', hmacSecret).update(pinToSet.toString()).digest('hex');
+    const fastPinHash = getFastPinHash(pinToSet.toString());
 
     const employee = await Employee.findByIdAndUpdate(
       id,
