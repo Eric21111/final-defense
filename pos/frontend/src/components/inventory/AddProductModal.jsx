@@ -239,7 +239,6 @@ const AddProductModal = ({
         if (!newProduct.subCategory || newProduct.subCategory === "__add_new__") return false;
         return true;
       case 2:
-        if (selectedVariants.length === 0) return false;
         return true;
       case 3:
         if (selectedVariants.length > 0 || newProduct.selectedSizes?.length > 0) {
@@ -932,11 +931,11 @@ const AddProductModal = ({
                 {/* ── Step 2: Variants ── */}
                 {currentStep === 2 && (
                   <div className="space-y-6">
-                    {/* Option Group 1 - Required */}
+                    {/* Option Group 1 - Optional */}
                     <div className={`p-4 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          <label className={`text-xs font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Option Group 1 – Required</label>
+                          <label className={`text-xs font-bold uppercase tracking-wide ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Option Group 1</label>
                           <span title="Press Enter to add" className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold border ${theme === "dark" ? "text-gray-300 border-gray-600" : "text-gray-600 border-gray-300"}`}>i</span>
                         </div>
                         <span className={`text-[10px] italic ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>e.g. Color · Flavor · Shade · Style</span>
