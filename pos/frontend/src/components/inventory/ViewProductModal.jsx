@@ -13,6 +13,8 @@ const ViewProductModal = ({
   const { theme } = useTheme();
   /** 'totals' = aggregate stock/price/exp; number = batch slot index (0 = oldest / current FIFO) */
   const [batchTab, setBatchTab] = useState("totals");
+  const [stockViewOpen, setStockViewOpen] = useState(false);
+  const [stockViewQuery, setStockViewQuery] = useState("");
 
   const toNum = (v) => {
     const n = typeof v === "number" ? v : parseInt(v);
@@ -203,6 +205,64 @@ const ViewProductModal = ({
     return sum;
   }, [viewingProduct, batchTab]);
 
+  const batchSlotLots = useMemo(() => {
+    if (!viewingProduct?.sizes || typeof viewingProduct.sizes !== "object") return [];
+    const perSlot = Array.from({ length: maxBatchDepth }, () => new Set());
+    Object.values(viewingProduct.sizes).forEach((sizeData) => {
+      if (!sizeData || typeof sizeData !== "object") return;
+      if (sizeData.variants && typeof sizeData.variants === "object") {
+        Object.values(sizeData.variants).forEach((variantData) => {
+          if (!variantData || typeof variantData !== "object" || !Array.isArray(variantData.batches)) return;
+          variantData.batches.forEach((batch, slotIndex) => {
+            if (!batch || batch.batchSlotPadding) return;
+            const lot = String(batch.batchCode || "").trim();
+            if (lot && perSlot[slotIndex]) perSlot[slotIndex].add(lot);
+          });
+        });
+        return;
+      }
+      if (Array.isArray(sizeData.batches)) {
+        sizeData.batches.forEach((batch, slotIndex) => {
+          if (!batch || batch.batchSlotPadding) return;
+          const lot = String(batch.batchCode || "").trim();
+          if (lot && perSlot[slotIndex]) perSlot[slotIndex].add(lot);
+        });
+      }
+    });
+    return perSlot.map((slotSet) => [...slotSet].sort());
+  }, [viewingProduct, maxBatchDepth]);
+
+  const getBatchLabel = (slotIndex, withCurrentHint = false) => {
+    const lots = batchSlotLots[slotIndex] || [];
+    const lotLabel =
+      lots.length === 1 ? ` (${lots[0]})` : lots.length > 1 ? " (multiple lots)" : "";
+    if (slotIndex === 0) {
+      return withCurrentHint
+        ? `Batch 1 (current stock)${lotLabel}`
+        : `Batch 1${lotLabel}`;
+    }
+    return `Batch ${slotIndex + 1}${lotLabel}`;
+  };
+
+  const stockViewOptions = useMemo(() => {
+    const options = [{ value: "totals", label: "Totals" }];
+    for (let i = 0; i < maxBatchDepth; i += 1) {
+      options.push({ value: i, label: getBatchLabel(i, true) });
+    }
+    return options;
+  }, [maxBatchDepth, batchSlotLots]);
+
+  const filteredStockViewOptions = useMemo(() => {
+    const q = stockViewQuery.trim().toLowerCase();
+    if (!q) return stockViewOptions;
+    return stockViewOptions.filter((opt) => opt.label.toLowerCase().includes(q));
+  }, [stockViewOptions, stockViewQuery]);
+
+  const selectedStockViewLabel =
+    batchTab === "totals"
+      ? "Totals"
+      : getBatchLabel(batchTab, true);
+
   /** Prices, variant labels, lot/exp for the selected batch slot (null when Totals) */
   const selectedBatchInsights = useMemo(() => {
     if (!viewingProduct?.sizes || typeof viewingProduct.sizes !== "object") return null;
@@ -262,6 +322,8 @@ const ViewProductModal = ({
   // If the user opens a different product, reset back to totals view
   useEffect(() => {
     setBatchTab("totals");
+    setStockViewOpen(false);
+    setStockViewQuery("");
   }, [viewingProduct?._id]);
 
   if (!showViewModal || !viewingProduct) return null;
@@ -426,34 +488,63 @@ const ViewProductModal = ({
                 <div className={`text-[10px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
                   Stock view
                 </div>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="relative w-full sm:w-[340px]">
                   <button
                     type="button"
-                    onClick={() => setBatchTab("totals")}
-                    className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-200 active:scale-[0.98] ${batchTab === "totals"
-                      ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-sm"
-                      : theme === "dark"
-                        ? "bg-[#1E1B18] text-gray-300 border-gray-600 hover:border-[#AD7F65]"
-                        : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65]"
+                    onClick={() => setStockViewOpen((prev) => !prev)}
+                    className={`w-full inline-flex items-center justify-between px-3 py-2 rounded-lg text-[12px] font-semibold border ${theme === "dark"
+                      ? "bg-[#1E1B18] text-gray-200 border-gray-600"
+                      : "bg-white text-gray-700 border-gray-300"
                       }`}
                   >
-                    Totals
+                    <span className="truncate pr-3">{selectedStockViewLabel}</span>
+                    <span className="text-xs">{stockViewOpen ? "▲" : "▼"}</span>
                   </button>
-                  {Array.from({ length: maxBatchDepth }, (_, i) => (
-                    <button
-                      key={i}
-                      type="button"
-                      onClick={() => setBatchTab(i)}
-                      className={`inline-flex items-center px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border transition-all duration-200 active:scale-[0.98] ${batchTab === i
-                        ? "bg-[#AD7F65] text-white border-[#AD7F65] shadow-sm"
-                        : theme === "dark"
-                          ? "bg-[#1E1B18] text-gray-300 border-gray-600 hover:border-[#AD7F65]"
-                          : "bg-white text-gray-700 border-gray-200 hover:border-[#AD7F65]"
+                  {stockViewOpen ? (
+                    <div
+                      className={`absolute z-50 mt-2 w-full rounded-lg border shadow-lg ${theme === "dark"
+                        ? "bg-[#1E1B18] border-gray-600"
+                        : "bg-white border-gray-200"
                         }`}
                     >
-                      {i === 0 ? "Batch 1 (current stock)" : `Batch ${i + 1}`}
-                    </button>
-                  ))}
+                      <div className={`p-2 border-b ${theme === "dark" ? "border-gray-700" : "border-gray-100"}`}>
+                        <input
+                          type="text"
+                          value={stockViewQuery}
+                          onChange={(e) => setStockViewQuery(e.target.value)}
+                          placeholder="Search batch..."
+                          className={`w-full px-2.5 py-2 rounded-md text-xs border outline-none ${theme === "dark"
+                            ? "bg-[#2A2724] border-gray-600 text-gray-200 placeholder:text-gray-500"
+                            : "bg-white border-gray-300 text-gray-700 placeholder:text-gray-400"
+                            }`}
+                        />
+                      </div>
+                      <div className="max-h-56 overflow-y-auto p-1.5">
+                        {filteredStockViewOptions.length > 0 ? filteredStockViewOptions.map((option) => (
+                          <button
+                            key={String(option.value)}
+                            type="button"
+                            onClick={() => {
+                              setBatchTab(option.value);
+                              setStockViewOpen(false);
+                            }}
+                            className={`w-full text-left px-2.5 py-2 rounded-md text-xs font-medium ${batchTab === option.value
+                              ? "bg-[#AD7F65] text-white"
+                              : theme === "dark"
+                                ? "text-gray-200 hover:bg-[#2A2724]"
+                                : "text-gray-700 hover:bg-gray-50"
+                              }`}
+                          >
+                            {option.label}
+                          </button>
+                        )) : (
+                          <div className={`px-2.5 py-3 text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
+                            No matching stock view.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             )}
@@ -514,8 +605,7 @@ const ViewProductModal = ({
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide ${theme === "dark" ? "bg-[#AD7F65]/25 text-[#D4A88A]" : "bg-[#AD7F65]/15 text-[#76462B]"}`}
                           >
-                            Batch {batchTab + 1}
-                            {batchTab === 0 ? " · current stock" : ""}
+                            {getBatchLabel(batchTab, batchTab === 0)}
                           </span>
                           {batchMetaLine ? (
                             <span className={`text-[11px] ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>{batchMetaLine}</span>
@@ -629,7 +719,7 @@ const ViewProductModal = ({
                           {showPerBatchColumn ? (
                             <>
                               <th className="px-4 py-3 font-semibold">
-                                {batchTab === 0 ? "Batch 1 (current stock)" : `Batch ${batchTab + 1}`}
+                                {getBatchLabel(batchTab, true)}
                               </th>
                               <th className="px-4 py-3 font-semibold">Expiration</th>
                             </>

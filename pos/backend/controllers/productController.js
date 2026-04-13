@@ -581,7 +581,7 @@ const consumeBatches = (batches, removeQty) => {
     next[i].qty = safeNum(next[i].qty, 0) - take;
     remaining -= take;
   }
-  return next.filter((b) => safeNum(b.qty, 0) > 0 || b.batchSlotPadding === true);
+  return next;
 };
 
 const sumBatchesQty = (batches) =>
@@ -1389,7 +1389,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
         next[i].qty = safeNum(next[i].qty, 0) - take;
         remaining -= take;
       }
-      return next.filter((b) => safeNum(b.qty, 0) > 0 || b.batchSlotPadding === true);
+      return next;
     };
 
     const consumeBatchesWithAllocations = (batches, removeQty) => {
@@ -1411,10 +1411,7 @@ exports.updateStockAfterTransaction = async (req, res) => {
         next[i].qty = avail - take;
         remaining -= take;
       }
-      const filtered = next.filter(
-        (b) => safeNum(b.qty, 0) > 0 || b.batchSlotPadding === true,
-      );
-      return { batches: filtered, allocations };
+      return { batches: next, allocations };
     };
 
     const allocationsForReturnQty = (fullAllocations, returnQty) => {
