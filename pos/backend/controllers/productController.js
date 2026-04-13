@@ -605,6 +605,11 @@ exports.stockInProduct = async (req, res) => {
       batchCode: stockData.batchCode ? String(stockData.batchCode).trim() : "",
       expirationDate: stockData.expirationDate ? String(stockData.expirationDate) : "",
     };
+    const rawTargetSlot = stockData.targetBatchSlotIndex;
+    const parsedTargetSlot = Number.isFinite(Number(rawTargetSlot))
+      ? Math.floor(Number(rawTargetSlot))
+      : -1;
+    const shouldAddToExistingSlot = parsedTargetSlot >= 0;
 
     // Stock-in from inventory always appends a new FIFO batch (never merge into a prior slot).
 
@@ -698,20 +703,32 @@ exports.stockInProduct = async (req, res) => {
             incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
           }
 
-          const padLen = maxBatchLenBeforeAdd;
-          const alignedBatches = padBatchesToLengthBeforeAdd(
-            normalizedVariant.batches,
-            padLen,
-            incomingPrice,
-            incomingCost,
-          );
-          const nextBatches = addBatch(
-            alignedBatches,
-            qty,
-            incomingPrice,
-            incomingCost,
-            batchMeta,
-          );
+          let nextBatches;
+          if (shouldAddToExistingSlot) {
+            nextBatches = addToExistingBatchSlot(
+              normalizedVariant.batches,
+              parsedTargetSlot,
+              qty,
+              batchMeta,
+              incomingPrice,
+              incomingCost,
+            );
+          } else {
+            const padLen = maxBatchLenBeforeAdd;
+            const alignedBatches = padBatchesToLengthBeforeAdd(
+              normalizedVariant.batches,
+              padLen,
+              incomingPrice,
+              incomingCost,
+            );
+            nextBatches = addBatch(
+              alignedBatches,
+              qty,
+              incomingPrice,
+              incomingCost,
+              batchMeta,
+            );
+          }
           newVariants[variant] = {
             ...normalizedVariant,
             batches: nextBatches,
@@ -773,20 +790,32 @@ exports.stockInProduct = async (req, res) => {
           incomingCost = safeNum(stockData.newSizePrices[size].costPrice, incomingCost);
         }
 
-        const padLenNoVar = maxBatchLenBeforeAddNoVar;
-        const alignedBatches = padBatchesToLengthBeforeAdd(
-          currentSizeData.batches,
-          padLenNoVar,
-          incomingPrice,
-          incomingCost,
-        );
-        const nextBatches = addBatch(
-          alignedBatches,
-          addQty,
-          incomingPrice,
-          incomingCost,
-          batchMeta,
-        );
+        let nextBatches;
+        if (shouldAddToExistingSlot) {
+          nextBatches = addToExistingBatchSlot(
+            currentSizeData.batches,
+            parsedTargetSlot,
+            addQty,
+            batchMeta,
+            incomingPrice,
+            incomingCost,
+          );
+        } else {
+          const padLenNoVar = maxBatchLenBeforeAddNoVar;
+          const alignedBatches = padBatchesToLengthBeforeAdd(
+            currentSizeData.batches,
+            padLenNoVar,
+            incomingPrice,
+            incomingCost,
+          );
+          nextBatches = addBatch(
+            alignedBatches,
+            addQty,
+            incomingPrice,
+            incomingCost,
+            batchMeta,
+          );
+        }
         const nextQty = sumBatchesQty(nextBatches);
         updatedSizes[size] = {
           ...currentSizeData,
