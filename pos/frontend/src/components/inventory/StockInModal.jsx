@@ -699,7 +699,15 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
 
   const isStepValid = (step) => {
     if (step === 1) {
-      if (!hasSizes) return (parseInt(quantity) || 0) > 0;
+      if (!hasSizes) {
+        if (hasVariants) {
+          const allCombosList = [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos];
+          return allCombosList.some(({ size, variant }) => {
+            return checkedCombos[`${size}|${variant}`] !== false && (parseInt(variantQuantities[size]?.[variant]) || 0) > 0;
+          });
+        }
+        return (parseInt(quantity) || 0) > 0;
+      }
       if (hasVariants) {
         const allCombosList = [...existingCombos.map(c => ({ size: c.size, variant: c.variant })), ...addedNewCombos];
         return allCombosList.some(({ size, variant }) => {
@@ -746,7 +754,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
               ...(batchExpirationDate ? { expirationDate: batchExpirationDate } : {}),
             };
 
-    if (!hasSizes) {
+    if (!hasSizes && !hasVariants) {
 
       const qty = parseInt(quantity) || 0;
       if (qty <= 0) {
@@ -765,7 +773,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
     }
 
 
-    if (selectedSizes.length === 0) {
+    if (!hasVariants && selectedSizes.length === 0) {
       alert("Please select at least one size");
       return;
     }
