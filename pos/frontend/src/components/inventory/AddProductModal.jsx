@@ -1254,7 +1254,7 @@ const AddProductModal = ({
 
                           {hasOpeningStock ? (
                             <div>
-                              <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch number (preview)</label>
+                              <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Batch/Lot No.</label>
                               <p className={`text-lg font-bold ${theme === "dark" ? "text-white" : "text-gray-900"}`}>
                                 {formatStockInStyleBatchCode(new Date())}
                               </p>
