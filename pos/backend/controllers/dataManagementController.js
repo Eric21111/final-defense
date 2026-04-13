@@ -10,6 +10,7 @@ const VoidLog = require("../models/VoidLog");
 const Archive = require("../models/Archive");
 const Cart = require("../models/Cart");
 const MerchantSettings = require("../models/MerchantSettings");
+const Remittance = require("../models/Remittance");
 const SyncLog = require("../models/SyncLog");
 const bcrypt = require("bcryptjs");
 
@@ -24,6 +25,7 @@ const DATA_COLLECTIONS = {
   voidLogs: { model: VoidLog, name: "Void Logs" },
   archives: { model: Archive, name: "Archives" },
   carts: { model: Cart, name: "Cart Data" },
+  remittances: { model: Remittance, name: "Remittance Logs" },
   employees: { model: Employee, name: "Employees" },
   merchantSettings: { model: MerchantSettings, name: "Merchant Settings" },
 };
