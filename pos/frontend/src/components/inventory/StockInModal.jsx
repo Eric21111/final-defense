@@ -111,6 +111,8 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
 
   const allVariants = getAllVariants();
   const hasVariants = allVariants.length > 0;
+  const shouldShowVariantBuilder =
+    (hasSizes && hasVariants) || (!hasSizes && (product?.currentStock || 0) === 0);
 
   const stockInBatchList = useMemo(() => {
     if (!hasSizes || !product) return [];
@@ -908,8 +910,10 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                     <p className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>check variants that arrived, unchecked = skip</p>
                   </div>
 
-                  {hasSizes && hasVariants ? (<>
-                    <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>Existing variants</p>
+                  {shouldShowVariantBuilder ? (<>
+                    <p className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                      {existingCombos.length > 0 ? "Existing variants" : "No existing variants yet"}
+                    </p>
 
                     {/* Combo table */}
                     <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>

@@ -167,19 +167,36 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (timeframe === "Custom" && (!startDate || !endDate)) return;
-    const intervalMs = 30000;
+
+    // Near real-time refresh cadence to keep dashboard cards/charts live.
+    const intervalMs = 2000;
+    refreshAllSilentRef.current?.();
+
     const id = setInterval(() => {
       refreshAllSilentRef.current?.();
     }, intervalMs);
+
     const onVisibility = () => {
       if (document.visibilityState === "visible") {
         refreshAllSilentRef.current?.();
       }
     };
+    const onWindowFocus = () => {
+      refreshAllSilentRef.current?.();
+    };
+    const onOnline = () => {
+      refreshAllSilentRef.current?.();
+    };
+
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onWindowFocus);
+    window.addEventListener("online", onOnline);
+
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onWindowFocus);
+      window.removeEventListener("online", onOnline);
     };
   }, [timeframe, startDate, endDate, topSellingSort, lowStockFilter]);
 
