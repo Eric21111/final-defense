@@ -161,6 +161,35 @@ const ViewProductModal = ({
     );
   };
 
+  const renderSingleBatchDateAddedCell = (batch) => {
+    if (!batch || !batch.createdAt) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    const dateStr = String(batch.createdAt).slice(0, 10);
+    return (
+      <span className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+        {dateStr}
+      </span>
+    );
+  };
+
+  const renderBatchNumberCell = (value, kind = "neutral") => {
+    const n = Number(value || 0);
+    const colorClass =
+      kind === "stock"
+        ? n === 0
+          ? "bg-red-100 text-red-700"
+          : "bg-green-100 text-green-700"
+        : theme === "dark"
+          ? "bg-[#2A2724] text-gray-200"
+          : "bg-gray-100 text-gray-700";
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
+        {n} {viewingProduct?.unitOfMeasure || "pcs"}
+      </span>
+    );
+  };
+
   const maxBatchDepth = useMemo(() => {
     if (!viewingProduct?.sizes || typeof viewingProduct.sizes !== "object") return 0;
     let max = 0;
@@ -232,14 +261,12 @@ const ViewProductModal = ({
     return perSlot.map((slotSet) => [...slotSet].sort());
   }, [viewingProduct, maxBatchDepth]);
 
-  const getBatchLabel = (slotIndex, withCurrentHint = false) => {
+  const getBatchLabel = (slotIndex) => {
     const lots = batchSlotLots[slotIndex] || [];
     const lotLabel =
       lots.length === 1 ? ` (${lots[0]})` : lots.length > 1 ? " (multiple lots)" : "";
     if (slotIndex === 0) {
-      return withCurrentHint
-        ? `Batch 1 (current stock)${lotLabel}`
-        : `Batch 1${lotLabel}`;
+      return `Batch 1${lotLabel}`;
     }
     return `Batch ${slotIndex + 1}${lotLabel}`;
   };
@@ -247,7 +274,7 @@ const ViewProductModal = ({
   const stockViewOptions = useMemo(() => {
     const options = [{ value: "totals", label: "Totals" }];
     for (let i = 0; i < maxBatchDepth; i += 1) {
-      options.push({ value: i, label: getBatchLabel(i, true) });
+      options.push({ value: i, label: getBatchLabel(i) });
     }
     return options;
   }, [maxBatchDepth, batchSlotLots]);
@@ -261,7 +288,7 @@ const ViewProductModal = ({
   const selectedStockViewLabel =
     batchTab === "totals"
       ? "Totals"
-      : getBatchLabel(batchTab, true);
+      : getBatchLabel(batchTab);
 
   /** Prices, variant labels, lot/exp for the selected batch slot (null when Totals) */
   const selectedBatchInsights = useMemo(() => {
@@ -605,7 +632,7 @@ const ViewProductModal = ({
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wide ${theme === "dark" ? "bg-[#AD7F65]/25 text-[#D4A88A]" : "bg-[#AD7F65]/15 text-[#76462B]"}`}
                           >
-                            {getBatchLabel(batchTab, batchTab === 0)}
+                            {getBatchLabel(batchTab)}
                           </span>
                           {batchMetaLine ? (
                             <span className={`text-[11px] ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>{batchMetaLine}</span>
@@ -714,17 +741,21 @@ const ViewProductModal = ({
                     <table className="w-full text-left text-sm whitespace-nowrap">
                       <thead className={`text-xs uppercase bg-opacity-50 ${theme === "dark" ? "bg-gray-800 text-gray-400" : "bg-gray-50 text-gray-600"}`}>
                         <tr>
-                          <th className="px-4 py-3 font-semibold">SKU</th>
-                          <th className="px-4 py-3 font-semibold">Variant / Size</th>
                           {showPerBatchColumn ? (
                             <>
-                              <th className="px-4 py-3 font-semibold">
-                                {getBatchLabel(batchTab, true)}
-                              </th>
+                              <th className="px-4 py-3 font-semibold">Date Added</th>
+                              <th className="px-4 py-3 font-semibold">SKU</th>
+                              <th className="px-4 py-3 font-semibold">Variant / Size</th>
+                              <th className="px-4 py-3 font-semibold">Qty Stocked In</th>
+                              <th className="px-4 py-3 font-semibold">Current Stock</th>
+                              <th className="px-4 py-3 font-semibold">Cost Price</th>
+                              <th className="px-4 py-3 font-semibold">Selling Price</th>
                               <th className="px-4 py-3 font-semibold">Expiration</th>
                             </>
                           ) : (
                             <>
+                              <th className="px-4 py-3 font-semibold">SKU</th>
+                              <th className="px-4 py-3 font-semibold">Variant / Size</th>
                               <th className="px-4 py-3 font-semibold">Stock</th>
                               <th className="px-4 py-3 font-semibold">Price</th>
                               <th className="px-4 py-3 font-semibold">Expiration</th>
@@ -760,14 +791,26 @@ const ViewProductModal = ({
 
                                 rows.push(
                                   <tr key={`${size}-${variantName}`} className={`transition-colors ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
-                                    <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
-                                    <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                      {size === VARIANT_ONLY_SIZE_KEY ? variantName : `${variantName} / ${size}`}
-                                    </td>
                                     {showPerBatchColumn ? (
                                       <>
                                         <td className="px-4 py-3">
-                                          {renderBatchSlotCell(batches[batchTab] ?? null, batchTab, true)}
+                                          {renderSingleBatchDateAddedCell(batches[batchTab] ?? null)}
+                                        </td>
+                                        <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
+                                        <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                          {size === VARIANT_ONLY_SIZE_KEY ? variantName : `${variantName} / ${size}`}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {renderBatchNumberCell(batches[batchTab]?.originalQty ?? batches[batchTab]?.qty ?? 0)}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                          {renderBatchNumberCell(batches[batchTab]?.qty ?? 0, "stock")}
+                                        </td>
+                                        <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-red-400" : "text-red-500"}`}>
+                                          ₱{Number(batches[batchTab]?.costPrice ?? 0).toFixed(2)}
+                                        </td>
+                                        <td className={`px-4 py-3 text-xs font-medium ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
+                                          ₱{Number(batches[batchTab]?.price ?? 0).toFixed(2)}
                                         </td>
                                         <td className="px-4 py-3">
                                           {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
@@ -775,6 +818,10 @@ const ViewProductModal = ({
                                       </>
                                     ) : (
                                       <>
+                                        <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
+                                        <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                          {size === VARIANT_ONLY_SIZE_KEY ? variantName : `${variantName} / ${size}`}
+                                        </td>
                                         <td className="px-4 py-3">
                                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${variantQty === 0 ? "bg-red-100 text-red-700" :
                                             variantQty <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
@@ -810,14 +857,26 @@ const ViewProductModal = ({
 
                               rows.push(
                                 <tr key={size} className={`transition-colors ${theme === "dark" ? "hover:bg-gray-800" : "hover:bg-gray-50"}`}>
-                                  <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
-                                  <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
-                                    {size}
-                                  </td>
                                   {showPerBatchColumn ? (
                                     <>
                                       <td className="px-4 py-3">
-                                        {renderBatchSlotCell(batches[batchTab] ?? null, batchTab, true)}
+                                        {renderSingleBatchDateAddedCell(batches[batchTab] ?? null)}
+                                      </td>
+                                      <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
+                                      <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                        {size}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {renderBatchNumberCell(batches[batchTab]?.originalQty ?? batches[batchTab]?.qty ?? 0)}
+                                      </td>
+                                      <td className="px-4 py-3">
+                                        {renderBatchNumberCell(batches[batchTab]?.qty ?? 0, "stock")}
+                                      </td>
+                                      <td className={`px-4 py-3 text-xs ${theme === "dark" ? "text-red-400" : "text-red-500"}`}>
+                                        ₱{Number(batches[batchTab]?.costPrice ?? 0).toFixed(2)}
+                                      </td>
+                                      <td className={`px-4 py-3 text-xs font-medium ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
+                                        ₱{Number(batches[batchTab]?.price ?? 0).toFixed(2)}
                                       </td>
                                       <td className="px-4 py-3">
                                         {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
@@ -825,6 +884,10 @@ const ViewProductModal = ({
                                     </>
                                   ) : (
                                     <>
+                                      <td className={`px-4 py-3 font-medium ${theme === "dark" ? "text-gray-300" : "text-gray-900"}`}>{dynamicSku}</td>
+                                      <td className={`px-4 py-3 ${theme === "dark" ? "text-gray-400" : "text-gray-600"}`}>
+                                        {size}
+                                      </td>
                                       <td className="px-4 py-3">
                                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${stock === 0 ? "bg-red-100 text-red-700" :
                                           stock <= (viewingProduct.reorderNumber || 10) ? "bg-yellow-100 text-yellow-700" :
@@ -857,7 +920,7 @@ const ViewProductModal = ({
                             rows.push(
                               <tr key="no-visible-options">
                                 <td
-                                  colSpan={showPerBatchColumn ? 4 : 5}
+                                  colSpan={showPerBatchColumn ? 8 : 5}
                                   className={`px-4 py-6 text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
                                 >
                                   No options with stock or batch history yet. Stock in to add inventory for a variant.
