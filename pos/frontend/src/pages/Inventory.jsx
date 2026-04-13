@@ -1758,44 +1758,97 @@ const Inventory = () => {
       }
 
 
-      const excludedFields = ["__v"];
+      const headers = [
+        "sku",
+        "itemName",
+        "category",
+        "subCategory",
+        "brandName",
+        "variantSummary",
+        "batchCount",
+        "itemPrice",
+        "costPrice",
+        "currentStock",
+        "unitOfMeasure",
+        "reorderNumber",
+        "stockStatus",
+        "displayInTerminal",
+        "dateAdded"
+      ];
 
-      const dynamicFields = new Set();
-      productsToExport.forEach((product) => {
-        Object.keys(product || {}).forEach((key) => {
+      const buildVariantSummary = (product) => {
+        const sizes = product?.sizes;
+        if (!sizes || typeof sizes !== "object") {
+          return product?.variant || "N/A";
+        }
+        const sizeKeys = Object.keys(sizes);
+        if (sizeKeys.length === 0) return product?.variant || "N/A";
 
-          if (!excludedFields.includes(key)) {
-            dynamicFields.add(key);
+        const variantSet = new Set();
+        sizeKeys.forEach((sizeKey) => {
+          const sizeData = sizes[sizeKey];
+          if (sizeData && typeof sizeData === "object" && sizeData.variants && typeof sizeData.variants === "object") {
+            Object.keys(sizeData.variants).forEach((v) => {
+              if (v) variantSet.add(v);
+            });
           }
         });
-      });
 
+        const sizeCount = sizeKeys.length;
+        const variantCount = variantSet.size;
+        if (variantCount > 0) return `${variantCount} variants x ${sizeCount} sizes`;
+        return `${sizeCount} sizes`;
+      };
 
-      const filteredPreferredOrder = preferredExportFieldOrder.filter(
-        (field) => !excludedFields.includes(field)
-      );
-
-      const orderedFields = filteredPreferredOrder.filter((field) =>
-        dynamicFields.has(field)
-      );
-      const remainingFields = Array.from(dynamicFields).
-        filter((field) => !orderedFields.includes(field)).
-        sort();
-      const headers = [...orderedFields, ...remainingFields, "stockStatus"];
+      const countBatchRows = (product) => {
+        const sizes = product?.sizes;
+        if (!sizes || typeof sizes !== "object") return 0;
+        let count = 0;
+        Object.values(sizes).forEach((sizeData) => {
+          if (!sizeData || typeof sizeData !== "object") return;
+          if (Array.isArray(sizeData.batches)) {
+            count += sizeData.batches.filter((b) => !!b && !b.batchSlotPadding).length;
+          }
+          if (sizeData.variants && typeof sizeData.variants === "object") {
+            Object.values(sizeData.variants).forEach((vData) => {
+              if (vData && typeof vData === "object" && Array.isArray(vData.batches)) {
+                count += vData.batches.filter((b) => !!b && !b.batchSlotPadding).length;
+              }
+            });
+          }
+        });
+        return count;
+      };
 
       const rows = productsToExport.map((product) => {
         const status = getStockStatus(
           product.currentStock,
           product.reorderNumber
         );
+        const variantSummary = buildVariantSummary(product);
+        const batchCount = countBatchRows(product);
         return headers.map((field) => {
-          if (field === "stockStatus") {
-            return status.label;
+          let value = "";
+          switch (field) {
+            case "stockStatus":
+              value = status.label;
+              break;
+            case "variantSummary":
+              value = variantSummary;
+              break;
+            case "batchCount":
+              value = batchCount;
+              break;
+            case "displayInTerminal":
+              value = product.displayInTerminal !== false ? "Yes" : "No";
+              break;
+            case "dateAdded":
+              value = formatDate(product.dateAdded);
+              break;
+            default:
+              value = product[field];
+              break;
           }
-          const value =
-            field === "dateAdded" || field === "lastUpdated" ?
-              formatDate(product[field]) :
-              product[field];
           return formatCsvValue(value);
         });
       });
