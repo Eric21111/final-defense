@@ -620,6 +620,8 @@ exports.stockInProduct = async (req, res) => {
       batchCode: stockData.batchCode ? String(stockData.batchCode).trim() : "",
       expirationDate: stockData.expirationDate ? String(stockData.expirationDate) : "",
     };
+    const hasVariantPayload =
+      !!(stockData.hasVariants && stockData.variantQuantities && typeof stockData.variantQuantities === "object" && Object.keys(stockData.variantQuantities).length > 0);
     const rawTargetSlot = stockData.targetBatchSlotIndex;
     const parsedTargetSlot = Number.isFinite(Number(rawTargetSlot))
       ? Math.floor(Number(rawTargetSlot))
@@ -628,7 +630,7 @@ exports.stockInProduct = async (req, res) => {
 
     // Stock-in from inventory always appends a new FIFO batch (never merge into a prior slot).
 
-    if (!product.sizes || typeof product.sizes !== "object" || Object.keys(product.sizes).length === 0) {
+    if ((!product.sizes || typeof product.sizes !== "object" || Object.keys(product.sizes).length === 0) && !hasVariantPayload) {
       // No sizes case: keep behavior same as before
       const qty = safeNum(stockData.quantity, 0);
       if (qty <= 0) {
