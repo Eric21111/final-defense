@@ -653,6 +653,29 @@ exports.stockInProduct = async (req, res) => {
     const sizeQuantitiesAdded = {};
 
     if (hasVariants) {
+      let globalMaxBatchLenBeforeAdd = 0;
+      if (!shouldAddToExistingSlot) {
+        selectedSizes.forEach((size) => {
+          const currentSizeData = ensureBatches(
+            toSizeObject(updatedSizes[size] || {}, product.itemPrice || 0, product.costPrice || 0),
+            product.itemPrice || 0,
+            product.costPrice || 0,
+          );
+          const currentVariants =
+            currentSizeData.variants && typeof currentSizeData.variants === "object" ? currentSizeData.variants : {};
+          const addVariantQtys = stockData.variantQuantities?.[size] || {};
+          Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
+            if (safeNum(addQty, 0) <= 0) return;
+            const fallbackExistingPrice =
+              safeNum(currentSizeData.variantPrices?.[variant], safeNum(currentSizeData.price, product.itemPrice || 0));
+            const fallbackExistingCost =
+              safeNum(currentSizeData.variantCostPrices?.[variant], safeNum(currentSizeData.costPrice, product.costPrice || 0));
+            const normalized = ensureBatches(currentVariants[variant] || {}, fallbackExistingPrice, fallbackExistingCost);
+            globalMaxBatchLenBeforeAdd = Math.max(globalMaxBatchLenBeforeAdd, normalized.batches.length);
+          });
+        });
+      }
+
       selectedSizes.forEach((size) => {
         const currentSizeData = ensureBatches(
           toSizeObject(updatedSizes[size] || {}, product.itemPrice || 0, product.costPrice || 0),
@@ -665,17 +688,6 @@ exports.stockInProduct = async (req, res) => {
 
         const addVariantQtys = stockData.variantQuantities?.[size] || {};
         const newVariants = { ...currentVariants };
-
-        let maxBatchLenBeforeAdd = 0;
-        Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
-          if (safeNum(addQty, 0) <= 0) return;
-          const fallbackExistingPrice =
-            safeNum(currentSizeData.variantPrices?.[variant], safeNum(currentSizeData.price, product.itemPrice || 0));
-          const fallbackExistingCost =
-            safeNum(currentSizeData.variantCostPrices?.[variant], safeNum(currentSizeData.costPrice, product.costPrice || 0));
-          const normalized = ensureBatches(currentVariants[variant] || {}, fallbackExistingPrice, fallbackExistingCost);
-          maxBatchLenBeforeAdd = Math.max(maxBatchLenBeforeAdd, normalized.batches.length);
-        });
 
         Object.entries(addVariantQtys).forEach(([variant, addQty]) => {
           const qty = safeNum(addQty, 0);
@@ -714,7 +726,7 @@ exports.stockInProduct = async (req, res) => {
               incomingCost,
             );
           } else {
-            const padLen = maxBatchLenBeforeAdd;
+            const padLen = globalMaxBatchLenBeforeAdd;
             const alignedBatches = padBatchesToLengthBeforeAdd(
               normalizedVariant.batches,
               padLen,

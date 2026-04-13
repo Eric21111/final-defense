@@ -58,6 +58,10 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
   const [stockInBatchChoice, setStockInBatchChoice] = useState("new");
   const { theme } = useTheme();
   const todayISO = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const brandPartnerNames = useMemo(
+    () => [...new Set(brandPartners.map((bp) => bp.brandName).filter(Boolean))].sort(),
+    [brandPartners],
+  );
 
   const reasons = ["Restock", "Returned Item", "Exchange", "Other"];
 
@@ -310,7 +314,13 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
       setAddedNewCombos([]);
       setNewComboData({});
       setFillAllCostSI(""); setFillAllSellSI(""); setFillAllQtySI("");
-      setStockInBrandPartner("");
+      const preferredBrand = String(product?.brandName || "").trim();
+      const defaultBrand =
+        (preferredBrand &&
+          brandPartnerNames.find((name) => String(name).trim().toLowerCase() === preferredBrand.toLowerCase())) ||
+        brandPartnerNames[0] ||
+        "";
+      setStockInBrandPartner(defaultBrand);
       setDateReceived(new Date().toISOString().split('T')[0]);
       setStockInBatchChoice("new");
 
@@ -340,7 +350,13 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
       setStockVariantPrices(initPrices);
       setDiffPricesPerVariant(initDiff);
     }
-  }, [isOpen, product?._id]);
+  }, [isOpen, product?._id, product?.brandName, brandPartnerNames]);
+
+  useEffect(() => {
+    if (!isOpen || stockInBrandPartner) return;
+    if (brandPartnerNames.length === 0) return;
+    setStockInBrandPartner(brandPartnerNames[0]);
+  }, [isOpen, stockInBrandPartner, brandPartnerNames]);
 
   if (!isOpen || !product) return null;
 
@@ -1174,7 +1190,7 @@ const StockInModal = ({ isOpen, onClose, product, onConfirm, loading, brandPartn
                             className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none cursor-pointer ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                           >
                             <option value="" disabled style={{ color: '#9CA3AF' }}>Select Brand Partner</option>
-                            {[...new Set(brandPartners.map(bp => bp.brandName).filter(Boolean))].sort().map((name) => (
+                            {brandPartnerNames.map((name) => (
                               <option key={name} value={name}>{name}</option>
                             ))}
                           </select>
