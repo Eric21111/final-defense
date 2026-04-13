@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "../../context/ThemeContext";
 import { generateDynamicSku } from "../../utils/skuUtils";
+import filterIcon from "../../assets/filter.svg";
 
 const VARIANT_ONLY_SIZE_KEY = "__VARIANT_ONLY__";
 
@@ -562,7 +563,11 @@ const ViewProductModal = ({
                               : "bg-white border-gray-300 text-gray-700 hover:border-[#AD7F65]"
                               }`}
                           >
-                            {batchSortOrder === "oldest" ? "↑" : "↓"}
+                            <img
+                              src={filterIcon}
+                              alt="Sort"
+                              className={`w-4 h-4 ${theme === "dark" ? "opacity-90 invert" : "opacity-90"}`}
+                            />
                           </button>
                         </div>
                       </div>
