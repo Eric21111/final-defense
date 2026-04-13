@@ -162,6 +162,7 @@ exports.getProductById = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const productData = { ...req.body };
+    let openingStockTotal = 0;
 
     if (!productData.sizes && productData.selectedSizes) {
       if (productData.selectedSizes.length > 0) {
@@ -328,6 +329,20 @@ exports.createProduct = async (req, res) => {
         }
       };
       attachOpeningBatches(productData.sizes);
+
+      openingStockTotal = Object.values(productData.sizes).reduce((sum, sizeData) => {
+        if (typeof sizeData === "object" && sizeData !== null && sizeData.quantity !== undefined) {
+          return sum + (parseInt(sizeData.quantity, 10) || 0);
+        }
+        return sum + (typeof sizeData === "number" ? (parseInt(sizeData, 10) || 0) : 0);
+      }, 0);
+    } else {
+      openingStockTotal = parseInt(productData.currentStock, 10) || 0;
+    }
+
+    productData.currentStock = openingStockTotal;
+    if (openingStockTotal <= 0 && productData.displayInTerminal === undefined) {
+      productData.displayInTerminal = false;
     }
 
     // Clean up temporary fields

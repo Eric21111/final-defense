@@ -241,10 +241,6 @@ const AddProductModal = ({
       case 2:
         return true;
       case 3:
-        if (selectedVariants.length > 0 || newProduct.selectedSizes?.length > 0) {
-          return true;
-        }
-          if (!newProduct.itemPrice || parseFloat(newProduct.itemPrice) <= 0) return false;
         return true;
       case 4: {
         const opening = getOpeningStockTotal();
