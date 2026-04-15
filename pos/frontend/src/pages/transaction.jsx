@@ -618,6 +618,7 @@ const Transaction = () => {
           reason: Array.from(reasons).join(", ") || "Returned item(s)",
           originalAmount,
           discountedAmount,
+          totalAmount: Math.max(0, originalAmount - discountedAmount),
           returnedAmount
         };
       })
@@ -1073,6 +1074,7 @@ const Transaction = () => {
         "Reason",
         "Original Amount",
         "Discounted Amount",
+        "Total Amount",
         "Returned Amount"
       ];
 
@@ -1098,7 +1100,8 @@ const Transaction = () => {
           escapeCSV(row.reason || ""),
           escapeCSV(row.originalAmount || 0),
           escapeCSV(row.discountedAmount || 0),
-          escapeCSV(row.returnedAmount || 0)
+          escapeCSV(row.totalAmount || 0),
+          escapeCSV(-Math.abs(row.returnedAmount || 0))
         ].join(",")
       );
 
@@ -1483,7 +1486,7 @@ const Transaction = () => {
     filteredTransactions.length;
   const totalPages = Math.ceil(activeRowCount / rowsPerPage) || 1;
   const transactionTableColumnCount = isExportSelectionMode ? 11 : 10;
-  const returnedTableColumnCount = isExportSelectionMode ? 9 : 8;
+  const returnedTableColumnCount = isExportSelectionMode ? 10 : 9;
   const showingStart = activeRowCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
   const showingEnd = Math.min(currentPage * rowsPerPage, activeRowCount);
 
@@ -1847,6 +1850,7 @@ const Transaction = () => {
                         "Reason",
                         "Original Amount",
                         "Discounted Amount",
+                        "Total",
                         "Returned Amount"] :
                       [
                         "Receipt No.",
@@ -1941,7 +1945,10 @@ const Transaction = () => {
                             })}
                           </td>
                           <td
-                            className={`px-4 py-3 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55]">
+                              {getInitials(row.returnedByName || "Staff")}
+                            </span>
                             {row.returnedByName}
                           </td>
                           <td
@@ -1954,8 +1961,11 @@ const Transaction = () => {
                           <td className="px-4 py-3 font-semibold">
                             {formatCurrency(row.discountedAmount)}
                           </td>
+                          <td className="px-4 py-3 font-semibold">
+                            {formatCurrency(row.totalAmount)}
+                          </td>
                           <td className="px-4 py-3 font-semibold text-orange-600">
-                            {formatCurrency(row.returnedAmount)}
+                            {formatCurrency(-Math.abs(row.returnedAmount))}
                           </td>
                         </tr>
                       );
