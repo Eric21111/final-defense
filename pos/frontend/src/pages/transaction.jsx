@@ -92,6 +92,11 @@ const formatCurrencyCompact = (value = 0) => {
   return n < 0 ? `-₱${abs}` : `₱${abs}`;
 };
 
+const toNumber = (value, fallback = 0) => {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 const sameTransactionId = (a, b) =>
   String(a?._id ?? a ?? "") === String(b?._id ?? b ?? "");
 
@@ -265,6 +270,7 @@ const Transaction = () => {
   const [isExportSelectionMode, setIsExportSelectionMode] = useState(false);
   const [showRemittanceModal, setShowRemittanceModal] = useState(false);
   const [staffList, setStaffList] = useState([]);
+  const [activeTab, setActiveTab] = useState("transactions");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 350);
@@ -546,10 +552,152 @@ const Transaction = () => {
     [kpiFilteredTransactions]
   );
 
+  const returnedLogs = useMemo(() => {
+    const rows = allRegularTransactions
+      .map((trx) => {
+        const returnEntries = Array.isArray(trx.returnTransactions)
+          ? trx.returnTransactions
+          : [];
+        const hasReturnActivity =
+          returnEntries.length > 0 ||
+          trx.status === "Returned" ||
+          trx.status === "Partially Returned";
+
+        if (!hasReturnActivity) {
+          return null;
+        }
+
+        const sortedReturns = [...returnEntries].sort((a, b) => {
+          const aDate = new Date(a.checkedOutAt || a.createdAt || 0);
+          const bDate = new Date(b.checkedOutAt || b.createdAt || 0);
+          return bDate - aDate;
+        });
+        const latestReturn = sortedReturns[0];
+
+        const reasons = new Set();
+        returnEntries.forEach((entry) => {
+          (entry.items || []).forEach((item) => {
+            const reason = String(item?.returnReason || "").trim();
+            if (reason) reasons.add(reason);
+          });
+        });
+        if (!reasons.size) {
+          (trx.items || []).forEach((item) => {
+            const reason = String(item?.returnReason || "").trim();
+            if (reason) reasons.add(reason);
+          });
+        }
+
+        const returnedAmount = returnEntries.reduce(
+          (sum, entry) => sum + toNumber(entry.totalAmount),
+          0
+        );
+        const remainingAmount = toNumber(trx.totalAmount);
+        const inferredOriginalAmount = lineSubtotalFromItems(trx) + returnedAmount;
+        const originalAmount = Math.max(inferredOriginalAmount, remainingAmount + returnedAmount);
+        const discountedAmount = Math.max(
+          0,
+          originalAmount - (remainingAmount + returnedAmount)
+        );
+
+        return {
+          _id: trx._id,
+          receiptNo: trx.receiptNo,
+          transactionId: trx.referenceNo || trx._id?.substring(0, 12) || "---",
+          returnedAt: new Date(
+            latestReturn?.checkedOutAt ||
+              latestReturn?.createdAt ||
+              trx.updatedAt ||
+              trx.checkedOutAt ||
+              trx.createdAt
+          ),
+          returnedByName: latestReturn?.performedByName || trx.performedByName || "Staff",
+          returnedById: String(latestReturn?.performedById || trx.performedById || ""),
+          reason: Array.from(reasons).join(", ") || "Returned item(s)",
+          originalAmount,
+          discountedAmount,
+          returnedAmount
+        };
+      })
+      .filter(Boolean);
+
+    rows.sort((a, b) => b.returnedAt - a.returnedAt);
+    return rows;
+  }, [allRegularTransactions]);
+
+  const filteredReturnedLogs = useMemo(() => {
+    return returnedLogs.filter((row) => {
+      const receiptLabel = row.receiptNo ? `#${row.receiptNo}` : "";
+      const matchesSearch =
+        !search ||
+        receiptLabel.toLowerCase().includes(search.toLowerCase()) ||
+        String(row.transactionId).toLowerCase().includes(search.toLowerCase());
+
+      const selectedEmp =
+        filters.user !== "All" ?
+          staffList.find((e) => String(e._id) === filters.user) :
+          null;
+      const selectedEmpName = selectedEmp ?
+        (selectedEmp.name || `${selectedEmp.firstName || ""} ${selectedEmp.lastName || ""}`).trim() :
+        "";
+
+      const matchesUser =
+        filters.user === "All" ||
+        row.returnedById === filters.user ||
+        (selectedEmpName && row.returnedByName === selectedEmpName);
+
+      let matchesDate = true;
+      if (filters.date === "Custom") {
+        if (startDate) {
+          const end = endDate || startDate;
+          const lo =
+            startOfDay(startDate) <= startOfDay(end) ?
+              startOfDay(startDate) :
+              startOfDay(end);
+          const hi =
+            startOfDay(startDate) <= startOfDay(end) ?
+              startOfDay(end) :
+              startOfDay(startDate);
+          const rowDay = startOfDay(row.returnedAt);
+          matchesDate = rowDay >= lo && rowDay <= hi;
+        }
+      } else if (filters.date !== "All") {
+        const rowDate = row.returnedAt;
+        const now = new Date();
+        const today = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate()
+        );
+
+        if (filters.date === "Today") {
+          matchesDate = isWithinInterval(rowDate, {
+            start: startOfDay(now),
+            end: endOfDay(now)
+          });
+        } else if (filters.date === "Last 7 days") {
+          const sevenDaysAgo = new Date(today);
+          sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+          matchesDate = rowDate >= sevenDaysAgo;
+        } else if (filters.date === "Last 30 days") {
+          const thirtyDaysAgo = new Date(today);
+          thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+          matchesDate = rowDate >= thirtyDaysAgo;
+        }
+      }
+
+      return matchesSearch && matchesUser && matchesDate;
+    });
+  }, [returnedLogs, search, filters.user, filters.date, startDate, endDate, staffList]);
+
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
     return filteredTransactions.slice(startIndex, startIndex + rowsPerPage);
   }, [filteredTransactions, currentPage]);
+  const paginatedReturnedLogs = useMemo(() => {
+    const startIndex = (currentPage - 1) * rowsPerPage;
+    return filteredReturnedLogs.slice(startIndex, startIndex + rowsPerPage);
+  }, [filteredReturnedLogs, currentPage]);
   const paginatedTransactionIds = useMemo(
     () => paginatedTransactions.map((trx) => trx._id).filter(Boolean),
     [paginatedTransactions]
@@ -605,6 +753,14 @@ const Transaction = () => {
       prev.filter((id) => filteredTransactions.some((trx) => trx._id === id))
     );
   }, [filteredTransactions]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    if (activeTab === "returned") {
+      setIsExportSelectionMode(false);
+      setSelectedTransactionIds([]);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     if (selectAllTransactionsRef.current) {
@@ -1193,8 +1349,15 @@ const Transaction = () => {
     }
   };
 
-  const totalPages = Math.ceil(filteredTransactions.length / rowsPerPage) || 1;
+  const isReturnedLogsTab = activeTab === "returned";
+  const activeRowCount = isReturnedLogsTab ?
+    filteredReturnedLogs.length :
+    filteredTransactions.length;
+  const totalPages = Math.ceil(activeRowCount / rowsPerPage) || 1;
   const transactionTableColumnCount = isExportSelectionMode ? 10 : 9;
+  const returnedTableColumnCount = 8;
+  const showingStart = activeRowCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
+  const showingEnd = Math.min(currentPage * rowsPerPage, activeRowCount);
 
 
   if (isInitialLoading.current && transactions.length === 0) {
@@ -1341,6 +1504,33 @@ const Transaction = () => {
               "bg-white border-white/80"}`
             }>
 
+            <div className="mb-4 flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setActiveTab("transactions")}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${activeTab === "transactions" ?
+                  "bg-[#AD7F65] text-white border-[#AD7F65]" :
+                  theme === "dark" ?
+                    "border-gray-600 text-gray-300 hover:border-[#AD7F65]" :
+                    "border-gray-200 text-gray-600 hover:border-[#AD7F65]"}`
+                }
+              >
+                Transaction Logs
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("returned")}
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${activeTab === "returned" ?
+                  "bg-[#AD7F65] text-white border-[#AD7F65]" :
+                  theme === "dark" ?
+                    "border-gray-600 text-gray-300 hover:border-[#AD7F65]" :
+                    "border-gray-200 text-gray-600 hover:border-[#AD7F65]"}`
+                }
+              >
+                Returned Logs
+              </button>
+            </div>
+
             <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-4">
               <div className="relative flex-1 min-w-0 w-full xl:max-w-xs 2xl:max-w-sm">
                 <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AD7F65]" />
@@ -1410,18 +1600,6 @@ const Transaction = () => {
                 </div>
 
                 <Dropdown
-                  label="Payment Method"
-                  options={paymentOptions}
-                  selected={filters.method}
-                  onSelect={(value) =>
-                    setFilters((prev) => ({ ...prev, method: value }))
-                  }
-                  isOpen={dropdownOpen.method}
-                  setIsOpen={(value) =>
-                    setDropdownOpen((prev) => ({ ...prev, method: value }))
-                  } />
-
-                <Dropdown
                   label="User"
                   options={userDropdownOptions}
                   selected={filters.user}
@@ -1434,21 +1612,38 @@ const Transaction = () => {
                     setDropdownOpen((prev) => ({ ...prev, user: value }))
                   } />
 
-                <Dropdown
-                  label="Status"
-                  options={statusOptions}
-                  selected={filters.status}
-                  onSelect={(value) =>
-                    setFilters((prev) => ({ ...prev, status: value }))
-                  }
-                  isOpen={dropdownOpen.status}
-                  setIsOpen={(value) =>
-                    setDropdownOpen((prev) => ({ ...prev, status: value }))
-                  } />
+                {!isReturnedLogsTab &&
+                  <>
+                    <Dropdown
+                      label="Payment Method"
+                      options={paymentOptions}
+                      selected={filters.method}
+                      onSelect={(value) =>
+                        setFilters((prev) => ({ ...prev, method: value }))
+                      }
+                      isOpen={dropdownOpen.method}
+                      setIsOpen={(value) =>
+                        setDropdownOpen((prev) => ({ ...prev, method: value }))
+                      } />
+
+                    <Dropdown
+                      label="Status"
+                      options={statusOptions}
+                      selected={filters.status}
+                      onSelect={(value) =>
+                        setFilters((prev) => ({ ...prev, status: value }))
+                      }
+                      isOpen={dropdownOpen.status}
+                      setIsOpen={(value) =>
+                        setDropdownOpen((prev) => ({ ...prev, status: value }))
+                      } />
+                  </>
+                }
 
               </div>
 
-              <div className="flex items-center gap-3">
+              {!isReturnedLogsTab &&
+                <div className="flex items-center gap-3">
               <button
                 onClick={handleExportButtonClick}
                 className={`rounded-xl shadow-md flex items-center justify-center gap-2 px-4 py-2.5 transition-colors ${isExportSelectionMode ?
@@ -1489,6 +1684,7 @@ const Transaction = () => {
                 </button>
               )}
             </div>
+              }
             </div>
 
             <div className="relative overflow-x-auto overflow-y-auto flex-1 min-h-0">
@@ -1496,12 +1692,11 @@ const Transaction = () => {
                 <thead className="sticky top-0">
                   <tr
                     className={`${theme === "dark" ? "bg-[#352F2A] text-[#C2A68C]" : "bg-[#F6EEE7] text-[#4A3B2F]"} text-xs uppercase tracking-wider`}>
-
-                    {isExportSelectionMode &&
+                    {!isReturnedLogsTab &&
+                      isExportSelectionMode &&
                       <th className="px-4 py-3 font-semibold">
                         <label
                           className={`flex items-center gap-2 ${theme === "dark" ? "text-[#C2A68C]" : "text-[#4A3B2F]"}`}>
-
                           <input
                             ref={selectAllTransactionsRef}
                             type="checkbox"
@@ -1512,20 +1707,29 @@ const Transaction = () => {
                                 allVisibleTransactionsSelected :
                                 false
                             } />
-
                           <span className="text-[11px] tracking-wide">All</span>
                         </label>
                       </th>
                     }
-                    {[
-                      "Receipt No.",
-                      "Transaction ID",
-                      "Date",
-                      "Performed By",
-                      "Payment Method",
-                      "Total",
-                      "Status",
-                      "Quick Action"].
+                    {(isReturnedLogsTab ?
+                      [
+                        "Receipt No.",
+                        "Transaction ID",
+                        "Date",
+                        "Returned By",
+                        "Reason",
+                        "Original Amount",
+                        "Discounted Amount",
+                        "Returned Amount"] :
+                      [
+                        "Receipt No.",
+                        "Transaction ID",
+                        "Date",
+                        "Performed By",
+                        "Payment Method",
+                        "Total",
+                        "Status",
+                        "Quick Action"]).
                       map((col) =>
                         <th key={col} className="px-4 py-3 font-semibold">
                           {col}
@@ -1534,148 +1738,198 @@ const Transaction = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {loading && paginatedTransactions.length === 0 &&
+                  {loading && activeRowCount === 0 &&
                     <tr>
                       <td
-                        colSpan={transactionTableColumnCount}
+                        colSpan={isReturnedLogsTab ? returnedTableColumnCount : transactionTableColumnCount}
                         className="py-10 text-center text-gray-500">
-
                         Loading transactions...
                       </td>
                     </tr>
                   }
-                  {!loading && paginatedTransactions.length === 0 &&
+                  {!loading && activeRowCount === 0 &&
                     <tr>
                       <td
-                        colSpan={transactionTableColumnCount}
+                        colSpan={isReturnedLogsTab ? returnedTableColumnCount : transactionTableColumnCount}
                         className="py-10 text-center text-gray-400 italic">
-
-                        No transactions found
+                        {isReturnedLogsTab ?
+                          "No returned transactions found" :
+                          "No transactions found"}
                       </td>
                     </tr>
                   }
-                  {paginatedTransactions.map((trx, index) => {
-                    const isActive = selectedTransaction?._id === trx._id;
-                    return (
-                      <tr
-                        key={trx._id}
-                        onClick={() => handleRowClick(trx)}
-                        className={`cursor-pointer border-b transition-all ${theme === "dark" ?
-                          "border-gray-700" :
-                          "border-gray-100"} ${isActive ?
-                            theme === "dark" ?
-                              "bg-[#352F2A]" :
-                              "bg-[#FDF7F1] shadow-inner" :
-                            theme === "dark" ?
-                              "hover:bg-[#2A2521] text-gray-300" :
-                              "hover:bg-[#F9F2EC]"}`
-                        }>
-
-                        {isExportSelectionMode &&
+                  {isReturnedLogsTab ?
+                    paginatedReturnedLogs.map((row) => {
+                      const isActive = selectedTransaction?._id === row._id;
+                      return (
+                        <tr
+                          key={row._id}
+                          onClick={() => {
+                            const transactionRecord = transactions.find((t) =>
+                              sameTransactionId(t, row._id)
+                            );
+                            if (transactionRecord) {
+                              handleRowClick(transactionRecord);
+                            }
+                          }}
+                          className={`cursor-pointer border-b transition-all ${theme === "dark" ?
+                            "border-gray-700" :
+                            "border-gray-100"} ${isActive ?
+                              theme === "dark" ?
+                                "bg-[#352F2A]" :
+                                "bg-[#FDF7F1] shadow-inner" :
+                              theme === "dark" ?
+                                "hover:bg-[#2A2521] text-gray-300" :
+                                "hover:bg-[#F9F2EC]"}`
+                          }>
                           <td
-                            className="px-4 py-3"
-                            onClick={(e) => e.stopPropagation()}>
-
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
-                              checked={selectedTransactionIds.includes(trx._id)}
-                              onChange={() =>
-                                handleToggleTransactionSelection(trx._id)
-                              }
-                              disabled={!trx._id} />
-
+                            className={`px-4 py-3 font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                            {row.receiptNo ? `#${row.receiptNo}` : "---"}
                           </td>
-                        }
-                        <td
-                          className={`px-4 py-3 font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
-
-                          {trx.receiptNo ? `#${trx.receiptNo}` : "---"}
-                        </td>
-                        <td
-                          className={`px-4 py-3 font-semibold text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}>
-
-                          {trx.referenceNo ||
-                            trx._id?.substring(0, 12) ||
-                            "---"}
-                        </td>
-                        <td className="px-4 py-3 text-gray-500">
-                          {new Date(trx.checkedOutAt).toLocaleDateString(
-                            undefined,
-                            {
+                          <td
+                            className={`px-4 py-3 font-semibold text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}>
+                            {row.transactionId}
+                          </td>
+                          <td className="px-4 py-3 text-gray-500">
+                            {row.returnedAt.toLocaleDateString(undefined, {
                               month: "short",
                               day: "numeric",
                               year: "numeric"
-                            }
-                          )}
-                        </td>
-                        <td
-                          className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-
-                          <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55]">
-                            {getInitials(trx.performedByName || "Staff")}
-                          </span>
-                          {trx.performedByName || "Staff"}
-                        </td>
-                        <td className="px-4 py-3 capitalize">
-                          {trx.paymentMethod}
-                        </td>
-                        <td className="px-4 py-3 font-semibold">
-                          {formatCurrency(trx.totalAmount)}
-                        </td>
-                        <td className="px-4 py-3">
-                          {renderStatusPill(trx.status)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <button
-                              title="View"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleViewClick(trx);
-                              }}
-                              className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 whitespace-nowrap transition-all ${theme === "dark" ?
-                                "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-green-500 hover:text-green-500" :
-                                "bg-white border-gray-200 text-gray-500 hover:border-green-500 hover:text-green-600"}`
-                              }>
-
-                              <FaEye />
-                            </button>
-                            <button
-                              title="Print"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePrintClick(trx);
-                              }}
-                              className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all ${theme === "dark" ?
-                                "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-500" :
-                                "bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600"}`
-                              }>
-
-                              <FaPrint />
-                            </button>
-                            {isTransactionReturnable(trx) &&
-                              trx.status !== "Returned" &&
-                              trx.status !== "Voided" &&
+                            })}
+                          </td>
+                          <td
+                            className={`px-4 py-3 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            {row.returnedByName}
+                          </td>
+                          <td
+                            className={`px-4 py-3 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                            {row.reason}
+                          </td>
+                          <td className="px-4 py-3 font-semibold">
+                            {formatCurrency(row.originalAmount)}
+                          </td>
+                          <td className="px-4 py-3 font-semibold">
+                            {formatCurrency(row.discountedAmount)}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-orange-600">
+                            {formatCurrency(row.returnedAmount)}
+                          </td>
+                        </tr>
+                      );
+                    }) :
+                    paginatedTransactions.map((trx) => {
+                      const isActive = selectedTransaction?._id === trx._id;
+                      return (
+                        <tr
+                          key={trx._id}
+                          onClick={() => handleRowClick(trx)}
+                          className={`cursor-pointer border-b transition-all ${theme === "dark" ?
+                            "border-gray-700" :
+                            "border-gray-100"} ${isActive ?
+                              theme === "dark" ?
+                                "bg-[#352F2A]" :
+                                "bg-[#FDF7F1] shadow-inner" :
+                              theme === "dark" ?
+                                "hover:bg-[#2A2521] text-gray-300" :
+                                "hover:bg-[#F9F2EC]"}`
+                          }>
+                          {isExportSelectionMode &&
+                            <td
+                              className="px-4 py-3"
+                              onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
+                                checked={selectedTransactionIds.includes(trx._id)}
+                                onChange={() =>
+                                  handleToggleTransactionSelection(trx._id)
+                                }
+                                disabled={!trx._id} />
+                            </td>
+                          }
+                          <td
+                            className={`px-4 py-3 font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
+                            {trx.receiptNo ? `#${trx.receiptNo}` : "---"}
+                          </td>
+                          <td
+                            className={`px-4 py-3 font-semibold text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-700"}`}>
+                            {trx.referenceNo ||
+                              trx._id?.substring(0, 12) ||
+                              "---"}
+                          </td>
+                          <td className="px-4 py-3 text-gray-500">
+                            {new Date(trx.checkedOutAt).toLocaleDateString(
+                              undefined,
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric"
+                              }
+                            )}
+                          </td>
+                          <td
+                            className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55]">
+                              {getInitials(trx.performedByName || "Staff")}
+                            </span>
+                            {trx.performedByName || "Staff"}
+                          </td>
+                          <td className="px-4 py-3 capitalize">
+                            {trx.paymentMethod}
+                          </td>
+                          <td className="px-4 py-3 font-semibold">
+                            {formatCurrency(trx.totalAmount)}
+                          </td>
+                          <td className="px-4 py-3">
+                            {renderStatusPill(trx.status)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
                               <button
-                                title="Return"
+                                title="View"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleReturnClick(trx);
+                                  handleViewClick(trx);
+                                }}
+                                className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 whitespace-nowrap transition-all ${theme === "dark" ?
+                                  "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-green-500 hover:text-green-500" :
+                                  "bg-white border-gray-200 text-gray-500 hover:border-green-500 hover:text-green-600"}`
+                                }>
+                                <FaEye />
+                              </button>
+                              <button
+                                title="Print"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePrintClick(trx);
                                 }}
                                 className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all ${theme === "dark" ?
-                                  "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-orange-500 hover:text-orange-500" :
-                                  "bg-white border-gray-200 text-gray-500 hover:border-orange-500 hover:text-orange-600"}`
+                                  "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-500" :
+                                  "bg-white border-gray-200 text-gray-500 hover:border-blue-500 hover:text-blue-600"}`
                                 }>
-
-                                <FaUndoAlt />
+                                <FaPrint />
                               </button>
-                            }
-                          </div>
-                        </td>
-                      </tr>);
-
-                  })}
+                              {isTransactionReturnable(trx) &&
+                                trx.status !== "Returned" &&
+                                trx.status !== "Voided" &&
+                                <button
+                                  title="Return"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleReturnClick(trx);
+                                  }}
+                                  className={`w-9 h-9 border rounded-xl flex items-center justify-center shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all ${theme === "dark" ?
+                                    "bg-[#2A2724] border-gray-600 text-gray-400 hover:border-orange-500 hover:text-orange-500" :
+                                    "bg-white border-gray-200 text-gray-500 hover:border-orange-500 hover:text-orange-600"}`
+                                  }>
+                                  <FaUndoAlt />
+                                </button>
+                              }
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -1683,13 +1937,7 @@ const Transaction = () => {
             <div className="flex items-center justify-between mt-5">
               <div
                 className={`text-xs ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
-
-                Showing {(currentPage - 1) * rowsPerPage + 1}-
-                {Math.min(
-                  currentPage * rowsPerPage,
-                  filteredTransactions.length
-                )}{" "}
-                of {filteredTransactions.length}
+                Showing {showingStart}-{showingEnd} of {activeRowCount}
               </div>
               <div
                 className={`flex items-center gap-2 rounded-full border px-3 py-1 shadow-inner ${theme === "dark" ?
