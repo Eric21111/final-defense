@@ -267,6 +267,7 @@ const Transaction = () => {
   const [showReturnSuccessModal, setShowReturnSuccessModal] = useState(false);
   const rowsPerPage = 8;
   const [selectedTransactionIds, setSelectedTransactionIds] = useState([]);
+  const [selectedReturnedLogIds, setSelectedReturnedLogIds] = useState([]);
   const [isExportSelectionMode, setIsExportSelectionMode] = useState(false);
   const [showRemittanceModal, setShowRemittanceModal] = useState(false);
   const [staffList, setStaffList] = useState([]);
@@ -296,6 +297,7 @@ const Transaction = () => {
   const isInitialLoading = useRef(true);
   const setCachedDataRef = useRef(setCachedData);
   const selectAllTransactionsRef = useRef(null);
+  const selectAllReturnedLogsRef = useRef(null);
 
 
   useEffect(() => {
@@ -708,6 +710,16 @@ const Transaction = () => {
   const someVisibleTransactionsSelected = paginatedTransactionIds.some((id) =>
     selectedTransactionIds.includes(id)
   );
+  const paginatedReturnedLogIds = useMemo(
+    () => paginatedReturnedLogs.map((row) => row._id).filter(Boolean),
+    [paginatedReturnedLogs]
+  );
+  const allVisibleReturnedLogsSelected =
+    paginatedReturnedLogIds.length > 0 &&
+    paginatedReturnedLogIds.every((id) => selectedReturnedLogIds.includes(id));
+  const someVisibleReturnedLogsSelected = paginatedReturnedLogIds.some((id) =>
+    selectedReturnedLogIds.includes(id)
+  );
 
   const kpis = useMemo(() => {
     const list = kpiFilteredTransactions;
@@ -755,11 +767,16 @@ const Transaction = () => {
   }, [filteredTransactions]);
 
   useEffect(() => {
+    setSelectedReturnedLogIds((prev) =>
+      prev.filter((id) => filteredReturnedLogs.some((row) => row._id === id))
+    );
+  }, [filteredReturnedLogs]);
+
+  useEffect(() => {
     setCurrentPage(1);
-    if (activeTab === "returned") {
-      setIsExportSelectionMode(false);
-      setSelectedTransactionIds([]);
-    }
+    setIsExportSelectionMode(false);
+    setSelectedTransactionIds([]);
+    setSelectedReturnedLogIds([]);
   }, [activeTab]);
 
   useEffect(() => {
@@ -769,10 +786,18 @@ const Transaction = () => {
         !allVisibleTransactionsSelected &&
         someVisibleTransactionsSelected;
     }
+    if (selectAllReturnedLogsRef.current) {
+      selectAllReturnedLogsRef.current.indeterminate =
+        isExportSelectionMode &&
+        !allVisibleReturnedLogsSelected &&
+        someVisibleReturnedLogsSelected;
+    }
   }, [
     isExportSelectionMode,
     allVisibleTransactionsSelected,
-    someVisibleTransactionsSelected]
+    someVisibleTransactionsSelected,
+    allVisibleReturnedLogsSelected,
+    someVisibleReturnedLogsSelected]
   );
 
 
@@ -820,10 +845,38 @@ const Transaction = () => {
     });
   };
 
+  const handleToggleReturnedLogSelection = (logId) => {
+    if (!logId) return;
+    setSelectedReturnedLogIds((prev) =>
+      prev.includes(logId) ?
+        prev.filter((id) => id !== logId) :
+        [...prev, logId]
+    );
+  };
+
+  const handleToggleSelectAllReturnedLogs = () => {
+    setSelectedReturnedLogIds((prev) => {
+      if (allVisibleReturnedLogsSelected) {
+        return prev.filter((id) => !paginatedReturnedLogIds.includes(id));
+      }
+      const merged = new Set(prev);
+      paginatedReturnedLogIds.forEach((id) => merged.add(id));
+      return Array.from(merged);
+    });
+  };
+
   const handleExportButtonClick = () => {
     if (!isExportSelectionMode) {
       setIsExportSelectionMode(true);
-      setSelectedTransactionIds([]);
+      if (activeTab === "returned") {
+        setSelectedReturnedLogIds([]);
+      } else {
+        setSelectedTransactionIds([]);
+      }
+      return;
+    }
+    if (activeTab === "returned") {
+      handleExportReturnedLogsToCSV();
       return;
     }
     handleExportToCSV();
@@ -832,6 +885,7 @@ const Transaction = () => {
   const handleCancelExportSelection = () => {
     setIsExportSelectionMode(false);
     setSelectedTransactionIds([]);
+    setSelectedReturnedLogIds([]);
   };
 
   const renderStatusPill = (status = "Completed") =>
@@ -994,6 +1048,80 @@ const Transaction = () => {
     } catch (error) {
       console.error("Error exporting transactions:", error);
       alert("Failed to export transactions. Please try again.");
+    }
+  };
+
+  const handleExportReturnedLogsToCSV = () => {
+    try {
+      const rowsToExport =
+        selectedReturnedLogIds.length > 0 ?
+          filteredReturnedLogs.filter((row) =>
+            selectedReturnedLogIds.includes(row._id)
+          ) :
+          [];
+
+      if (rowsToExport.length === 0) {
+        alert("Please select at least one returned log to export.");
+        return;
+      }
+
+      const headers = [
+        "Receipt No.",
+        "Transaction ID",
+        "Date",
+        "Returned By",
+        "Reason",
+        "Original Amount",
+        "Discounted Amount",
+        "Returned Amount"
+      ];
+
+      const escapeCSV = (value) => {
+        if (value === null || value === undefined) return "";
+        const str = String(value);
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      const csvRows = rowsToExport.map((row) =>
+        [
+          escapeCSV(row.receiptNo ? `#${row.receiptNo}` : ""),
+          escapeCSV(row.transactionId || ""),
+          escapeCSV(
+            row.returnedAt ?
+              row.returnedAt.toLocaleDateString() :
+              ""
+          ),
+          escapeCSV(row.returnedByName || ""),
+          escapeCSV(row.reason || ""),
+          escapeCSV(row.originalAmount || 0),
+          escapeCSV(row.discountedAmount || 0),
+          escapeCSV(row.returnedAmount || 0)
+        ].join(",")
+      );
+
+      const csvContent = [headers.join(","), ...csvRows].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute(
+        "download",
+        `returned_logs_export_${new Date().toISOString().split("T")[0]}.csv`
+      );
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      alert("Returned logs exported successfully!");
+      setIsExportSelectionMode(false);
+      setSelectedReturnedLogIds([]);
+    } catch (error) {
+      console.error("Error exporting returned logs:", error);
+      alert("Failed to export returned logs. Please try again.");
     }
   };
 
@@ -1355,7 +1483,7 @@ const Transaction = () => {
     filteredTransactions.length;
   const totalPages = Math.ceil(activeRowCount / rowsPerPage) || 1;
   const transactionTableColumnCount = isExportSelectionMode ? 10 : 9;
-  const returnedTableColumnCount = 8;
+  const returnedTableColumnCount = isExportSelectionMode ? 9 : 8;
   const showingStart = activeRowCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
   const showingEnd = Math.min(currentPage * rowsPerPage, activeRowCount);
 
@@ -1383,6 +1511,33 @@ const Transaction = () => {
           pageName="Transactions"
           showBorder={false}
           profileBackground="" />
+
+        <div className="mt-4 mb-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setActiveTab("transactions")}
+            className={`px-7 py-3 rounded-2xl text-xl font-semibold border transition-all ${theme === "dark" ?
+              "bg-[#2A2724] border-gray-600 text-gray-200" :
+              "bg-white border-gray-200 text-[#22314A]"} ${activeTab === "transactions" ?
+                "shadow-[0_4px_0_0_rgba(173,127,101,0.75)] !text-[#AD7F65]" :
+                "shadow-[0_6px_14px_rgba(15,23,42,0.08)] hover:-translate-y-0.5"}`
+            }
+          >
+            Transaction Logs
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("returned")}
+            className={`px-7 py-3 rounded-2xl text-xl font-semibold border transition-all ${theme === "dark" ?
+              "bg-[#2A2724] border-gray-600 text-gray-200" :
+              "bg-white border-gray-200 text-[#22314A]"} ${activeTab === "returned" ?
+                "shadow-[0_4px_0_0_rgba(173,127,101,0.75)] !text-[#AD7F65]" :
+                "shadow-[0_6px_14px_rgba(15,23,42,0.08)] hover:-translate-y-0.5"}`
+            }
+          >
+            Returned Logs
+          </button>
+        </div>
 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 mt-4 w-full">
@@ -1504,33 +1659,6 @@ const Transaction = () => {
               "bg-white border-white/80"}`
             }>
 
-            <div className="mb-4 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setActiveTab("transactions")}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${activeTab === "transactions" ?
-                  "bg-[#AD7F65] text-white border-[#AD7F65]" :
-                  theme === "dark" ?
-                    "border-gray-600 text-gray-300 hover:border-[#AD7F65]" :
-                    "border-gray-200 text-gray-600 hover:border-[#AD7F65]"}`
-                }
-              >
-                Transaction Logs
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveTab("returned")}
-                className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${activeTab === "returned" ?
-                  "bg-[#AD7F65] text-white border-[#AD7F65]" :
-                  theme === "dark" ?
-                    "border-gray-600 text-gray-300 hover:border-[#AD7F65]" :
-                    "border-gray-200 text-gray-600 hover:border-[#AD7F65]"}`
-                }
-              >
-                Returned Logs
-              </button>
-            </div>
-
             <div className="flex flex-col xl:flex-row xl:items-center gap-4 mb-4">
               <div className="relative flex-1 min-w-0 w-full xl:max-w-xs 2xl:max-w-sm">
                 <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-[#AD7F65]" />
@@ -1642,8 +1770,7 @@ const Transaction = () => {
 
               </div>
 
-              {!isReturnedLogsTab &&
-                <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3">
               <button
                 onClick={handleExportButtonClick}
                 className={`rounded-xl shadow-md flex items-center justify-center gap-2 px-4 py-2.5 transition-colors ${isExportSelectionMode ?
@@ -1684,7 +1811,6 @@ const Transaction = () => {
                 </button>
               )}
             </div>
-              }
             </div>
 
             <div className="relative overflow-x-auto overflow-y-auto flex-1 min-h-0">
@@ -1692,19 +1818,20 @@ const Transaction = () => {
                 <thead className="sticky top-0">
                   <tr
                     className={`${theme === "dark" ? "bg-[#352F2A] text-[#C2A68C]" : "bg-[#F6EEE7] text-[#4A3B2F]"} text-xs uppercase tracking-wider`}>
-                    {!isReturnedLogsTab &&
-                      isExportSelectionMode &&
+                    {isExportSelectionMode &&
                       <th className="px-4 py-3 font-semibold">
                         <label
                           className={`flex items-center gap-2 ${theme === "dark" ? "text-[#C2A68C]" : "text-[#4A3B2F]"}`}>
                           <input
-                            ref={selectAllTransactionsRef}
+                            ref={isReturnedLogsTab ? selectAllReturnedLogsRef : selectAllTransactionsRef}
                             type="checkbox"
                             className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
-                            onChange={handleToggleSelectAllTransactions}
+                            onChange={isReturnedLogsTab ? handleToggleSelectAllReturnedLogs : handleToggleSelectAllTransactions}
                             checked={
                               isExportSelectionMode ?
-                                allVisibleTransactionsSelected :
+                                isReturnedLogsTab ?
+                                  allVisibleReturnedLogsSelected :
+                                  allVisibleTransactionsSelected :
                                 false
                             } />
                           <span className="text-[11px] tracking-wide">All</span>
@@ -1782,6 +1909,20 @@ const Transaction = () => {
                                 "hover:bg-[#2A2521] text-gray-300" :
                                 "hover:bg-[#F9F2EC]"}`
                           }>
+                          {isExportSelectionMode &&
+                            <td
+                              className="px-4 py-3"
+                              onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 text-[#AD7F65] border-[#AD7F65] rounded focus:ring-[#AD7F65]"
+                                checked={selectedReturnedLogIds.includes(row._id)}
+                                onChange={() =>
+                                  handleToggleReturnedLogSelection(row._id)
+                                }
+                                disabled={!row._id} />
+                            </td>
+                          }
                           <td
                             className={`px-4 py-3 font-semibold ${theme === "dark" ? "text-white" : "text-gray-800"}`}>
                             {row.receiptNo ? `#${row.receiptNo}` : "---"}
@@ -2024,15 +2165,17 @@ const Transaction = () => {
               <div
                 className={`font-mono text-xs space-y-2 ${theme === "dark" ? "text-gray-300" : ""}`}>
 
-                <div className="flex justify-between text-gray-500">
-                  <span>Receipt No:</span>
-                  <span className="font-bold text-[#AD7F65]">
-                    {selectedTransaction?.status === "Completed" &&
-                      selectedTransaction?.receiptNo ?
-                      `#${selectedTransaction.receiptNo}` :
-                      "---"}
-                  </span>
-                </div>
+                {!isReturnedLogsTab &&
+                  <div className="flex justify-between text-gray-500">
+                    <span>Receipt No:</span>
+                    <span className="font-bold text-[#AD7F65]">
+                      {selectedTransaction?.status === "Completed" &&
+                        selectedTransaction?.receiptNo ?
+                        `#${selectedTransaction.receiptNo}` :
+                        "---"}
+                    </span>
+                  </div>
+                }
                 <div className="flex justify-between text-gray-500">
                   <span>Date:</span>
                   <span>
