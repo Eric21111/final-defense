@@ -2165,7 +2165,8 @@ const Transaction = () => {
             </div>
           </div>
 
-          <div className="w-full lg:w-[380px] xl:w-[420px]">
+          {!isReturnedLogsTab &&
+            <div className="w-full lg:w-[380px] xl:w-[420px]">
             <div
               className={`rounded-2xl border shadow-[0_20px_45px_rgba(0,0,0,0.08)] p-6 sticky top-8 ${theme === "dark" ?
                 "bg-[#2A2724] border-[#4A4037]" :
@@ -2272,6 +2273,7 @@ const Transaction = () => {
               </p>
             </div>
           </div>
+          }
         </div>
 
         <ViewTransactionModal
