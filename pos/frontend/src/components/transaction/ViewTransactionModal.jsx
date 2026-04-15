@@ -5,7 +5,7 @@ import {
   lineSubtotalFromItems,
   resolveTransactionDiscount
 } from '../../utils/transactionDisplay';
-
+// comment kahit saan
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
