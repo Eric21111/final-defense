@@ -1482,7 +1482,7 @@ const Transaction = () => {
     filteredReturnedLogs.length :
     filteredTransactions.length;
   const totalPages = Math.ceil(activeRowCount / rowsPerPage) || 1;
-  const transactionTableColumnCount = isExportSelectionMode ? 10 : 9;
+  const transactionTableColumnCount = isExportSelectionMode ? 11 : 10;
   const returnedTableColumnCount = isExportSelectionMode ? 9 : 8;
   const showingStart = activeRowCount === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1;
   const showingEnd = Math.min(currentPage * rowsPerPage, activeRowCount);
@@ -1854,6 +1854,8 @@ const Transaction = () => {
                         "Date",
                         "Performed By",
                         "Payment Method",
+                        "Original Amount",
+                        "Discounted Amount",
                         "Total",
                         "Status",
                         "Quick Action"]).
@@ -1960,6 +1962,14 @@ const Transaction = () => {
                     }) :
                     paginatedTransactions.map((trx) => {
                       const isActive = selectedTransaction?._id === trx._id;
+                      const lineSub = lineSubtotalFromItems(trx) || trx.totalAmount || 0;
+                      const hasReturnActivity =
+                        (trx.returnTransactions?.length || 0) > 0 ||
+                        trx.status === "Returned" ||
+                        trx.status === "Partially Returned";
+                      const discountedAmount = resolveTransactionDiscount(trx, lineSub, {
+                        skipInference: hasReturnActivity
+                      });
                       return (
                         <tr
                           key={trx._id}
@@ -2017,6 +2027,12 @@ const Transaction = () => {
                           </td>
                           <td className="px-4 py-3 capitalize">
                             {trx.paymentMethod}
+                          </td>
+                          <td className="px-4 py-3 font-semibold">
+                            {formatCurrency(lineSub)}
+                          </td>
+                          <td className="px-4 py-3 font-semibold">
+                            {formatCurrency(discountedAmount)}
                           </td>
                           <td className="px-4 py-3 font-semibold">
                             {formatCurrency(trx.totalAmount)}
