@@ -1516,7 +1516,7 @@ const Transaction = () => {
           <button
             type="button"
             onClick={() => setActiveTab("transactions")}
-            className={`px-7 py-3 rounded-2xl text-xl font-semibold border transition-all ${theme === "dark" ?
+            className={`px-5 py-2.5 rounded-xl text-base font-semibold border transition-all ${theme === "dark" ?
               "bg-[#2A2724] border-gray-600 text-gray-200" :
               "bg-white border-gray-200 text-[#22314A]"} ${activeTab === "transactions" ?
                 "shadow-[0_4px_0_0_rgba(173,127,101,0.75)] !text-[#AD7F65]" :
@@ -1528,7 +1528,7 @@ const Transaction = () => {
           <button
             type="button"
             onClick={() => setActiveTab("returned")}
-            className={`px-7 py-3 rounded-2xl text-xl font-semibold border transition-all ${theme === "dark" ?
+            className={`px-5 py-2.5 rounded-xl text-base font-semibold border transition-all ${theme === "dark" ?
               "bg-[#2A2724] border-gray-600 text-gray-200" :
               "bg-white border-gray-200 text-[#22314A]"} ${activeTab === "returned" ?
                 "shadow-[0_4px_0_0_rgba(173,127,101,0.75)] !text-[#AD7F65]" :
