@@ -1286,45 +1286,49 @@ const AddProductModal = ({
                 {/* ── Step 4: Batch ── */}
                 {currentStep === 4 && (
                   <div className="space-y-5 pt-10">
-                    {/* Reorder Level */}
-                    <div className="flex items-start justify-between gap-6">
-                      <div className="flex-1">
-                        <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Reorder Level (Per SKU) <span className='text-red-500'>*</span></label>
-                        <p className={`text-[10px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>System alerts when any SKU falls below this level.</p>
-                          </div>
-                      <input type="number" min="0" name="reorderNumber" value={newProduct.reorderNumber || ""} onChange={handleInputChange} placeholder="eg. 23"
-                        className={`w-36 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`} />
-                    </div>
-
-                    {newProduct.expirationDate &&
-                      <div className="flex items-start justify-between gap-6">
-                        <div className="flex-1">
-                          <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                            Expiration Threshold (days)
-                          </label>
-                          <p className={`text-[10px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-                            Alert users when this product is nearing expiration.
-                          </p>
-                        </div>
-                        <input
-                          type="number"
-                          min="0"
-                          name="expirationThresholdDays"
-                          value={newProduct.expirationThresholdDays || ""}
-                          onChange={handleInputChange}
-                          placeholder="eg. 30"
-                          className={`w-36 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`}
-                        />
-                      </div>
-                    }
-
-                    <div className={`h-px w-full ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
-
                     {(() => {
                       const openingStockTotal = getOpeningStockTotal();
                       const hasOpeningStock = openingStockTotal > 0;
                       return (
                         <>
+                          {hasOpeningStock && (
+                            <>
+                              {/* Reorder Level */}
+                              <div className="flex items-start justify-between gap-6">
+                                <div className="flex-1">
+                                  <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Reorder Level (Per SKU) <span className='text-red-500'>*</span></label>
+                                  <p className={`text-[10px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>System alerts when any SKU falls below this level.</p>
+                                </div>
+                                <input type="number" min="0" name="reorderNumber" value={newProduct.reorderNumber || ""} onChange={handleInputChange} placeholder="eg. 23"
+                                  className={`w-36 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`} />
+                              </div>
+
+                              {newProduct.expirationDate &&
+                                <div className="flex items-start justify-between gap-6">
+                                  <div className="flex-1">
+                                    <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                                      Expiration Threshold (days)
+                                    </label>
+                                    <p className={`text-[10px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                                      Alert users when this product is nearing expiration.
+                                    </p>
+                                  </div>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    name="expirationThresholdDays"
+                                    value={newProduct.expirationThresholdDays || ""}
+                                    onChange={handleInputChange}
+                                    placeholder="eg. 30"
+                                    className={`w-36 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`}
+                                  />
+                                </div>
+                              }
+
+                              <div className={`h-px w-full ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
+                            </>
+                          )}
+
                             <div>
                             <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Initial stock batch</label>
                             <p className={`text-[10px] mb-3 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
