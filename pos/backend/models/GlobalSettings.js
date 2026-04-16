@@ -12,6 +12,11 @@ const openingFloatEntrySchema = new mongoose.Schema(
             required: true,
             trim: true,
         },
+        employeeRole: {
+            type: String,
+            default: "",
+            trim: true,
+        },
         amount: {
             type: Number,
             required: true,
@@ -24,6 +29,10 @@ const openingFloatEntrySchema = new mongoose.Schema(
         businessDate: {
             type: Date,
             default: Date.now,
+        },
+        updatedAt: {
+            type: Date,
+            default: null,
         },
     },
     { _id: true }

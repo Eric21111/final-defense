@@ -11,8 +11,10 @@ const toNumericFloat = (value, fallback = 0) => {
 };
 
 const normalizeOpeningFloatEntry = (entry = {}) => {
+    const id = String(entry._id || entry.id || "").trim();
     const employeeId = String(entry.employeeId || "").trim();
     const employeeName = String(entry.employeeName || "").trim();
+    const employeeRole = String(entry.employeeRole || "").trim();
     const amount = toNumericFloat(entry.amount, NaN);
 
     if (!employeeId || !employeeName || !Number.isFinite(amount)) {
@@ -20,13 +22,16 @@ const normalizeOpeningFloatEntry = (entry = {}) => {
     }
 
     return {
+        ...(id ? { _id: id } : {}),
         employeeId,
         employeeName,
+        employeeRole,
         amount,
         createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
         businessDate: entry.businessDate
             ? startOfLocalDay(entry.businessDate)
             : startOfLocalDay(entry.createdAt || new Date()),
+        updatedAt: entry.updatedAt ? new Date(entry.updatedAt) : null,
     };
 };
 
@@ -47,7 +52,7 @@ exports.getGlobalSettings = async (req, res) => {
 // PUT /api/global-settings
 exports.updateGlobalSettings = async (req, res) => {
     try {
-        const { openingFloat, openingFloats, addOpeningFloat } = req.body;
+        const { openingFloat, openingFloats, addOpeningFloat, updateOpeningFloat } = req.body;
         let settings = await GlobalSettings.findOne();
         if (!settings) {
             settings = await GlobalSettings.create({});
@@ -71,13 +76,64 @@ exports.updateGlobalSettings = async (req, res) => {
                     message: "Employee and amount are required for opening float entry",
                 });
             }
-            settings.openingFloats.push(normalizedEntry);
+            // Enforce "once per day" per employee (no stacking).
+            // If an entry exists for this employee for today's businessDate, overwrite it.
+            const today = startOfLocalDay(new Date());
+            const employeeIdStr = String(normalizedEntry.employeeId || "").trim();
+
+            const existing = (settings.openingFloats || []).find((row) => {
+                const rowEmp = String(row?.employeeId || "").trim();
+                if (!rowEmp || rowEmp !== employeeIdStr) return false;
+                const rowDate = row?.businessDate || row?.createdAt;
+                if (!rowDate) return false;
+                return startOfLocalDay(rowDate).getTime() === today.getTime();
+            });
+
+            if (existing) {
+                existing.amount = normalizedEntry.amount;
+                existing.employeeName = normalizedEntry.employeeName;
+                existing.employeeRole = normalizedEntry.employeeRole;
+                existing.businessDate = today;
+                existing.updatedAt = new Date();
+            } else {
+                normalizedEntry.businessDate = today;
+                settings.openingFloats.push(normalizedEntry);
+            }
+        }
+
+        if (updateOpeningFloat) {
+            const entryId = String(updateOpeningFloat.entryId || updateOpeningFloat._id || "").trim();
+            const nextAmount = toNumericFloat(updateOpeningFloat.amount, NaN);
+
+            if (!entryId || !Number.isFinite(nextAmount)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Entry id and amount are required to update opening float",
+                });
+            }
+
+            const entry = settings.openingFloats.id(entryId);
+            if (!entry) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Opening float entry not found",
+                });
+            }
+
+            entry.amount = nextAmount;
+            if (updateOpeningFloat.employeeName) {
+                entry.employeeName = String(updateOpeningFloat.employeeName).trim();
+            }
+            if (updateOpeningFloat.employeeRole !== undefined) {
+                entry.employeeRole = String(updateOpeningFloat.employeeRole || "").trim();
+            }
         }
 
         if (
             openingFloat === undefined &&
             !Array.isArray(openingFloats) &&
-            !addOpeningFloat
+            !addOpeningFloat &&
+            !updateOpeningFloat
         ) {
             return res.status(400).json({
                 success: false,
