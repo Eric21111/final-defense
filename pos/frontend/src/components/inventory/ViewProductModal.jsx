@@ -59,6 +59,50 @@ const ViewProductModal = ({
     0,
     Number(viewingProduct?.expirationThresholdDays ?? 30),
   );
+  const showDaysLeftColumn = Boolean(viewingProduct?.expirationDate);
+
+  const getDaysUntilExpiration = (dateInput) => {
+    if (!dateInput) return null;
+    const d = new Date(String(dateInput).slice(0, 10));
+    if (Number.isNaN(d.getTime())) return null;
+    const now = new Date();
+    return Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+  };
+
+  const getFallbackExpirationDate = () => {
+    const fallbackHasStock = toNum(viewingProduct?.currentStock) > 0;
+    if (viewingProduct?.expirationDate && fallbackHasStock) {
+      return String(viewingProduct.expirationDate).slice(0, 10);
+    }
+    return null;
+  };
+
+  const getSingleBatchExpirationDate = (batch) => {
+    if (batch?.expirationDate) return String(batch.expirationDate).slice(0, 10);
+    return getFallbackExpirationDate();
+  };
+
+  const getAggregateExpirationDate = (batches) => {
+    const active = (Array.isArray(batches) ? batches : []).filter((b) => toNum(b?.qty) > 0);
+    if (active.length === 0) return getFallbackExpirationDate();
+    const withExp = active.filter((b) => b?.expirationDate);
+    const withoutExp = active.filter((b) => !b?.expirationDate);
+    if (withExp.length > 0 && withoutExp.length > 0) return null;
+    if (withExp.length === 0) return getFallbackExpirationDate();
+    const dates = [...new Set(withExp.map((b) => String(b.expirationDate).slice(0, 10)))].sort();
+    return dates[0] || null;
+  };
+
+  const renderDaysLeftCell = (dateInput) => {
+    const daysUntil = getDaysUntilExpiration(dateInput);
+    if (daysUntil === null) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    if (daysUntil < 0) {
+      return <span className="text-xs font-semibold text-red-500">{Math.abs(daysUntil)} day(s) overdue</span>;
+    }
+    return <span className={`text-xs font-semibold ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>{daysUntil} day(s)</span>;
+  };
 
   const renderExpirationDateWithStatus = (dateInput) => {
     if (!dateInput) {
@@ -92,28 +136,13 @@ const ViewProductModal = ({
 
   /** Single "Expiration" column: do not show one batch's date if another batch with stock has no expiry */
   const renderAggregateExpiration = (batches) => {
+    const resolvedDate = getAggregateExpirationDate(batches);
+    if (!resolvedDate) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
     const active = (Array.isArray(batches) ? batches : []).filter((b) => toNum(b?.qty) > 0);
-    if (active.length === 0) {
-      const fallbackHasStock = toNum(viewingProduct?.currentStock) > 0;
-      if (viewingProduct?.expirationDate && fallbackHasStock) {
-        return renderExpirationDateWithStatus(viewingProduct.expirationDate);
-      }
-      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
-    }
     const withExp = active.filter((b) => b?.expirationDate);
-    const withoutExp = active.filter((b) => !b?.expirationDate);
-    if (withExp.length > 0 && withoutExp.length > 0) {
-      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
-    }
-    if (withExp.length === 0) {
-      const fallbackHasStock = toNum(viewingProduct?.currentStock) > 0;
-      if (viewingProduct?.expirationDate && fallbackHasStock) {
-        return renderExpirationDateWithStatus(viewingProduct.expirationDate);
-      }
-      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
-    }
-    const dates = [...new Set(withExp.map((b) => String(b.expirationDate).slice(0, 10)))].sort();
-    const nearest = dates[0];
+    const nearest = resolvedDate;
     const now = new Date();
     const expDate = new Date(nearest);
     const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
@@ -121,11 +150,11 @@ const ViewProductModal = ({
     return (
       <div className="space-y-0.5">
         <div className={`text-xs ${colorClass}`}>{nearest}</div>
-        {dates.length > 1 && (
+        {withExp.length > 1 && (
           <div className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Multiple expiration dates</div>
         )}
-        {dates.length === 1 && daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
-        {dates.length === 1 && daysUntil >= 0 && daysUntil <= expirationAlertThresholdDays && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
+        {withExp.length <= 1 && daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
+        {withExp.length <= 1 && daysUntil >= 0 && daysUntil <= expirationAlertThresholdDays && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
       </div>
     );
   };
@@ -178,14 +207,11 @@ const ViewProductModal = ({
   };
 
   const renderSingleBatchExpirationCell = (batch) => {
-    if (!batch || !batch.expirationDate) {
-      const fallbackHasStock = toNum(viewingProduct?.currentStock) > 0;
-      if (viewingProduct?.expirationDate && fallbackHasStock) {
-        return renderExpirationDateWithStatus(viewingProduct.expirationDate);
-      }
+    const resolvedDate = getSingleBatchExpirationDate(batch);
+    if (!resolvedDate) {
       return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
     }
-    return renderExpirationDateWithStatus(batch.expirationDate);
+    return renderExpirationDateWithStatus(resolvedDate);
   };
 
   const renderSingleBatchDateAddedCell = (batch) => {
@@ -843,6 +869,7 @@ const ViewProductModal = ({
                               <th className="px-4 py-3 font-semibold">Cost Price</th>
                               <th className="px-4 py-3 font-semibold">Selling Price</th>
                               <th className="px-4 py-3 font-semibold">Expiration</th>
+                              {showDaysLeftColumn && <th className="px-4 py-3 font-semibold">Days Left</th>}
                             </>
                           ) : (
                             <>
@@ -851,6 +878,7 @@ const ViewProductModal = ({
                               <th className="px-4 py-3 font-semibold">Stock</th>
                               <th className="px-4 py-3 font-semibold">Price</th>
                               <th className="px-4 py-3 font-semibold">Expiration</th>
+                              {showDaysLeftColumn && <th className="px-4 py-3 font-semibold">Days Left</th>}
                             </>
                           )}
                         </tr>
@@ -907,6 +935,11 @@ const ViewProductModal = ({
                                         <td className="px-4 py-3">
                                           {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
                                         </td>
+                                        {showDaysLeftColumn && (
+                                          <td className="px-4 py-3">
+                                            {renderDaysLeftCell(getSingleBatchExpirationDate(batches[batchTab] ?? null))}
+                                          </td>
+                                        )}
                                       </>
                                     ) : (
                                       <>
@@ -935,6 +968,11 @@ const ViewProductModal = ({
                                         <td className="px-4 py-3">
                                           {renderAggregateExpiration(batches)}
                                         </td>
+                                        {showDaysLeftColumn && (
+                                          <td className="px-4 py-3">
+                                            {renderDaysLeftCell(getAggregateExpirationDate(batches))}
+                                          </td>
+                                        )}
                                       </>
                                     )}
                                   </tr>
@@ -973,6 +1011,11 @@ const ViewProductModal = ({
                                       <td className="px-4 py-3">
                                         {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
                                       </td>
+                                      {showDaysLeftColumn && (
+                                        <td className="px-4 py-3">
+                                          {renderDaysLeftCell(getSingleBatchExpirationDate(batches[batchTab] ?? null))}
+                                        </td>
+                                      )}
                                     </>
                                   ) : (
                                     <>
@@ -1001,6 +1044,11 @@ const ViewProductModal = ({
                                       <td className="px-4 py-3">
                                         {renderAggregateExpiration(batches)}
                                       </td>
+                                      {showDaysLeftColumn && (
+                                        <td className="px-4 py-3">
+                                          {renderDaysLeftCell(getAggregateExpirationDate(batches))}
+                                        </td>
+                                      )}
                                     </>
                                   )}
                                 </tr>
@@ -1012,7 +1060,7 @@ const ViewProductModal = ({
                             rows.push(
                               <tr key="no-visible-options">
                                 <td
-                                  colSpan={showPerBatchColumn ? 8 : 5}
+                                  colSpan={showPerBatchColumn ? (showDaysLeftColumn ? 9 : 8) : (showDaysLeftColumn ? 6 : 5)}
                                   className={`px-4 py-6 text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
                                 >
                                   No options with stock or batch history yet. Stock in to add inventory for a variant.
