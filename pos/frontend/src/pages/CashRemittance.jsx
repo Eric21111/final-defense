@@ -817,13 +817,13 @@ const CashRemittance = () => {
             {/* ═══════ Opening Float Edit Modal ═══════ */}
             {showFloatModal && (
                 <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center" onClick={() => setShowFloatModal(false)}>
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-4xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-gray-800">Set Opening Float</h3>
                             <button onClick={() => setShowFloatModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 cursor-pointer"><FaTimes /></button>
                         </div>
                         <p className="text-xs text-gray-500 mb-4">Assign opening float amounts to eligible staff. Multiple entries for the same cashier are combined, and only today's entries are used in today's remittance.</p>
-                        <div className="grid grid-cols-1 md:grid-cols-[320px_minmax(0,1fr)] gap-5">
+                        <div className="grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-6">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
                                     Cashier
