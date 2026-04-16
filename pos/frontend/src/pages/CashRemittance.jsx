@@ -8,7 +8,7 @@ import Header from "../components/shared/header";
 import {
     FaMoneyBillWave, FaSearch, FaFileInvoiceDollar, FaCheckCircle,
     FaExclamationTriangle, FaChartLine, FaHandHoldingUsd,
-    FaBalanceScale, FaClock, FaTimes, FaPrint, FaPlus, FaEdit,
+    FaBalanceScale, FaClock, FaTimes, FaPrint, FaPlus, FaEdit, FaTrash,
     FaCalendarAlt, FaUser
 } from "react-icons/fa";
 
@@ -369,6 +369,42 @@ const CashRemittance = () => {
             }
         } catch (err) {
             console.error("Error saving float:", err);
+        } finally {
+            setSavingFloat(false);
+        }
+    };
+
+    const handleRemoveFloatEntry = async (entry) => {
+        const entryId = String(entry?._id || "").trim();
+        if (!entryId) return;
+
+        const ok = window.confirm("Remove this opening float entry? This can't be undone.");
+        if (!ok) return;
+
+        setSavingFloat(true);
+        try {
+            const res = await fetch(API_ENDPOINTS.globalSettings, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    removeOpeningFloat: { entryId }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setGlobalFloat(data.data.openingFloat || 2000);
+                setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
+
+                if (editingFloatEntryId === entryId) {
+                    setEditingFloatEntryId("");
+                    setFloatInput("");
+                }
+            } else {
+                alert(data.message || "Failed to remove opening float");
+            }
+        } catch (err) {
+            console.error("Error removing opening float:", err);
+            alert("Failed to remove opening float. Please try again.");
         } finally {
             setSavingFloat(false);
         }
@@ -893,6 +929,15 @@ const CashRemittance = () => {
                                                                     <FaEdit className="text-[10px]" />
                                                                     Edit
                                                                 </button>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveFloatEntry(entry)}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50"
+                                                                    title="Remove float"
+                                                                >
+                                                                    <FaTrash className="text-[10px]" />
+                                                                    Remove
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -908,7 +953,11 @@ const CashRemittance = () => {
                             <button
                                 onClick={handleSaveFloat}
                                 disabled={savingFloat || !floatInput || !selectedFloatEmployeeId}
-                                className="flex-1 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-bold disabled:opacity-50 cursor-pointer"
+                                className={`flex-1 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-50 cursor-pointer ${
+                                    editingFloatEntryId
+                                        ? "bg-blue-600 hover:bg-blue-700"
+                                        : "bg-green-500 hover:bg-green-600"
+                                    }`}
                             >
                                 {savingFloat ? 'Saving...' : editingFloatEntryId ? 'Update' : 'Save'}
                             </button>

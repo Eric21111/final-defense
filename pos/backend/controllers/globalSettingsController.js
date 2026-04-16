@@ -52,7 +52,7 @@ exports.getGlobalSettings = async (req, res) => {
 // PUT /api/global-settings
 exports.updateGlobalSettings = async (req, res) => {
     try {
-        const { openingFloat, openingFloats, addOpeningFloat, updateOpeningFloat } = req.body;
+        const { openingFloat, openingFloats, addOpeningFloat, updateOpeningFloat, removeOpeningFloat } = req.body;
         let settings = await GlobalSettings.findOne();
         if (!settings) {
             settings = await GlobalSettings.create({});
@@ -127,13 +127,36 @@ exports.updateGlobalSettings = async (req, res) => {
             if (updateOpeningFloat.employeeRole !== undefined) {
                 entry.employeeRole = String(updateOpeningFloat.employeeRole || "").trim();
             }
+            entry.businessDate = startOfLocalDay(new Date());
+            entry.updatedAt = new Date();
+        }
+
+        if (removeOpeningFloat) {
+            const entryId = String(removeOpeningFloat.entryId || removeOpeningFloat._id || "").trim();
+            if (!entryId) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Entry id is required to remove opening float",
+                });
+            }
+
+            const entry = settings.openingFloats.id(entryId);
+            if (!entry) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Opening float entry not found",
+                });
+            }
+
+            entry.deleteOne();
         }
 
         if (
             openingFloat === undefined &&
             !Array.isArray(openingFloats) &&
             !addOpeningFloat &&
-            !updateOpeningFloat
+            !updateOpeningFloat &&
+            !removeOpeningFloat
         ) {
             return res.status(400).json({
                 success: false,
