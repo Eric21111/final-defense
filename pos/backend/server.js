@@ -104,26 +104,40 @@ const allowedOriginPatterns = [
   /\.onrender\.com$/,         // Render deployments
 ];
 
-app.use(cors({
-  origin: function (origin, callback) {
+app.use(
+  cors((req, callback) => {
+    const origin = req.header("Origin");
+    const requestLabel = `${req.method} ${req.originalUrl}`;
+
     // Allow requests with no origin (mobile apps, server-to-server, Postman)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log(`[CORS] Allowed (no origin): ${requestLabel}`);
+      return callback(null, { origin: true, credentials: true });
+    }
 
     // Check exact matches
-    if (allowedOrigins.some(allowed => origin.startsWith(allowed))) {
-      return callback(null, true);
+    if (allowedOrigins.some((allowed) => origin.startsWith(allowed))) {
+      console.log(
+        `[CORS] Allowed (exact match): ${origin} -> ${requestLabel}`,
+      );
+      return callback(null, { origin: true, credentials: true });
     }
 
     // Check pattern matches (for Vercel preview deployments, etc.)
-    if (allowedOriginPatterns.some(pattern => pattern.test(origin))) {
-      return callback(null, true);
+    if (allowedOriginPatterns.some((pattern) => pattern.test(origin))) {
+      console.log(
+        `[CORS] Allowed (pattern match): ${origin} -> ${requestLabel}`,
+      );
+      return callback(null, { origin: true, credentials: true });
     }
 
-    console.warn(`[CORS] Blocked request from origin: ${origin}`);
-    return callback(new Error("Not allowed by CORS"));
-  },
-  credentials: true,
-}));
+    console.warn(`[CORS] Blocked: ${origin} -> ${requestLabel}`);
+    return callback(new Error("Not allowed by CORS"), {
+      origin: false,
+      credentials: true,
+    });
+  }),
+);
 app.use(compression()); // Gzip compress all responses (~60-80% smaller payloads for mobile)
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
