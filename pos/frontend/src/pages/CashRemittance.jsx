@@ -192,7 +192,7 @@ const ReceiptContent = ({ remit }) => {
                     </div>
                     <div>
                         <p className="text-[8px] text-gray-400 uppercase tracking-wider font-mono font-bold">Float</p>
-                        <p className="text-xs font-bold text-gray-800">{formatCurrency(remit.openingFloat || 2000)}</p>
+                        <p className="text-xs font-bold text-gray-800">{formatCurrency(remit.openingFloat || 0)}</p>
                     </div>
                     <div>
                         <p className="text-[8px] text-gray-400 uppercase tracking-wider font-mono font-bold">Type</p>
@@ -247,7 +247,7 @@ const ReceiptContent = ({ remit }) => {
                         </div>
                         <div className="flex justify-between text-[11px]">
                             <span className="text-gray-600">Less: Opening Float</span>
-                            <span className="font-bold text-gray-800">({formatAbs(remit.openingFloat || 2000)})</span>
+                            <span className="font-bold text-gray-800">({formatAbs(remit.openingFloat || 0)})</span>
                         </div>
                         <div className="border-t border-dashed border-gray-300 pt-1 flex justify-between items-center">
                             <span className="text-xs font-extrabold text-gray-900 tracking-wide">CASH TO REMIT</span>

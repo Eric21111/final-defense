@@ -124,7 +124,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
             const data = await res.json();
             if (data.success) {
                 setSummary(data.data);
-                setOpeningFloat(data.data?.openingFloatTotal || 2000);
+                setOpeningFloat(Number(data.data?.openingFloatTotal) || 0);
             }
         } catch (err) {
             console.error("Error fetching remittance summary:", err);

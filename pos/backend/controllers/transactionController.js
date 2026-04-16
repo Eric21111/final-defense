@@ -451,6 +451,9 @@ exports.returnItems = async (req, res) => {
 
     // Create return transaction
     const returnTransaction = await SalesTransaction.create({
+      userId: String(returnedById || returnedBy || originalTransaction.userId || 'guest'),
+      performedById: String(returnedById || returnedBy || ''),
+      performedByName: returnedByName || '',
       receiptNo,
       items: returnItems,
       subtotal: -returnAmount,
