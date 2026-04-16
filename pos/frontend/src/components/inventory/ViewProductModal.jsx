@@ -677,13 +677,13 @@ const ViewProductModal = ({
                       </div>
                     </div>
                   </div>
-                  <div className={`p-4 min-h-[440px] flex items-center justify-center ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
+                  <div className={`p-0 min-h-[440px] ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
                     {productImages.length > 0 && productImages[productImgIdx] ? (
-                      <div className="relative w-full h-full">
+                      <div className="relative w-full h-[440px]">
                         <img
                           src={productImages[productImgIdx]}
                           alt={viewingProduct.itemName}
-                          className="w-full h-[400px] object-contain rounded-xl"
+                          className="w-full h-full object-cover"
                         />
                         {productImages.length > 1 && (
                           <>
