@@ -55,6 +55,36 @@ const ViewProductModal = ({
     return lo !== hi ? `₱${lo.toFixed(2)} - ₱${hi.toFixed(2)}` : `₱${lo.toFixed(2)}`;
   };
 
+  const expirationAlertThresholdDays = Math.max(
+    0,
+    Number(viewingProduct?.expirationThresholdDays ?? 30),
+  );
+
+  const renderExpirationDateWithStatus = (dateInput) => {
+    if (!dateInput) {
+      return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
+    }
+    const dateStr = String(dateInput).slice(0, 10);
+    const now = new Date();
+    const expDate = new Date(dateStr);
+    const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+    const colorClass =
+      daysUntil < 0
+        ? "text-red-500 font-semibold"
+        : daysUntil <= expirationAlertThresholdDays
+          ? "text-yellow-500 font-semibold"
+          : theme === "dark"
+            ? "text-gray-300"
+            : "text-gray-600";
+    return (
+      <div className="space-y-0.5">
+        <div className={`text-xs ${colorClass}`}>{dateStr}</div>
+        {daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
+        {daysUntil >= 0 && daysUntil <= expirationAlertThresholdDays && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
+      </div>
+    );
+  };
+
   const getBatchList = (data) => {
     if (!data || typeof data !== "object") return [];
     return Array.isArray(data.batches) ? data.batches : [];
@@ -64,6 +94,10 @@ const ViewProductModal = ({
   const renderAggregateExpiration = (batches) => {
     const active = (Array.isArray(batches) ? batches : []).filter((b) => toNum(b?.qty) > 0);
     if (active.length === 0) {
+      const fallbackHasStock = toNum(viewingProduct?.currentStock) > 0;
+      if (viewingProduct?.expirationDate && fallbackHasStock) {
+        return renderExpirationDateWithStatus(viewingProduct.expirationDate);
+      }
       return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
     }
     const withExp = active.filter((b) => b?.expirationDate);
@@ -72,6 +106,10 @@ const ViewProductModal = ({
       return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
     }
     if (withExp.length === 0) {
+      const fallbackHasStock = toNum(viewingProduct?.currentStock) > 0;
+      if (viewingProduct?.expirationDate && fallbackHasStock) {
+        return renderExpirationDateWithStatus(viewingProduct.expirationDate);
+      }
       return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
     }
     const dates = [...new Set(withExp.map((b) => String(b.expirationDate).slice(0, 10)))].sort();
@@ -79,7 +117,7 @@ const ViewProductModal = ({
     const now = new Date();
     const expDate = new Date(nearest);
     const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
-    const colorClass = daysUntil < 0 ? "text-red-500 font-semibold" : daysUntil <= 30 ? "text-yellow-500 font-semibold" : (theme === "dark" ? "text-gray-300" : "text-gray-600");
+    const colorClass = daysUntil < 0 ? "text-red-500 font-semibold" : daysUntil <= expirationAlertThresholdDays ? "text-yellow-500 font-semibold" : (theme === "dark" ? "text-gray-300" : "text-gray-600");
     return (
       <div className="space-y-0.5">
         <div className={`text-xs ${colorClass}`}>{nearest}</div>
@@ -87,7 +125,7 @@ const ViewProductModal = ({
           <div className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Multiple expiration dates</div>
         )}
         {dates.length === 1 && daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
-        {dates.length === 1 && daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
+        {dates.length === 1 && daysUntil >= 0 && daysUntil <= expirationAlertThresholdDays && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
       </div>
     );
   };
@@ -141,27 +179,13 @@ const ViewProductModal = ({
 
   const renderSingleBatchExpirationCell = (batch) => {
     if (!batch || !batch.expirationDate) {
+      const fallbackHasStock = toNum(viewingProduct?.currentStock) > 0;
+      if (viewingProduct?.expirationDate && fallbackHasStock) {
+        return renderExpirationDateWithStatus(viewingProduct.expirationDate);
+      }
       return <span className={`text-xs ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>—</span>;
     }
-    const dateStr = String(batch.expirationDate).slice(0, 10);
-    const now = new Date();
-    const expDate = new Date(dateStr);
-    const daysUntil = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
-    const colorClass =
-      daysUntil < 0
-        ? "text-red-500 font-semibold"
-        : daysUntil <= 30
-          ? "text-yellow-500 font-semibold"
-          : theme === "dark"
-            ? "text-gray-300"
-            : "text-gray-600";
-    return (
-      <div className="space-y-0.5">
-        <div className={`text-xs ${colorClass}`}>{dateStr}</div>
-        {daysUntil < 0 && <div className="text-[10px] text-red-400">Expired</div>}
-        {daysUntil >= 0 && daysUntil <= 30 && <div className="text-[10px] text-yellow-400">Expiring soon</div>}
-      </div>
-    );
+    return renderExpirationDateWithStatus(batch.expirationDate);
   };
 
   const renderSingleBatchDateAddedCell = (batch) => {
@@ -750,7 +774,7 @@ const ViewProductModal = ({
                 </div>
 
                 {/* Total Stock / Reorder Level */}
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-3">
                   <div className={`rounded-xl border p-3 ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-gray-50"}`}>
                     <div className={`text-[11px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>
                       {selectedBatchInsights ? "Stock (this batch)" : "Total Stock"}
@@ -766,6 +790,13 @@ const ViewProductModal = ({
                     <div className={`text-[11px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Reorder Level</div>
                     <div className={`mt-1 text-lg font-bold ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>{viewingProduct.reorderNumber || 0}</div>
                     <div className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Threshold for low-stock</div>
+                  </div>
+                  <div className={`rounded-xl border p-3 ${theme === "dark" ? "border-gray-700 bg-[#1E1B18]" : "border-gray-200 bg-gray-50"}`}>
+                    <div className={`text-[11px] font-semibold uppercase tracking-wider ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Expiration Threshold</div>
+                    <div className={`mt-1 text-lg font-bold ${theme === "dark" ? "text-gray-200" : "text-gray-800"}`}>
+                      {viewingProduct.expirationDate ? (viewingProduct.expirationThresholdDays ?? 30) : "—"}
+                    </div>
+                    <div className={`text-[10px] ${theme === "dark" ? "text-gray-500" : "text-gray-500"}`}>Days before expiration alert</div>
                   </div>
                 </div>
               </div>
