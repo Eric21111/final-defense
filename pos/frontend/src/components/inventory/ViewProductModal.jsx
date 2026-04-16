@@ -59,7 +59,7 @@ const ViewProductModal = ({
     0,
     Number(viewingProduct?.expirationThresholdDays ?? 30),
   );
-  const showDaysLeftColumn = Boolean(viewingProduct?.expirationDate);
+  const showExpirationColumns = Boolean(viewingProduct?.expirationDate);
 
   const getDaysUntilExpiration = (dateInput) => {
     if (!dateInput) return null;
@@ -660,7 +660,7 @@ const ViewProductModal = ({
             {/* Top Row: Image | Overview + Pricing + Stats */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left: Image */}
-              <div className="lg:col-span-5">
+              <div className="lg:col-span-6">
                 <div className={`rounded-2xl border overflow-hidden h-full ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-gray-50"}`}>
                   <div className="p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -677,13 +677,13 @@ const ViewProductModal = ({
                       </div>
                     </div>
                   </div>
-                  <div className={`p-6 flex items-center justify-center ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
+                  <div className={`p-4 min-h-[440px] flex items-center justify-center ${theme === "dark" ? "bg-[#1E1B18]" : "bg-white"}`}>
                     {productImages.length > 0 && productImages[productImgIdx] ? (
-                      <div className="relative w-full">
+                      <div className="relative w-full h-full">
                         <img
                           src={productImages[productImgIdx]}
                           alt={viewingProduct.itemName}
-                          className="w-full max-h-[320px] object-contain rounded-xl"
+                          className="w-full h-[400px] object-contain rounded-xl"
                         />
                         {productImages.length > 1 && (
                           <>
@@ -727,7 +727,7 @@ const ViewProductModal = ({
               </div>
 
               {/* Right: Overview + Pricing + Stats */}
-              <div className="lg:col-span-7 space-y-4">
+              <div className="lg:col-span-6 space-y-4">
                 {/* Overview */}
                 <div className={`rounded-2xl border p-5 ${theme === "dark" ? "border-gray-700 bg-[#2A2724]" : "border-gray-200 bg-white"}`}>
                   <div className="flex items-start justify-between gap-4">
@@ -868,8 +868,8 @@ const ViewProductModal = ({
                               <th className="px-4 py-3 font-semibold">Current Stock</th>
                               <th className="px-4 py-3 font-semibold">Cost Price</th>
                               <th className="px-4 py-3 font-semibold">Selling Price</th>
-                              <th className="px-4 py-3 font-semibold">Expiration</th>
-                              {showDaysLeftColumn && <th className="px-4 py-3 font-semibold">Days Left</th>}
+                              {showExpirationColumns && <th className="px-4 py-3 font-semibold">Expiration</th>}
+                              {showExpirationColumns && <th className="px-4 py-3 font-semibold">Days Left</th>}
                             </>
                           ) : (
                             <>
@@ -877,8 +877,8 @@ const ViewProductModal = ({
                               <th className="px-4 py-3 font-semibold">Variant / Size</th>
                               <th className="px-4 py-3 font-semibold">Stock</th>
                               <th className="px-4 py-3 font-semibold">Price</th>
-                              <th className="px-4 py-3 font-semibold">Expiration</th>
-                              {showDaysLeftColumn && <th className="px-4 py-3 font-semibold">Days Left</th>}
+                              {showExpirationColumns && <th className="px-4 py-3 font-semibold">Expiration</th>}
+                              {showExpirationColumns && <th className="px-4 py-3 font-semibold">Days Left</th>}
                             </>
                           )}
                         </tr>
@@ -932,10 +932,12 @@ const ViewProductModal = ({
                                         <td className={`px-4 py-3 text-xs font-medium ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
                                           ₱{Number(batches[batchTab]?.price ?? 0).toFixed(2)}
                                         </td>
-                                        <td className="px-4 py-3">
-                                          {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
-                                        </td>
-                                        {showDaysLeftColumn && (
+                                        {showExpirationColumns && (
+                                          <td className="px-4 py-3">
+                                            {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
+                                          </td>
+                                        )}
+                                        {showExpirationColumns && (
                                           <td className="px-4 py-3">
                                             {renderDaysLeftCell(getSingleBatchExpirationDate(batches[batchTab] ?? null))}
                                           </td>
@@ -965,10 +967,12 @@ const ViewProductModal = ({
                                             </div>
                                           </div>
                                         </td>
-                                        <td className="px-4 py-3">
-                                          {renderAggregateExpiration(batches)}
-                                        </td>
-                                        {showDaysLeftColumn && (
+                                        {showExpirationColumns && (
+                                          <td className="px-4 py-3">
+                                            {renderAggregateExpiration(batches)}
+                                          </td>
+                                        )}
+                                        {showExpirationColumns && (
                                           <td className="px-4 py-3">
                                             {renderDaysLeftCell(getAggregateExpirationDate(batches))}
                                           </td>
@@ -1008,10 +1012,12 @@ const ViewProductModal = ({
                                       <td className={`px-4 py-3 text-xs font-medium ${theme === "dark" ? "text-green-400" : "text-green-600"}`}>
                                         ₱{Number(batches[batchTab]?.price ?? 0).toFixed(2)}
                                       </td>
-                                      <td className="px-4 py-3">
-                                        {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
-                                      </td>
-                                      {showDaysLeftColumn && (
+                                      {showExpirationColumns && (
+                                        <td className="px-4 py-3">
+                                          {renderSingleBatchExpirationCell(batches[batchTab] ?? null)}
+                                        </td>
+                                      )}
+                                      {showExpirationColumns && (
                                         <td className="px-4 py-3">
                                           {renderDaysLeftCell(getSingleBatchExpirationDate(batches[batchTab] ?? null))}
                                         </td>
@@ -1041,10 +1047,12 @@ const ViewProductModal = ({
                                           </div>
                                         </div>
                                       </td>
-                                      <td className="px-4 py-3">
-                                        {renderAggregateExpiration(batches)}
-                                      </td>
-                                      {showDaysLeftColumn && (
+                                      {showExpirationColumns && (
+                                        <td className="px-4 py-3">
+                                          {renderAggregateExpiration(batches)}
+                                        </td>
+                                      )}
+                                      {showExpirationColumns && (
                                         <td className="px-4 py-3">
                                           {renderDaysLeftCell(getAggregateExpirationDate(batches))}
                                         </td>
@@ -1060,7 +1068,7 @@ const ViewProductModal = ({
                             rows.push(
                               <tr key="no-visible-options">
                                 <td
-                                  colSpan={showPerBatchColumn ? (showDaysLeftColumn ? 9 : 8) : (showDaysLeftColumn ? 6 : 5)}
+                                  colSpan={showPerBatchColumn ? (showExpirationColumns ? 9 : 7) : (showExpirationColumns ? 6 : 4)}
                                   className={`px-4 py-6 text-center text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}
                                 >
                                   No options with stock or batch history yet. Stock in to add inventory for a variant.
