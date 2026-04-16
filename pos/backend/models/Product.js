@@ -75,6 +75,11 @@ const productSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  expirationThresholdDays: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   supplierName: {
     type: String,
     default: '',

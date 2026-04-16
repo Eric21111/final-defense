@@ -181,6 +181,7 @@ const Inventory = () => {
     foodSubtype: "",
     displayInTerminal: true,
     expirationDate: "",
+    expirationThresholdDays: "",
     dateReceived: ""
   };
 
@@ -757,6 +758,7 @@ const Inventory = () => {
       foodSubtype: "",
       displayInTerminal: true,
       expirationDate: "",
+      expirationThresholdDays: "",
       dateReceived: ""
     });
     setEditingProduct(null);
@@ -867,6 +869,9 @@ const Inventory = () => {
         costPrice: parseFloat(newProduct.costPrice) || 0,
         reorderNumber: parseInt(newProduct.reorderNumber) || 0,
         expirationDate: newProduct.expirationDate || null,
+        expirationThresholdDays: newProduct.expirationDate
+          ? Math.max(0, parseInt(newProduct.expirationThresholdDays) || 30)
+          : 0,
         displayInTerminal: newProduct.displayInTerminal !== false
       };
 
@@ -1105,6 +1110,7 @@ const Inventory = () => {
       itemName: product.itemName || "",
       category: product.category || "",
       subCategory: product.subCategory || "",
+      unitOfMeasure: product.unitOfMeasure || "pcs",
       brandName: product.brandName || "Default",
       variant: product.variant || "",
       size: product.size || "",
@@ -1123,6 +1129,11 @@ const Inventory = () => {
       expirationDate: product.expirationDate ?
         new Date(product.expirationDate).toISOString().slice(0, 10) :
         "",
+      expirationThresholdDays:
+        product.expirationThresholdDays !== undefined &&
+        product.expirationThresholdDays !== null
+          ? String(product.expirationThresholdDays)
+          : "",
       displayInTerminal:
         product.displayInTerminal !== undefined ?
           product.displayInTerminal :
@@ -1153,6 +1164,9 @@ const Inventory = () => {
         costPrice: parseFloat(newProduct.costPrice) || 0,
         reorderNumber: parseInt(newProduct.reorderNumber) || 0,
         expirationDate: newProduct.expirationDate || null,
+        expirationThresholdDays: newProduct.expirationDate
+          ? Math.max(0, parseInt(newProduct.expirationThresholdDays) || 30)
+          : 0,
         displayInTerminal: displayInTerminalValue
       };
 

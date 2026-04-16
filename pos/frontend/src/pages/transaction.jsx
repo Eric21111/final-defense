@@ -1851,7 +1851,7 @@ const Transaction = () => {
                         "Original Amount",
                         "Discounted Amount",
                         "Total",
-                        "Returned Amount"] :
+                        "Return Deduction"] :
                       [
                         "Receipt No.",
                         "Transaction ID",

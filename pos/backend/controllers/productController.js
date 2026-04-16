@@ -76,6 +76,7 @@ exports.getAllProducts = async (req, res) => {
         costPrice: product.costPrice || 0,
         currentStock,
         reorderNumber: product.reorderNumber || 0,
+        expirationThresholdDays: product.expirationThresholdDays || 0,
         supplierName: product.supplierName || "",
         supplierContact: product.supplierContact || "",
         displayInTerminal:
@@ -138,6 +139,7 @@ exports.getProductById = async (req, res) => {
     const productResponse = {
       ...product,
       currentStock,
+      expirationThresholdDays: product.expirationThresholdDays || 0,
       displayInTerminal:
         product.displayInTerminal !== undefined
           ? product.displayInTerminal
@@ -162,6 +164,9 @@ exports.getProductById = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const productData = { ...req.body };
+    productData.expirationThresholdDays = productData.expirationDate
+      ? Math.max(0, parseInt(productData.expirationThresholdDays, 10) || 30)
+      : 0;
     let openingStockTotal = 0;
 
     if (!productData.sizes && productData.selectedSizes) {
@@ -1090,6 +1095,14 @@ exports.updateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
     const updateData = { ...req.body };
+    if (
+      Object.prototype.hasOwnProperty.call(updateData, "expirationDate") ||
+      Object.prototype.hasOwnProperty.call(updateData, "expirationThresholdDays")
+    ) {
+      updateData.expirationThresholdDays = updateData.expirationDate
+        ? Math.max(0, parseInt(updateData.expirationThresholdDays, 10) || 30)
+        : 0;
+    }
 
     const stockMovementType = updateData.stockMovementType;
     const stockMovementReason = updateData.stockMovementReason;

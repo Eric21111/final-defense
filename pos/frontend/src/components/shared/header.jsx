@@ -126,7 +126,9 @@ const Header = ({
           setLowStockItems(items);
 
 
-          const currentLowStockIds = new Set(items.map((item) => item._id));
+          const currentLowStockIds = new Set(
+            items.map((item) => item.alertKey || item._id),
+          );
           setDismissedItems((prev) => {
             const updated = { ...prev };
             let changed = false;
@@ -174,9 +176,59 @@ const Header = ({
 
 
   const visibleLowStockItems = lowStockItems.filter((item) => {
-    const dismissTimestamp = dismissedItems[item._id];
+    const dismissTimestamp = dismissedItems[item.alertKey || item._id];
     return !dismissTimestamp || isDismissExpired(dismissTimestamp);
   });
+
+  const getAlertVisuals = (item) => {
+    switch (item?.alertType) {
+      case "out_of_stock":
+        return {
+          badgeBg: "bg-red-100",
+          icon: <FaTimesCircle className="text-red-500" />,
+          valueClass: "text-red-600",
+          label: "out of stock",
+          value: item.currentStock
+        };
+      case "expired":
+        return {
+          badgeBg: "bg-red-100",
+          icon: <FaTimesCircle className="text-red-500" />,
+          valueClass: "text-red-600",
+          label: "expired",
+          value: "0d"
+        };
+      case "expiring_soon":
+        return {
+          badgeBg: "bg-orange-100",
+          icon: <FaExclamationTriangle className="text-orange-500" />,
+          valueClass: "text-orange-500",
+          label: "expiring soon",
+          value:
+            item.daysUntilExpiration <= 0
+              ? "today"
+              : `${item.daysUntilExpiration}d`
+        };
+      default:
+        return {
+          badgeBg: "bg-orange-100",
+          icon: <FaExclamationTriangle className="text-orange-500" />,
+          valueClass: "text-orange-500",
+          label: "low stock",
+          value: item.currentStock
+        };
+    }
+  };
+
+  const getNotificationSubtext = (item) => {
+    if (item.alertType === "expired" && item.expirationDate) {
+      return `Expired: ${item.expirationDate}`;
+    }
+    if (item.alertType === "expiring_soon" && item.expirationDate) {
+      return `Expires: ${item.expirationDate}`;
+    }
+    return `SKU: ${item.sku}`;
+  };
 
 
   useEffect(() => {
@@ -419,7 +471,7 @@ const Header = ({
                 }}>
                 
                     <div className={`px-4 py-3 border-b flex items-center justify-between ${theme === "dark" ? "border-gray-600 text-white" : "border-gray-100 text-gray-800"}`}>
-                      <span className="font-semibold">Stock Alerts</span>
+                      <span className="font-semibold">Inventory Alerts</span>
                       <button
                     onClick={() => setShowNotifications(false)}
                     className={`rounded-full p-1 transition-colors ${theme === "dark" ? "hover:bg-gray-700 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-700"}`}>
@@ -434,9 +486,12 @@ const Header = ({
                           <p>No stock alerts</p>
                         </div> :
 
-                  visibleLowStockItems.map((item) =>
+                  visibleLowStockItems.map((item) => {
+                    const visuals = getAlertVisuals(item);
+                    const alertKey = item.alertKey || item._id;
+                    return (
                   <div
-                    key={item._id}
+                    key={alertKey}
                     className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center gap-3">
                     
                             <div
@@ -447,47 +502,37 @@ const Header = ({
                       }}>
                       
                               <div
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.alertType === "out_of_stock" ?
-                        "bg-red-100" :
-                        "bg-orange-100"}`
-                        }>
-                        
-                                {item.alertType === "out_of_stock" ?
-                        <FaTimesCircle className="text-red-500" /> :
-
-                        <FaExclamationTriangle className="text-orange-500" />
-                        }
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${visuals.badgeBg}`}>
+                                {visuals.icon}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-800 truncate">
                                   {item.itemName}
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                  SKU: {item.sku}
+                                  {getNotificationSubtext(item)}
                                 </p>
                               </div>
                               <div className="text-right flex-shrink-0">
                                 <p
-                          className={`text-sm font-bold ${item.alertType === "out_of_stock" ? "text-red-600" : "text-orange-500"}`}>
-                          
-                                  {item.currentStock}
+                          className={`text-sm font-bold ${visuals.valueClass}`}>
+                                  {visuals.value}
                                 </p>
                                 <p className="text-xs text-gray-400">
-                                  {item.alertType === "out_of_stock" ?
-                          "out of stock" :
-                          "low stock"}
+                                  {visuals.label}
                                 </p>
                               </div>
                             </div>
                             <button
-                      onClick={(e) => dismissNotification(e, item._id)}
+                      onClick={(e) => dismissNotification(e, alertKey)}
                       className="p-1.5 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
                       title="Dismiss">
                       
                               <FaTimes className="text-gray-400 text-xs" />
                             </button>
                           </div>
-                  )
+                    );
+                  })
                   }
                     </div>
                     {visibleLowStockItems.length > 0 &&
@@ -694,7 +739,7 @@ const Header = ({
               }}>
               
                   <div className={`px-4 py-3 border-b flex items-center justify-between ${theme === "dark" ? "border-gray-600 text-white" : "border-gray-100 text-gray-800"}`}>
-                    <span className="font-semibold">Stock Alerts</span>
+                    <span className="font-semibold">Inventory Alerts</span>
                     <button
                   onClick={() => setShowNotifications(false)}
                   className={`rounded-full p-1 transition-colors ${theme === "dark" ? "hover:bg-gray-700 text-gray-400 hover:text-white" : "hover:bg-gray-100 text-gray-500 hover:text-gray-700"}`}>
@@ -709,9 +754,12 @@ const Header = ({
                         <p>No stock alerts</p>
                       </div> :
 
-                visibleLowStockItems.map((item) =>
+                visibleLowStockItems.map((item) => {
+                  const visuals = getAlertVisuals(item);
+                  const alertKey = item.alertKey || item._id;
+                  return (
                 <div
-                  key={item._id}
+                  key={alertKey}
                   className="px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 flex items-center gap-3">
                   
                           <div
@@ -722,47 +770,37 @@ const Header = ({
                     }}>
                     
                             <div
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${item.alertType === "out_of_stock" ?
-                      "bg-red-100" :
-                      "bg-orange-100"}`
-                      }>
-                      
-                              {item.alertType === "out_of_stock" ?
-                      <FaTimesCircle className="text-red-500" /> :
-
-                      <FaExclamationTriangle className="text-orange-500" />
-                      }
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${visuals.badgeBg}`}>
+                              {visuals.icon}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-800 truncate">
                                 {item.itemName}
                               </p>
                               <p className="text-xs text-gray-500">
-                                SKU: {item.sku}
+                                {getNotificationSubtext(item)}
                               </p>
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p
-                        className={`text-sm font-bold ${item.alertType === "out_of_stock" ? "text-red-600" : "text-orange-500"}`}>
-                        
-                                {item.currentStock}
+                        className={`text-sm font-bold ${visuals.valueClass}`}>
+                                {visuals.value}
                               </p>
                               <p className="text-xs text-gray-400">
-                                {item.alertType === "out_of_stock" ?
-                        "out of stock" :
-                        "low stock"}
+                                {visuals.label}
                               </p>
                             </div>
                           </div>
                           <button
-                    onClick={(e) => dismissNotification(e, item._id)}
+                    onClick={(e) => dismissNotification(e, alertKey)}
                     className="p-1.5 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
                     title="Dismiss">
                     
                             <FaTimes className="text-gray-400 text-xs" />
                           </button>
                         </div>
-                )
+                  );
+                })
                 }
                   </div>
                   {visibleLowStockItems.length > 0 &&

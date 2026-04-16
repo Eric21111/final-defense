@@ -32,6 +32,17 @@ const COMMON_COLORS = [
   "Custom"];
 
 const BRAND_ADD_SENTINEL = "__add_new_brand__";
+const UNIT_OF_MEASURE_OPTIONS = [
+  { value: "pcs", label: "Pieces (pcs)" },
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "g", label: "Grams (g)" },
+  { value: "L", label: "Liters (L)" },
+  { value: "ml", label: "Milliliters (ml)" },
+  { value: "mg", label: "Milligrams (mg)" },
+  { value: "packs", label: "Packs" },
+  { value: "boxes", label: "Boxes" },
+  { value: "bundle", label: "Bundle" }
+];
 
 
 const AddProductModal = ({
@@ -701,17 +712,66 @@ const AddProductModal = ({
                     <select name="unitOfMeasure" value={newProduct.unitOfMeasure || "pcs"} onChange={handleInputChange} required
                       className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
-                            <option value="pcs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Pieces (pcs)</option>
-                            <option value="kg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Kilograms (kg)</option>
-                            <option value="g" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Grams (g)</option>
-                            <option value="L" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Liters (L)</option>
-                            <option value="ml" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milliliters (ml)</option>
-                            <option value="mg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milligrams (mg)</option>
-                            <option value="packs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Packs</option>
-                            <option value="boxes" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Boxes</option>
+                            {UNIT_OF_MEASURE_OPTIONS.map((option) =>
+                              <option
+                                key={option.value}
+                                value={option.value}
+                                className={theme === "dark" ? "bg-[#2A2724]" : ""}>
+                                {option.label}
+                              </option>
+                            )}
                           </select>
                     </div>
                   </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                      Reorder Level
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      name="reorderNumber"
+                      value={newProduct.reorderNumber || ""}
+                      onChange={handleInputChange}
+                      placeholder="eg. 10"
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                      Expiration Date
+                    </label>
+                    <input
+                      type="date"
+                      name="expirationDate"
+                      value={newProduct.expirationDate || ""}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
+                    />
+                  </div>
+                </div>
+
+                {newProduct.expirationDate &&
+                  <div>
+                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                      Expiration Threshold (days)
+                    </label>
+                    <p className={`text-[11px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                      Notify when this product is within this many days before expiration.
+                    </p>
+                    <input
+                      type="number"
+                      min="0"
+                      name="expirationThresholdDays"
+                      value={newProduct.expirationThresholdDays || ""}
+                      onChange={handleInputChange}
+                      placeholder="eg. 30"
+                      className={`w-full max-w-[220px] px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`}
+                    />
+                  </div>
+                }
 
                 {/* Product Image — same as Add Step 1 */}
                     <div>
@@ -846,14 +906,14 @@ const AddProductModal = ({
                           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.unitOfMeasure ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
                           <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Unit</option>
-                              <option value="pcs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Pieces (pcs)</option>
-                              <option value="kg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Kilograms (kg)</option>
-                              <option value="g" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Grams (g)</option>
-                              <option value="L" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Liters (L)</option>
-                              <option value="ml" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milliliters (ml)</option>
-                              <option value="mg" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Milligrams (mg)</option>
-                              <option value="packs" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Packs</option>
-                              <option value="boxes" className={theme === "dark" ? "bg-[#2A2724]" : ""}>Boxes</option>
+                              {UNIT_OF_MEASURE_OPTIONS.map((option) =>
+                                <option
+                                  key={option.value}
+                                  value={option.value}
+                                  className={theme === "dark" ? "bg-[#2A2724]" : ""}>
+                                  {option.label}
+                                </option>
+                              )}
                             </select>
                           </div>
                         </div>
@@ -1235,6 +1295,28 @@ const AddProductModal = ({
                       <input type="number" min="0" name="reorderNumber" value={newProduct.reorderNumber || ""} onChange={handleInputChange} placeholder="eg. 23"
                         className={`w-36 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`} />
                     </div>
+
+                    {newProduct.expirationDate &&
+                      <div className="flex items-start justify-between gap-6">
+                        <div className="flex-1">
+                          <label className={`block text-xs font-bold uppercase tracking-wide mb-0.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            Expiration Threshold (days)
+                          </label>
+                          <p className={`text-[10px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                            Alert users when this product is nearing expiration.
+                          </p>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          name="expirationThresholdDays"
+                          value={newProduct.expirationThresholdDays || ""}
+                          onChange={handleInputChange}
+                          placeholder="eg. 30"
+                          className={`w-36 px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#2A2724] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`}
+                        />
+                      </div>
+                    }
 
                     <div className={`h-px w-full ${theme === "dark" ? "bg-gray-700" : "bg-gray-200"}`} />
 
