@@ -75,7 +75,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
     latestReturnTransaction?.performedByName ||
     latestReturnTransaction?.returnedByName ||
     latestReturnTransaction?.cashierName ||
-    null;
+    '';
 
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturns
@@ -124,7 +124,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
               <p className="text-sm text-gray-500">
                 Performed By: {transaction.performedByName || 'N/A'}
               </p>
-              {returnedByName && (
+              {hasReturns && returnedByName && (
                 <p className="text-sm text-gray-500">
                   Returned By: {returnedByName}
                 </p>
