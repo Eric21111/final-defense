@@ -1,5 +1,10 @@
 const GlobalSettings = require("../models/GlobalSettings");
 
+const startOfLocalDay = (value = new Date()) => {
+    const date = new Date(value);
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
 const toNumericFloat = (value, fallback = 0) => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -19,6 +24,9 @@ const normalizeOpeningFloatEntry = (entry = {}) => {
         employeeName,
         amount,
         createdAt: entry.createdAt ? new Date(entry.createdAt) : new Date(),
+        businessDate: entry.businessDate
+            ? startOfLocalDay(entry.businessDate)
+            : startOfLocalDay(entry.createdAt || new Date()),
     };
 };
 

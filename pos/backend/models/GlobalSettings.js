@@ -21,6 +21,10 @@ const openingFloatEntrySchema = new mongoose.Schema(
             type: Date,
             default: Date.now,
         },
+        businessDate: {
+            type: Date,
+            default: Date.now,
+        },
     },
     { _id: true }
 );

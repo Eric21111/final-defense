@@ -3,6 +3,17 @@ const Remittance = require('../models/Remittance');
 const SalesTransaction = require('../models/SalesTransaction');
 const GlobalSettings = require('../models/GlobalSettings');
 
+const startOfLocalDay = (value = new Date()) => {
+    const date = new Date(value);
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+};
+
+const isSameLocalDay = (left, right) => {
+    const a = startOfLocalDay(left);
+    const b = startOfLocalDay(right);
+    return a.getTime() === b.getTime();
+};
+
 const getOpeningFloatForEmployee = async (employeeId) => {
     const settings = await GlobalSettings.findOne().lean();
     if (!settings) {
@@ -14,6 +25,10 @@ const getOpeningFloatForEmployee = async (employeeId) => {
 
     const employeeFloatTotal = entries.reduce((sum, entry) => {
         if (String(entry?.employeeId || '').trim() !== employeeIdStr) {
+            return sum;
+        }
+        const effectiveDate = entry?.businessDate || entry?.createdAt;
+        if (!effectiveDate || !isSameLocalDay(effectiveDate, new Date())) {
             return sum;
         }
         return sum + (Number(entry?.amount) || 0);

@@ -48,6 +48,25 @@ const formatFloatTimestamp = (value) => {
     });
 };
 
+const OPENING_FLOAT_ALLOWED_ROLES = new Set([
+    "Cashier",
+    "Subcashier",
+    "Sub-Cashier",
+    "Manager",
+    "Owner",
+]);
+
+const isSameLocalDay = (left, right = new Date()) => {
+    const a = new Date(left);
+    const b = new Date(right);
+    if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false;
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+};
+
 const weekOpts = { weekStartsOn: 1 };
 
 const getPresetBounds = (preset) => {
@@ -361,7 +380,13 @@ const CashRemittance = () => {
                 const res = await fetch(API_ENDPOINTS.employees);
                 const data = await res.json();
                 if (data.success && Array.isArray(data.data)) {
-                    setStaffList(data.data.filter((e) => e.status === "Active"));
+                    setStaffList(
+                        data.data.filter(
+                            (e) =>
+                                e.status === "Active" &&
+                                OPENING_FLOAT_ALLOWED_ROLES.has(String(e.role || "").trim())
+                        )
+                    );
                 }
             } catch (err) {
                 console.error("Error fetching employees:", err);
@@ -416,7 +441,9 @@ const CashRemittance = () => {
     const openingFloatGroups = useMemo(() => {
         const groups = new Map();
 
-        openingFloatEntries.forEach((entry) => {
+        openingFloatEntries
+            .filter((entry) => isSameLocalDay(entry?.businessDate || entry?.createdAt))
+            .forEach((entry) => {
             const employeeId = String(entry?.employeeId || "");
             if (!employeeId) return;
 
@@ -444,9 +471,14 @@ const CashRemittance = () => {
             .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
     }, [openingFloatEntries]);
 
-    const totalAssignedOpeningFloats = useMemo(
-        () => openingFloatEntries.reduce((sum, entry) => sum + (Number(entry?.amount) || 0), 0),
+    const todaysOpeningFloatEntries = useMemo(
+        () => openingFloatEntries.filter((entry) => isSameLocalDay(entry?.businessDate || entry?.createdAt)),
         [openingFloatEntries]
+    );
+
+    const totalAssignedOpeningFloats = useMemo(
+        () => todaysOpeningFloatEntries.reduce((sum, entry) => sum + (Number(entry?.amount) || 0), 0),
+        [todaysOpeningFloatEntries]
     );
 
     const baseFiltered = useMemo(() => {
@@ -703,7 +735,7 @@ const CashRemittance = () => {
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-3xl font-black text-gray-800">{formatCurrency(totalAssignedOpeningFloats || globalFloat)}</p>
-                                <p className="text-sm font-semibold text-gray-400 mt-1">Assigned Opening Floats</p>
+                                <p className="text-sm font-semibold text-gray-400 mt-1">Today's Assigned Opening Floats</p>
                             </div>
                             {isOwner() && (
                                 <button
@@ -730,7 +762,7 @@ const CashRemittance = () => {
                             <h3 className="text-lg font-bold text-gray-800">Set Opening Float</h3>
                             <button onClick={() => setShowFloatModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 cursor-pointer"><FaTimes /></button>
                         </div>
-                        <p className="text-xs text-gray-500 mb-4">Assign opening float amounts to specific cashiers. Multiple float entries for the same cashier will be combined in remittance computations.</p>
+                        <p className="text-xs text-gray-500 mb-4">Assign opening float amounts to eligible staff. Multiple entries for the same cashier are combined, and only today's entries are used in today's remittance.</p>
                         <div className="grid grid-cols-1 md:grid-cols-[320px_minmax(0,1fr)] gap-5">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
@@ -775,14 +807,14 @@ const CashRemittance = () => {
 
                             <div>
                                 <div className="flex items-center justify-between mb-2">
-                                    <h4 className="text-sm font-bold text-gray-800">Existing Floats Per Employee</h4>
-                                    <span className="text-xs text-gray-400">{openingFloatEntries.length} entr{openingFloatEntries.length === 1 ? "y" : "ies"}</span>
+                                    <h4 className="text-sm font-bold text-gray-800">Today's Floats Per Employee</h4>
+                                    <span className="text-xs text-gray-400">{todaysOpeningFloatEntries.length} entr{todaysOpeningFloatEntries.length === 1 ? "y" : "ies"}</span>
                                 </div>
                                 <div className="max-h-[320px] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
                                     {openingFloatGroups.length === 0 ? (
                                         <div className="text-center py-8">
-                                            <p className="text-sm font-semibold text-gray-500">No opening floats assigned yet.</p>
-                                            <p className="text-xs text-gray-400 mt-1">Add the first float using the form on the left.</p>
+                                            <p className="text-sm font-semibold text-gray-500">No opening floats assigned for today.</p>
+                                            <p className="text-xs text-gray-400 mt-1">Tomorrow will start fresh automatically because only today's entries are counted.</p>
                                         </div>
                                     ) : (
                                         openingFloatGroups.map((group) => (
