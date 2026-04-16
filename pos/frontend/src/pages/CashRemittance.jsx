@@ -35,6 +35,19 @@ const formatCurrency = (val) => {
 const formatAbs = (val) =>
     `₱${Math.abs(val || 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const formatFloatTimestamp = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+};
+
 const weekOpts = { weekStartsOn: 1 };
 
 const getPresetBounds = (preset) => {
@@ -265,10 +278,12 @@ const CashRemittance = () => {
     const [userFilter, setUserFilter] = useState("");
     const [staffList, setStaffList] = useState([]);
 
-    // Global Opening Float
+    // Opening Floats
     const [globalFloat, setGlobalFloat] = useState(2000);
+    const [openingFloatEntries, setOpeningFloatEntries] = useState([]);
     const [showFloatModal, setShowFloatModal] = useState(false);
     const [floatInput, setFloatInput] = useState("");
+    const [selectedFloatEmployeeId, setSelectedFloatEmployeeId] = useState("");
     const [savingFloat, setSavingFloat] = useState(false);
 
     const fetchGlobalFloat = async () => {
@@ -277,6 +292,7 @@ const CashRemittance = () => {
             const data = await res.json();
             if (data.success && data.data) {
                 setGlobalFloat(data.data.openingFloat || 2000);
+                setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
             }
         } catch (err) {
             console.error("Error fetching global settings:", err);
@@ -285,17 +301,30 @@ const CashRemittance = () => {
 
     const handleSaveFloat = async () => {
         const val = parseFloat(floatInput);
-        if (isNaN(val) || val < 0) return;
+        const selectedEmployee = staffList.find((employee) => String(employee._id) === selectedFloatEmployeeId);
+        const selectedEmployeeName =
+            selectedEmployee?.name ||
+            `${selectedEmployee?.firstName || ""} ${selectedEmployee?.lastName || ""}`.trim();
+
+        if (isNaN(val) || val < 0 || !selectedFloatEmployeeId || !selectedEmployeeName) return;
         setSavingFloat(true);
         try {
             const res = await fetch(API_ENDPOINTS.globalSettings, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ openingFloat: val })
+                body: JSON.stringify({
+                    addOpeningFloat: {
+                        employeeId: selectedFloatEmployeeId,
+                        employeeName: selectedEmployeeName,
+                        amount: val
+                    }
+                })
             });
             const data = await res.json();
             if (data.success) {
-                setGlobalFloat(data.data.openingFloat);
+                setGlobalFloat(data.data.openingFloat || 2000);
+                setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
+                setFloatInput("");
                 setShowFloatModal(false);
             }
         } catch (err) {
@@ -340,6 +369,12 @@ const CashRemittance = () => {
         })();
     }, []);
 
+    useEffect(() => {
+        if (!selectedFloatEmployeeId && staffList.length > 0) {
+            setSelectedFloatEmployeeId(String(staffList[0]._id));
+        }
+    }, [selectedFloatEmployeeId, staffList]);
+
     const [startDate, endDate] = dateRange;
 
     const dateFilteredRemittances = useMemo(() => {
@@ -377,6 +412,42 @@ const CashRemittance = () => {
         if (!userFilter) return "";
         return userDropdownOptions.find((o) => o.id === userFilter)?.name || "";
     }, [userFilter, userDropdownOptions]);
+
+    const openingFloatGroups = useMemo(() => {
+        const groups = new Map();
+
+        openingFloatEntries.forEach((entry) => {
+            const employeeId = String(entry?.employeeId || "");
+            if (!employeeId) return;
+
+            const existing = groups.get(employeeId) || {
+                employeeId,
+                employeeName: entry.employeeName || "Unknown",
+                total: 0,
+                entries: []
+            };
+
+            existing.employeeName = entry.employeeName || existing.employeeName;
+            existing.total += Number(entry.amount) || 0;
+            existing.entries.push(entry);
+
+            groups.set(employeeId, existing);
+        });
+
+        return Array.from(groups.values())
+            .map((group) => ({
+                ...group,
+                entries: [...group.entries].sort(
+                    (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+                )
+            }))
+            .sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+    }, [openingFloatEntries]);
+
+    const totalAssignedOpeningFloats = useMemo(
+        () => openingFloatEntries.reduce((sum, entry) => sum + (Number(entry?.amount) || 0), 0),
+        [openingFloatEntries]
+    );
 
     const baseFiltered = useMemo(() => {
         const q = searchTerm.trim().toLowerCase();
@@ -631,12 +702,16 @@ const CashRemittance = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 h-full">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-3xl font-black text-gray-800">{formatCurrency(globalFloat)}</p>
-                                <p className="text-sm font-semibold text-gray-400 mt-1">Opening Float</p>
+                                <p className="text-3xl font-black text-gray-800">{formatCurrency(totalAssignedOpeningFloats || globalFloat)}</p>
+                                <p className="text-sm font-semibold text-gray-400 mt-1">Assigned Opening Floats</p>
                             </div>
                             {isOwner() && (
                                 <button
-                                    onClick={() => { setFloatInput(String(globalFloat)); setShowFloatModal(true); }}
+                                    onClick={() => {
+                                        setFloatInput("");
+                                        setSelectedFloatEmployeeId((prev) => prev || String(staffList[0]?._id || ""));
+                                        setShowFloatModal(true);
+                                    }}
                                     className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors cursor-pointer shadow-sm"
                                 >
                                     <FaPlus className="text-xs" /> New
@@ -650,25 +725,94 @@ const CashRemittance = () => {
             {/* ═══════ Opening Float Edit Modal ═══════ */}
             {showFloatModal && (
                 <div className="fixed inset-0 bg-black/40 z-[200] flex items-center justify-center" onClick={() => setShowFloatModal(false)}>
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-2xl" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-gray-800">Set Opening Float</h3>
                             <button onClick={() => setShowFloatModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 cursor-pointer"><FaTimes /></button>
                         </div>
-                        <p className="text-xs text-gray-500 mb-3">This will set the global opening float used for all new remittances.</p>
-                        <input
-                            type="number"
-                            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 mb-4"
-                            placeholder="e.g. 2000"
-                            value={floatInput}
-                            onChange={e => setFloatInput(e.target.value)}
-                            autoFocus
-                        />
-                        <div className="flex gap-2">
+                        <p className="text-xs text-gray-500 mb-4">Assign opening float amounts to specific cashiers. Multiple float entries for the same cashier will be combined in remittance computations.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-[320px_minmax(0,1fr)] gap-5">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                                    Cashier
+                                </label>
+                                <select
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 mb-3"
+                                    value={selectedFloatEmployeeId}
+                                    onChange={(e) => setSelectedFloatEmployeeId(e.target.value)}
+                                >
+                                    <option value="">Select employee</option>
+                                    {staffList.map((employee) => {
+                                        const label =
+                                            employee.name ||
+                                            `${employee.firstName || ""} ${employee.lastName || ""}`.trim() ||
+                                            "Unknown";
+                                        return (
+                                            <option key={employee._id} value={employee._id}>
+                                                {label}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+                                    Float Amount
+                                </label>
+                                <input
+                                    type="number"
+                                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 mb-4"
+                                    placeholder="e.g. 2000"
+                                    value={floatInput}
+                                    onChange={e => setFloatInput(e.target.value)}
+                                    autoFocus
+                                />
+                                <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 mb-4">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-green-600">Total assigned floats</p>
+                                    <p className="text-xl font-black text-green-700 mt-1">
+                                        {formatCurrency(totalAssignedOpeningFloats)}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div className="flex items-center justify-between mb-2">
+                                    <h4 className="text-sm font-bold text-gray-800">Existing Floats Per Employee</h4>
+                                    <span className="text-xs text-gray-400">{openingFloatEntries.length} entr{openingFloatEntries.length === 1 ? "y" : "ies"}</span>
+                                </div>
+                                <div className="max-h-[320px] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
+                                    {openingFloatGroups.length === 0 ? (
+                                        <div className="text-center py-8">
+                                            <p className="text-sm font-semibold text-gray-500">No opening floats assigned yet.</p>
+                                            <p className="text-xs text-gray-400 mt-1">Add the first float using the form on the left.</p>
+                                        </div>
+                                    ) : (
+                                        openingFloatGroups.map((group) => (
+                                            <div key={group.employeeId} className="bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
+                                                <div className="flex items-center justify-between gap-3 mb-2">
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-800">{group.employeeName}</p>
+                                                        <p className="text-[11px] text-gray-400">{group.entries.length} float entr{group.entries.length === 1 ? "y" : "ies"}</p>
+                                                    </div>
+                                                    <div className="text-sm font-black text-green-600">{formatCurrency(group.total)}</div>
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    {group.entries.map((entry) => (
+                                                        <div key={entry._id || `${group.employeeId}-${entry.createdAt}`} className="flex items-center justify-between text-xs text-gray-600 bg-gray-50 rounded-lg px-2.5 py-2">
+                                                            <span>{formatFloatTimestamp(entry.createdAt) || "Saved float"}</span>
+                                                            <span className="font-bold text-gray-800">{formatCurrency(entry.amount)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-5">
                             <button onClick={() => setShowFloatModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-bold text-gray-600 hover:bg-gray-50 cursor-pointer">Cancel</button>
                             <button
                                 onClick={handleSaveFloat}
-                                disabled={savingFloat || !floatInput}
+                                disabled={savingFloat || !floatInput || !selectedFloatEmployeeId}
                                 className="flex-1 py-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white text-sm font-bold disabled:opacity-50 cursor-pointer"
                             >
                                 {savingFloat ? 'Saving...' : 'Save'}

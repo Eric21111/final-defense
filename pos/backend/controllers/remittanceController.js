@@ -1,6 +1,30 @@
 const mongoose = require('mongoose');
 const Remittance = require('../models/Remittance');
 const SalesTransaction = require('../models/SalesTransaction');
+const GlobalSettings = require('../models/GlobalSettings');
+
+const getOpeningFloatForEmployee = async (employeeId) => {
+    const settings = await GlobalSettings.findOne().lean();
+    if (!settings) {
+        return 2000;
+    }
+
+    const entries = Array.isArray(settings.openingFloats) ? settings.openingFloats : [];
+    const employeeIdStr = String(employeeId || '').trim();
+
+    const employeeFloatTotal = entries.reduce((sum, entry) => {
+        if (String(entry?.employeeId || '').trim() !== employeeIdStr) {
+            return sum;
+        }
+        return sum + (Number(entry?.amount) || 0);
+    }, 0);
+
+    if (employeeFloatTotal > 0) {
+        return employeeFloatTotal;
+    }
+
+    return Number(settings.openingFloat) || 2000;
+};
 
 const buildTodayRemittanceQuery = (employeeId, startOfDay, endOfDay) => ({
     employeeId,
@@ -41,11 +65,14 @@ exports.getRemittanceSummary = async (req, res) => {
             checkedOutAt: { $gte: startOfDay, $lt: endOfDay }
         }).lean();
 
-        const existingTodayRemittance = await Remittance.findOne(
-            buildTodayRemittanceQuery(employeeId, startOfDay, endOfDay)
-        )
-            .sort({ submittedAt: -1 })
-            .lean();
+        const [existingTodayRemittance, openingFloatTotal] = await Promise.all([
+            Remittance.findOne(
+                buildTodayRemittanceQuery(employeeId, startOfDay, endOfDay)
+            )
+                .sort({ submittedAt: -1 })
+                .lean(),
+            getOpeningFloatForEmployee(employeeId)
+        ]);
 
         const netSales = completedTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
         const returns = returnTransactions.reduce((sum, t) => sum + Math.abs(t.totalAmount || 0), 0);
@@ -60,6 +87,7 @@ exports.getRemittanceSummary = async (req, res) => {
                 returns,
                 netSales,
                 noOfSales,
+                openingFloatTotal,
                 alreadyRemittedToday: !!existingTodayRemittance,
                 remittedAmountToday: existingTodayRemittance?.cashToRemit || 0,
                 remittedAtToday: existingTodayRemittance?.submittedAt || null

@@ -1,5 +1,30 @@
 const mongoose = require("mongoose");
 
+const openingFloatEntrySchema = new mongoose.Schema(
+    {
+        employeeId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Employee",
+            required: true,
+        },
+        employeeName: {
+            type: String,
+            required: true,
+            trim: true,
+        },
+        amount: {
+            type: Number,
+            required: true,
+            min: 0,
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now,
+        },
+    },
+    { _id: true }
+);
+
 const globalSettingsSchema = new mongoose.Schema(
     {
         storeName: {
@@ -9,6 +34,10 @@ const globalSettingsSchema = new mongoose.Schema(
         openingFloat: {
             type: Number,
             default: 2000,
+        },
+        openingFloats: {
+            type: [openingFloatEntrySchema],
+            default: [],
         },
     },
     {

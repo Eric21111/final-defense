@@ -114,18 +114,6 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
     const cashToRemit = totalCashOnHand - openingFloat;
     const variance = cashToRemit - summary.netSales;
 
-    const fetchGlobalFloat = useCallback(async () => {
-        try {
-            const res = await fetch(API_ENDPOINTS.globalSettings);
-            const data = await res.json();
-            if (data.success && data.data) {
-                setOpeningFloat(data.data.openingFloat || 2000);
-            }
-        } catch (err) {
-            console.error("Error fetching global settings:", err);
-        }
-    }, []);
-
     const fetchSummary = useCallback(async () => {
         if (!employeeId) return;
         setLoading(true);
@@ -136,6 +124,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
             const data = await res.json();
             if (data.success) {
                 setSummary(data.data);
+                setOpeningFloat(data.data?.openingFloatTotal || 2000);
             }
         } catch (err) {
             console.error("Error fetching remittance summary:", err);
@@ -157,9 +146,8 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
             setQuickTotalOpen(true);
             setManualTotalInput("");
             fetchSummary();
-            fetchGlobalFloat();
         }
-    }, [isOpen, fetchSummary, fetchGlobalFloat]);
+    }, [isOpen, fetchSummary]);
 
     const handleDenominationChange = (key, value) => {
         const num = parseInt(value) || 0;
