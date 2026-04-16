@@ -740,16 +740,22 @@ const AddProductModal = ({
                     />
                   </div>
                   <div>
-                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                      Expiration Date
-                    </label>
-                    <input
-                      type="date"
-                      name="expirationDate"
-                      value={newProduct.expirationDate || ""}
-                      onChange={handleInputChange}
-                      className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
-                    />
+                    {newProduct.expirationDate &&
+                      <>
+                        <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                          Expiration Threshold (days)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          name="expirationThresholdDays"
+                          value={newProduct.expirationThresholdDays || ""}
+                          onChange={handleInputChange}
+                          placeholder="eg. 30"
+                          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`}
+                        />
+                      </>
+                    }
                   </div>
                 </div>
 
