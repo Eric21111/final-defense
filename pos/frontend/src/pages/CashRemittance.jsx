@@ -5,6 +5,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { useAuth } from "../context/AuthContext";
 import { API_ENDPOINTS } from "../config/api";
 import Header from "../components/shared/header";
+import DeleteConfirmationModal from "../components/inventory/DeleteConfirmationModal";
 import {
     FaMoneyBillWave, FaSearch, FaFileInvoiceDollar, FaCheckCircle,
     FaExclamationTriangle, FaChartLine, FaHandHoldingUsd,
@@ -311,6 +312,7 @@ const CashRemittance = () => {
     const [selectedFloatEmployeeId, setSelectedFloatEmployeeId] = useState("");
     const [editingFloatEntryId, setEditingFloatEntryId] = useState("");
     const [savingFloat, setSavingFloat] = useState(false);
+    const [entryPendingRemoval, setEntryPendingRemoval] = useState(null);
 
     const fetchGlobalFloat = async () => {
         try {
@@ -374,13 +376,9 @@ const CashRemittance = () => {
         }
     };
 
-    const handleRemoveFloatEntry = async (entry) => {
-        const entryId = String(entry?._id || "").trim();
+    const handleRemoveFloatEntry = async () => {
+        const entryId = String(entryPendingRemoval?._id || "").trim();
         if (!entryId) return;
-
-        const ok = window.confirm("Remove this opening float entry? This can't be undone.");
-        if (!ok) return;
-
         setSavingFloat(true);
         try {
             const res = await fetch(API_ENDPOINTS.globalSettings, {
@@ -399,6 +397,7 @@ const CashRemittance = () => {
                     setEditingFloatEntryId("");
                     setFloatInput("");
                 }
+                setEntryPendingRemoval(null);
             } else {
                 alert(data.message || "Failed to remove opening float");
             }
@@ -903,7 +902,6 @@ const CashRemittance = () => {
                                                         <p className="text-sm font-bold text-gray-800">{formatEmployeeWithRole(group.employeeName, group.employeeRole)}</p>
                                                         <p className="text-[11px] text-gray-400">{group.entries.length} float entr{group.entries.length === 1 ? "y" : "ies"}</p>
                                                     </div>
-                                                    <div className="text-sm font-black text-green-600">{formatCurrency(group.total)}</div>
                                                 </div>
                                                 <div className="space-y-1.5">
                                                     {group.entries.map((entry) => (
@@ -931,7 +929,7 @@ const CashRemittance = () => {
                                                                 </button>
                                                                 <button
                                                                     type="button"
-                                                                    onClick={() => handleRemoveFloatEntry(entry)}
+                                                                    onClick={() => setEntryPendingRemoval(entry)}
                                                                     className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2 py-1 text-[11px] font-semibold text-red-600 hover:bg-red-50"
                                                                     title="Remove float"
                                                                 >
@@ -1066,6 +1064,7 @@ const CashRemittance = () => {
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date & Time</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Cashier</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Net Sales</th>
+                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Opening Float</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Cash to Remit</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Variance</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
@@ -1074,14 +1073,14 @@ const CashRemittance = () => {
                                 <tbody className="divide-y divide-gray-50">
                                     {loading ? (
                                         <tr>
-                                            <td colSpan="6" className="py-12 text-center">
+                                            <td colSpan="7" className="py-12 text-center">
                                                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#22C55E]"></div>
                                                 <p className="mt-2 text-sm text-gray-500">Loading remittances...</p>
                                             </td>
                                         </tr>
                                     ) : error ? (
                                         <tr>
-                                            <td colSpan="6" className="py-12 text-center">
+                                            <td colSpan="7" className="py-12 text-center">
                                                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mb-3">
                                                     <FaExclamationTriangle className="text-red-500 text-xl" />
                                                 </div>
@@ -1091,7 +1090,7 @@ const CashRemittance = () => {
                                         </tr>
                                     ) : displayRows.length === 0 ? (
                                         <tr>
-                                            <td colSpan="6" className="py-16 text-center">
+                                            <td colSpan="7" className="py-16 text-center">
                                                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-50 mb-4 border border-gray-100">
                                                     <FaFileInvoiceDollar className="text-gray-300 text-2xl" />
                                                 </div>
@@ -1133,6 +1132,11 @@ const CashRemittance = () => {
                                                     </span>
                                                 </td>
                                                 <td className="py-3 px-4 text-right">
+                                                    <span className="text-sm font-medium text-gray-600">
+                                                        {formatCurrency(remit.openingFloat || 0)}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4 text-right">
                                                     <span className="text-sm font-bold text-gray-800">
                                                         {formatCurrency(remit.cashToRemit)}
                                                     </span>
@@ -1155,6 +1159,13 @@ const CashRemittance = () => {
                                             </tr>
                                         ))
                                     )}
+
+            <DeleteConfirmationModal
+                isOpen={Boolean(entryPendingRemoval)}
+                onClose={() => setEntryPendingRemoval(null)}
+                onConfirm={handleRemoveFloatEntry}
+                itemName="opening float entry"
+            />
                                 </tbody>
                             </table>
                         </div>
