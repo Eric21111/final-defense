@@ -64,6 +64,18 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
 
   const canReturn = transaction.status === 'Completed' || transaction.status === 'Partially Returned';
   const hasReturns = (transaction.returnTransactions?.length || 0) > 0;
+  const latestReturnTransaction = hasReturns
+    ? [...(transaction.returnTransactions || [])].sort((a, b) => {
+        const aTime = new Date(a?.checkedOutAt || a?.createdAt || 0).getTime();
+        const bTime = new Date(b?.checkedOutAt || b?.createdAt || 0).getTime();
+        return bTime - aTime;
+      })[0]
+    : null;
+  const returnedByName =
+    latestReturnTransaction?.performedByName ||
+    latestReturnTransaction?.returnedByName ||
+    latestReturnTransaction?.cashierName ||
+    null;
 
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturns
@@ -112,6 +124,11 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
               <p className="text-sm text-gray-500">
                 Performed By: {transaction.performedByName || 'N/A'}
               </p>
+              {returnedByName && (
+                <p className="text-sm text-gray-500">
+                  Returned By: {returnedByName}
+                </p>
+              )}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-gray-500">
                   Payment: {transaction.paymentMethod?.charAt(0).toUpperCase() + transaction.paymentMethod?.slice(1) || 'N/A'}
