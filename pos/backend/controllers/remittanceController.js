@@ -95,9 +95,9 @@ exports.getRemittanceSummary = async (req, res) => {
             getOpeningFloatForEmployee(employeeId)
         ]);
 
-        const grossSales = completedTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
+        const netSales = completedTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
         const returns = returnTransactions.reduce((sum, t) => sum + Math.abs(t.totalAmount || 0), 0);
-        const netSales = grossSales - returns;
+        const grossSales = netSales + returns;
         const noOfSales = completedTransactions.filter((t) => t.status !== 'Returned').length;
 
         res.json({
@@ -312,8 +312,8 @@ exports.getRemittanceKpiStats = async (req, res) => {
             (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
             0
         );
-        const grossSales = posNetSales;
-        const netSalesAfterReturns = grossSales - returns;
+        const grossSales = posNetSales + returns;
+        const netSalesAfterReturns = posNetSales;
 
         const row = remitAgg[0] || {
             totalRemitted: 0,

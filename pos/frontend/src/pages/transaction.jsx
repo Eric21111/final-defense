@@ -633,6 +633,8 @@ const Transaction = () => {
               trx.checkedOutAt ||
               trx.createdAt
           ),
+          performedByName: trx.performedByName || "Staff",
+          performedById: String(trx.performedById || ""),
           returnedByName: latestReturn?.performedByName || trx.performedByName || "Staff",
           returnedById: String(latestReturn?.performedById || trx.performedById || ""),
           reason: Array.from(reasons).join(", ") || "Returned item(s)",
@@ -1089,7 +1091,8 @@ const Transaction = () => {
       const headers = [
         "Receipt No.",
         "Transaction ID",
-        "Date",
+        "Returned Date",
+        "Performed By",
         "Returned By",
         "Reason",
         "Original Amount",
@@ -1865,7 +1868,8 @@ const Transaction = () => {
                       [
                         "Receipt No.",
                         "Transaction ID",
-                        "Date",
+                        "Returned Date",
+                        "Performed By",
                         "Returned By",
                         "Reason",
                         "Original Amount",
@@ -1963,6 +1967,13 @@ const Transaction = () => {
                               day: "numeric",
                               year: "numeric"
                             })}
+                          </td>
+                          <td
+                            className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55]">
+                              {getInitials(row.performedByName || "Staff")}
+                            </span>
+                            {row.performedByName || "Staff"}
                           </td>
                           <td
                             className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
