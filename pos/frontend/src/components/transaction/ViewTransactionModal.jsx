@@ -56,7 +56,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
   }
 
 
-  const subtotal = lineSubtotalFromItems(transaction) || transaction.totalAmount || 0;
+  const currentSubtotal = lineSubtotalFromItems(transaction) || transaction.totalAmount || 0;
 
   const totalReturned = transaction.returnTransactions?.reduce((sum, returnTrx) => {
     return sum + (returnTrx.totalAmount || 0);
@@ -77,11 +77,13 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
     latestReturnTransaction?.cashierName ||
     '';
 
+  const subtotal = hasReturns
+    ? currentSubtotal + Math.abs(totalReturned)
+    : currentSubtotal;
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturns
   });
-
-  const originalTotal = subtotal - discountAmount;
+  const adjustedTotal = subtotal - discountAmount + totalReturned;
 
   const amountPaid = transaction.amountReceived || 0;
   const change = transaction.changeGiven || 0;
@@ -158,10 +160,11 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
           <div className="mb-6">
             {}
             <div className="grid grid-cols-12 gap-2 px-4 py-3 bg-gray-50 rounded-t-lg border-b border-gray-200">
-              <div className="col-span-4 text-sm font-semibold text-gray-600">Item</div>
+              <div className={`${hasReturns ? 'col-span-3' : 'col-span-4'} text-sm font-semibold text-gray-600`}>Item</div>
               <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Quantity</div>
               <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Price</div>
-              <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Total</div>
+              {hasReturns && <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Returned Amount</div>}
+              <div className={`${hasReturns ? 'col-span-1' : 'col-span-2'} text-sm font-semibold text-gray-600 text-center`}>Total</div>
               <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Status</div>
             </div>
 
@@ -178,6 +181,9 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                 const displayQty = item.quantity;
                 const returnedQty = item.returnedQuantity || returnInfo?.quantity || 0;
                 const variantLabel = formatItemVariantSizeLabel(item);
+                const unitPrice = item.price || item.itemPrice || 0;
+                const lineTotal = unitPrice * displayQty;
+                const returnedLineAmount = returnedQty > 0 ? unitPrice * returnedQty : 0;
 
                 return (
                   <div key={idx}>
@@ -190,7 +196,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                       }>
                       
                         {}
-                        <div className={`col-span-4 text-sm ${isFullyReturned ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                        <div className={`${hasReturns ? 'col-span-3' : 'col-span-4'} text-sm ${isFullyReturned ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                           {cleanItemNameForDisplay(item)}
                           {variantLabel ?
                           <span className="text-gray-500 text-xs ml-1">({variantLabel})</span> :
@@ -210,12 +216,23 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
 
                         {}
                         <div className="col-span-2 text-sm text-gray-600 text-center">
-                          ₱{(item.price || item.itemPrice || 0).toLocaleString()}
+                          ₱{unitPrice.toLocaleString()}
                         </div>
 
-                        {}
-                        <div className="col-span-2 text-sm text-gray-600 text-center">
-                          ₱{((item.price || item.itemPrice || 0) * displayQty).toLocaleString()}
+                        {hasReturns && (
+                          <div className="col-span-2 text-sm text-center">
+                            {returnedQty > 0 ? (
+                              <span className="font-semibold text-orange-500">
+                                -₱{returnedLineAmount.toLocaleString()}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </div>
+                        )}
+
+                        <div className={`${hasReturns ? 'col-span-1' : 'col-span-2'} text-sm text-gray-600 text-center`}>
+                          ₱{lineTotal.toLocaleString()}
                         </div>
 
                         {}
@@ -267,13 +284,13 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                 </div>
                 {hasReturns &&
                 <div className="flex justify-between text-sm text-orange-500">
-                    <span>Total Returned:</span>
-                    <span>₱{totalReturned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span>Returned Amount:</span>
+                    <span>-₱{Math.abs(totalReturned).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                   </div>
                 }
                 <div className="flex justify-between text-base font-bold pt-2 border-t border-gray-200">
                   <span className="text-orange-500">{hasReturns ? 'Adjusted Total:' : 'Total:'}</span>
-                  <span className="text-orange-500">₱{originalTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span className="text-orange-500">₱{adjustedTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 {!hasReturns &&
                 <>

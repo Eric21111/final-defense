@@ -247,13 +247,15 @@ const Transaction = () => {
     date: false,
     method: false,
     status: false,
-    user: false
+    user: false,
+    returnedBy: false
   });
   const [filters, setFilters] = useState({
     date: "Today",
     method: "All",
     status: "All",
-    user: currentUserFilterId || "All"
+    user: currentUserFilterId || "All",
+    returnedBy: "All"
   });
   const [dateRange, setDateRange] = useState([null, null]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -677,8 +679,21 @@ const Transaction = () => {
 
       const matchesUser =
         filters.user === "All" ||
-        row.returnedById === filters.user ||
-        (selectedEmpName && row.returnedByName === selectedEmpName);
+        row.performedById === filters.user ||
+        (selectedEmpName && row.performedByName === selectedEmpName);
+
+      const selectedReturnedByEmp =
+        filters.returnedBy !== "All" ?
+          staffList.find((e) => String(e._id) === filters.returnedBy) :
+          null;
+      const selectedReturnedByName = selectedReturnedByEmp ?
+        (selectedReturnedByEmp.name || `${selectedReturnedByEmp.firstName || ""} ${selectedReturnedByEmp.lastName || ""}`).trim() :
+        "";
+
+      const matchesReturnedBy =
+        filters.returnedBy === "All" ||
+        row.returnedById === filters.returnedBy ||
+        (selectedReturnedByName && row.returnedByName === selectedReturnedByName);
 
       let matchesDate = true;
       if (filters.date === "Custom") {
@@ -720,9 +735,9 @@ const Transaction = () => {
         }
       }
 
-      return matchesSearch && matchesUser && matchesDate;
+      return matchesSearch && matchesUser && matchesReturnedBy && matchesDate;
     });
-  }, [returnedLogs, search, filters.user, filters.date, startDate, endDate, staffList]);
+  }, [returnedLogs, search, filters.user, filters.returnedBy, filters.date, startDate, endDate, staffList]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
@@ -852,6 +867,26 @@ const Transaction = () => {
     fromTx.sort((a, b) => a.label.localeCompare(b.label));
     return [{ value: "All", label: "All" }, ...fromStaff, ...fromTx];
   }, [staffList, transactions]);
+
+  const returnedByDropdownOptions = useMemo(() => {
+    const fromStaff = staffList
+      .map((e) => ({
+        value: String(e._id),
+        label: (e.name || `${e.firstName || ""} ${e.lastName || ""}`).trim() || "Unknown"
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const seen = new Set(fromStaff.map((r) => r.value));
+    const fromReturns = [];
+    returnedLogs.forEach((row) => {
+      const id = row.returnedById ? String(row.returnedById) : "";
+      if (id && row.returnedByName && !seen.has(id)) {
+        fromReturns.push({ value: id, label: row.returnedByName });
+        seen.add(id);
+      }
+    });
+    fromReturns.sort((a, b) => a.label.localeCompare(b.label));
+    return [{ value: "All", label: "All" }, ...fromStaff, ...fromReturns];
+  }, [staffList, returnedLogs]);
 
   const handleRowClick = (trx) => {
     setSelectedTransaction(trx);
@@ -1774,6 +1809,21 @@ const Transaction = () => {
                   setIsOpen={(value) =>
                     setDropdownOpen((prev) => ({ ...prev, user: value }))
                   } />
+
+                {isReturnedLogsTab &&
+                  <Dropdown
+                    label="Returned By"
+                    options={returnedByDropdownOptions}
+                    selected={filters.returnedBy}
+                    onSelect={(value) => {
+                      setFilters((prev) => ({ ...prev, returnedBy: value }));
+                      setCurrentPage(1);
+                    }}
+                    isOpen={dropdownOpen.returnedBy}
+                    setIsOpen={(value) =>
+                      setDropdownOpen((prev) => ({ ...prev, returnedBy: value }))
+                    } />
+                }
 
                 {!isReturnedLogsTab &&
                   <>
