@@ -164,6 +164,20 @@ exports.getProductById = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const productData = { ...req.body };
+    const creatorName =
+      req.body?.handledBy ||
+      req.body?.performedByName ||
+      req.user?.name ||
+      (req.user?.firstName || req.user?.lastName
+        ? `${req.user?.firstName || ""} ${req.user?.lastName || ""}`.trim()
+        : "") ||
+      "System";
+    const creatorId =
+      req.body?.handledById ||
+      req.body?.performedById ||
+      req.user?._id ||
+      req.user?.id ||
+      "";
     productData.expirationThresholdDays = productData.expirationDate
       ? Math.max(0, parseInt(productData.expirationThresholdDays, 10) || 30)
       : 0;
@@ -379,6 +393,10 @@ exports.createProduct = async (req, res) => {
     delete productData.sizeMultiVariants;
     delete productData.multipleVariantsPerSize;
     delete productData.dateReceived;
+    delete productData.handledBy;
+    delete productData.handledById;
+    delete productData.performedByName;
+    delete productData.performedById;
 
     if (!productData.dateAdded) {
       productData.dateAdded = Date.now();
@@ -454,19 +472,14 @@ exports.createProduct = async (req, res) => {
         }
       }
 
-      const initialHandledBy =
-        req.body?.handledBy || req.body?.performedByName || "System";
-      const initialHandledById =
-        req.body?.handledById || req.body?.performedById || "";
-
       await logStockMovement(
         product,
         0,
         openingStockTotal,
         "Stock-In",
         "Initial Stock",
-        initialHandledBy,
-        initialHandledById,
+        creatorName,
+        creatorId,
         openingSizeQuantities,
       );
     }

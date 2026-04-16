@@ -834,6 +834,12 @@ const Inventory = () => {
 
     try {
       setLoading(true);
+      const currentUser = JSON.parse(localStorage.getItem("currentUser") || "{}");
+      const performedByName =
+        currentUser.name ||
+        `${currentUser.firstName || ""} ${currentUser.lastName || ""}`.trim() ||
+        "System";
+      const performedById = currentUser._id || currentUser.id || "";
       const url = editingProduct ?
         `${API_BASE_URL}/api/products/${editingProduct._id}` :
         `${API_BASE_URL}/api/products`;
@@ -865,6 +871,10 @@ const Inventory = () => {
 
       const payload = {
         ...newProduct,
+        handledBy: performedByName,
+        handledById: performedById,
+        performedByName,
+        performedById,
         itemPrice: defaultItemPrice,
         costPrice: parseFloat(newProduct.costPrice) || 0,
         reorderNumber: parseInt(newProduct.reorderNumber) || 0,
