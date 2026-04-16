@@ -236,6 +236,7 @@ const Transaction = () => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
   const { setCachedData, invalidateCache } = useDataCache();
+  const currentUserFilterId = String(currentUser?._id || currentUser?.id || "All");
 
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -252,7 +253,7 @@ const Transaction = () => {
     date: "Today",
     method: "All",
     status: "All",
-    user: "All"
+    user: currentUserFilterId || "All"
   });
   const [dateRange, setDateRange] = useState([null, null]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -429,6 +430,14 @@ const Transaction = () => {
 
   }, []);
 
+
+  useEffect(() => {
+    if (currentUserFilterId && currentUserFilterId !== "All") {
+      setFilters((prev) =>
+        prev.user === "All" ? { ...prev, user: currentUserFilterId } : prev
+      );
+    }
+  }, [currentUserFilterId]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -1969,18 +1978,22 @@ const Transaction = () => {
                             })}
                           </td>
                           <td
-                            className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                            <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55]">
-                              {getInitials(row.performedByName || "Staff")}
-                            </span>
-                            {row.performedByName || "Staff"}
+                            className={`px-4 py-3 align-middle ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            <div className="flex items-center gap-2 min-w-[160px]">
+                              <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55] shrink-0">
+                                {getInitials(row.performedByName || "Staff")}
+                              </span>
+                              <span className="truncate">{row.performedByName || "Staff"}</span>
+                            </div>
                           </td>
                           <td
-                            className={`px-4 py-3 flex items-center gap-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                            <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55]">
-                              {getInitials(row.returnedByName || "Staff")}
-                            </span>
-                            {row.returnedByName}
+                            className={`px-4 py-3 align-middle ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
+                            <div className="flex items-center gap-2 min-w-[160px]">
+                              <span className="w-8 h-8 rounded-full bg-[#F0E5DB] flex items-center justify-center text-xs font-bold text-[#8B6B55] shrink-0">
+                                {getInitials(row.returnedByName || "Staff")}
+                              </span>
+                              <span className="truncate">{row.returnedByName || "Staff"}</span>
+                            </div>
                           </td>
                           <td
                             className={`px-4 py-3 ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
