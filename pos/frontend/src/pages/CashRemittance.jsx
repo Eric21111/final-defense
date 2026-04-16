@@ -1165,6 +1165,9 @@ const CashRemittance = () => {
                 onClose={() => setEntryPendingRemoval(null)}
                 onConfirm={handleRemoveFloatEntry}
                 itemName="opening float entry"
+                title="Remove this opening float entry?"
+                description="This can't be undone."
+                confirmLabel="OK"
             />
                                 </tbody>
                             </table>

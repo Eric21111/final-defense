@@ -2,7 +2,15 @@ import React from 'react';
 import { FaTimes, FaTrash } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 
-const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName }) => {
+const DeleteConfirmationModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  itemName,
+  title = 'Are you sure you want to delete this item?',
+  description = 'This action will be apply to the inventory.',
+  confirmLabel = 'Confirm'
+}) => {
   const { theme } = useTheme();
 
   if (!isOpen) return null;
@@ -55,11 +63,11 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName }) => {
           </div>
 
           <h3 className={`text-xl font-bold text-center mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-            Are you sure you want to delete this item?
+            {title}
           </h3>
 
           <p className={`text-sm text-center mb-8 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-            This action will be apply to the inventory.
+            {description}
           </p>
 
           <div className="flex gap-4">
@@ -70,7 +78,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, onConfirm, itemName }) => {
                 background: 'linear-gradient(135deg, #D4A59A 0%, #AD7F65 50%, #76462B 100%)'
               }}>
               
-              Confirm
+              {confirmLabel}
             </button>
             <button
               onClick={onClose}
