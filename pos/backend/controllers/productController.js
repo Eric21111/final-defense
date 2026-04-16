@@ -429,6 +429,48 @@ exports.createProduct = async (req, res) => {
         product.displayInTerminal !== false ? "shown" : "not shown",
     };
 
+    // Record initial stock as a stock movement so it appears in Inventory Logs.
+    if (openingStockTotal > 0) {
+      let openingSizeQuantities = null;
+      if (productData.sizes && typeof productData.sizes === "object") {
+        const perSize = {};
+        Object.entries(productData.sizes).forEach(([size, sizeData]) => {
+          let qty = 0;
+          if (typeof sizeData === "number") {
+            qty = parseInt(sizeData, 10) || 0;
+          } else if (
+            sizeData &&
+            typeof sizeData === "object" &&
+            sizeData.quantity !== undefined
+          ) {
+            qty = parseInt(sizeData.quantity, 10) || 0;
+          }
+          if (qty > 0) {
+            perSize[size] = qty;
+          }
+        });
+        if (Object.keys(perSize).length > 0) {
+          openingSizeQuantities = perSize;
+        }
+      }
+
+      const initialHandledBy =
+        req.body?.handledBy || req.body?.performedByName || "System";
+      const initialHandledById =
+        req.body?.handledById || req.body?.performedById || "";
+
+      await logStockMovement(
+        product,
+        0,
+        openingStockTotal,
+        "Stock-In",
+        "Initial Stock",
+        initialHandledBy,
+        initialHandledById,
+        openingSizeQuantities,
+      );
+    }
+
     res.status(201).json({
       success: true,
       message: "Product created successfully",
