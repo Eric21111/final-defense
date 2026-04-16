@@ -769,26 +769,6 @@ const AddProductModal = ({
                   </div>
                 </div>
 
-                {newProduct.expirationDate &&
-                  <div>
-                    <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>
-                      Expiration Threshold (days)
-                    </label>
-                    <p className={`text-[11px] mb-2 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
-                      Notify when this product is within this many days before expiration.
-                    </p>
-                    <input
-                      type="number"
-                      min="0"
-                      name="expirationThresholdDays"
-                      value={newProduct.expirationThresholdDays || ""}
-                      onChange={handleInputChange}
-                      placeholder="eg. 30"
-                      className={`w-full max-w-[220px] px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-white border-gray-300 placeholder-gray-400"}`}
-                    />
-                  </div>
-                }
-
                 {/* Product Image — same as Add Step 1 */}
                     <div>
                   <label className={`block text-xs font-bold uppercase tracking-wide mb-2 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Product Image</label>
