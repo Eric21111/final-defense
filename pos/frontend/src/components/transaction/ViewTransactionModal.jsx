@@ -83,7 +83,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturns
   });
-  const adjustedTotal = subtotal - discountAmount + totalReturned;
+  const adjustedTotal = subtotal - discountAmount - Math.abs(totalReturned);
 
   const amountPaid = transaction.amountReceived || 0;
   const change = transaction.changeGiven || 0;
