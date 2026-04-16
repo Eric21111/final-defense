@@ -97,6 +97,13 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const originalLineSubtotalFromItems = (transaction) => {
+  if (!transaction?.items?.length) return 0;
+  return transaction.items.reduce((sum, item) => {
+    return sum + (item.price || item.itemPrice || 0) * (item.quantity || 1);
+  }, 0);
+};
+
 const sameTransactionId = (a, b) =>
   String(a?._id ?? a ?? "") === String(b?._id ?? b ?? "");
 
@@ -621,12 +628,22 @@ const Transaction = () => {
           });
         }
 
-        const returnedAmount = returnEntries.reduce(
-          (sum, entry) => sum + toNumber(entry.totalAmount),
-          0
-        );
-        const remainingAmount = toNumber(trx.totalAmount);
-        const inferredOriginalAmount = lineSubtotalFromItems(trx) + returnedAmount;
+        const returnedAmountRaw = returnEntries.reduce((sum, entry) => {
+          const explicitTotal = toNumber(entry.totalAmount, NaN);
+          if (Number.isFinite(explicitTotal) && explicitTotal !== 0) {
+            return sum + explicitTotal;
+          }
+          const itemTotal = (entry.items || []).reduce((acc, item) => {
+            const unit = toNumber(item.price || item.itemPrice);
+            const qty = toNumber(item.quantity, 1);
+            return acc + unit * qty;
+          }, 0);
+          return sum + itemTotal;
+        }, 0);
+        const returnedAmount = Math.abs(returnedAmountRaw);
+        const remainingAmount = Math.max(0, toNumber(trx.totalAmount));
+        const itemOriginalAmount = originalLineSubtotalFromItems(trx);
+        const inferredOriginalAmount = itemOriginalAmount || remainingAmount + returnedAmount;
         const originalAmount = Math.max(inferredOriginalAmount, remainingAmount + returnedAmount);
         const discountedAmount = Math.max(
           0,
@@ -651,7 +668,7 @@ const Transaction = () => {
           reason: Array.from(reasons).join(", ") || "Returned item(s)",
           originalAmount,
           discountedAmount,
-          totalAmount: Math.max(0, originalAmount - discountedAmount),
+          totalAmount: remainingAmount,
           returnedAmount
         };
       })
@@ -796,7 +813,7 @@ const Transaction = () => {
   const sidebarReceiptTotals = useMemo(() => {
     const trx = selectedTransaction;
     if (!trx) return { lineSub: 0, discount: 0 };
-    const lineSub = lineSubtotalFromItems(trx) || trx.totalAmount || 0;
+    const lineSub = originalLineSubtotalFromItems(trx) || trx.totalAmount || 0;
     const hasReturnActivity =
       (trx.returnTransactions?.length || 0) > 0 ||
       trx.status === "Returned" ||
@@ -1141,8 +1158,8 @@ const Transaction = () => {
         "Reason",
         "Original Amount",
         "Discounted Amount",
-        "Total Amount",
-        "Returned Amount"
+        "Returned Amount",
+        "Final Total"
       ];
 
       const escapeCSV = (value) => {
@@ -1163,12 +1180,13 @@ const Transaction = () => {
               row.returnedAt.toLocaleDateString() :
               ""
           ),
+          escapeCSV(row.performedByName || ""),
           escapeCSV(row.returnedByName || ""),
           escapeCSV(row.reason || ""),
           escapeCSV(row.originalAmount || 0),
           escapeCSV(row.discountedAmount || 0),
-          escapeCSV(row.totalAmount || 0),
-          escapeCSV(-Math.abs(row.returnedAmount || 0))
+          escapeCSV(-Math.abs(row.returnedAmount || 0)),
+          escapeCSV(row.totalAmount || 0)
         ].join(",")
       );
 
@@ -1933,8 +1951,8 @@ const Transaction = () => {
                         "Reason",
                         "Original Amount",
                         "Discounted Amount",
-                        "Total",
-                        "Return Deduction"] :
+                        "Returned",
+                        "Final Total"] :
                       [
                         "Receipt No.",
                         "Transaction ID",
@@ -2055,18 +2073,18 @@ const Transaction = () => {
                           <td className="px-4 py-3 font-semibold">
                             {formatCurrency(row.discountedAmount)}
                           </td>
-                          <td className="px-4 py-3 font-semibold">
-                            {formatCurrency(row.totalAmount)}
-                          </td>
                           <td className="px-4 py-3 font-semibold text-orange-600">
                             {formatCurrency(-Math.abs(row.returnedAmount))}
+                          </td>
+                          <td className="px-4 py-3 font-semibold">
+                            {formatCurrency(row.totalAmount)}
                           </td>
                         </tr>
                       );
                     }) :
                     paginatedTransactions.map((trx) => {
                       const isActive = selectedTransaction?._id === trx._id;
-                      const lineSub = lineSubtotalFromItems(trx) || trx.totalAmount || 0;
+                      const lineSub = originalLineSubtotalFromItems(trx) || trx.totalAmount || 0;
                       const hasReturnActivity =
                         (trx.returnTransactions?.length || 0) > 0 ||
                         trx.status === "Returned" ||
