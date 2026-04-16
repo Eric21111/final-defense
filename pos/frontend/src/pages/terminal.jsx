@@ -25,6 +25,9 @@ import makeupIcon from "../assets/inventory-icons/make up.svg";
 import shoesIcon from "../assets/inventory-icons/shoe.svg";
 import topIcon from "../assets/inventory-icons/Top.svg";
 
+const CART_ITEM_LIMIT = 100;
+const OVERRIDE_ROLES = ["Manager", "Owner"];
+
 const Terminal = () => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
@@ -61,6 +64,8 @@ const Terminal = () => {
   const [pendingDuplicateItem, setPendingDuplicateItem] = useState(null);
   const [showProductModal, setShowProductModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [showItemLimitOverrideModal, setShowItemLimitOverrideModal] = useState(false);
+  const [itemLimitOverrideApproved, setItemLimitOverrideApproved] = useState(false);
   const [sortOption, setSortOption] = useState("newest");
   const [isProcessingTransaction, setIsProcessingTransaction] = useState(false);
   const productsBeforeTxnRef = useRef(null);
@@ -72,6 +77,36 @@ const Terminal = () => {
       error: (msg) => toast.error(msg)
     }),
     []
+  );
+
+  const getCartItemCount = useCallback(
+    (items = cart) =>
+      (Array.isArray(items) ? items : []).reduce(
+        (sum, item) => sum + (parseInt(item?.quantity, 10) || 0),
+        0
+      ),
+    [cart]
+  );
+
+  const requestItemLimitOverride = useCallback(() => {
+    setShowItemLimitOverrideModal(true);
+  }, []);
+
+  const ensureCanAddItems = useCallback(
+    (additionalItems, referenceCart = cart) => {
+      const nextAdd = Math.max(0, parseInt(additionalItems, 10) || 0);
+      if (!nextAdd) return true;
+      if (itemLimitOverrideApproved) return true;
+      const totalAfterAdd = getCartItemCount(referenceCart) + nextAdd;
+      if (totalAfterAdd <= CART_ITEM_LIMIT) return true;
+
+      toastBr.error(
+        `Maximum ${CART_ITEM_LIMIT} items per transaction reached. Request manager override to continue.`
+      );
+      requestItemLimitOverride();
+      return false;
+    },
+    [cart, getCartItemCount, itemLimitOverrideApproved, requestItemLimitOverride, toastBr]
   );
 
   const resolveItemSize = (item = {}) => {
@@ -333,6 +368,12 @@ const Terminal = () => {
       console.warn("Unable to persist cart", error);
     }
   }, [cart, cartId, cartReadyForSync]);
+
+  useEffect(() => {
+    if (cart.length === 0 && itemLimitOverrideApproved) {
+      setItemLimitOverrideApproved(false);
+    }
+  }, [cart.length, itemLimitOverrideApproved]);
 
   const filteredProducts = useMemo(() => {
     let filtered = products;
@@ -760,6 +801,10 @@ const Terminal = () => {
       return;
     }
 
+    if (!ensureCanAddItems(quantity)) {
+      return;
+    }
+
 
     const existingItem = productHasAnyVariants ?
       cart.find(
@@ -814,6 +859,9 @@ const Terminal = () => {
     if (!pendingDuplicateItem) return;
 
     const { product } = pendingDuplicateItem;
+    if (!ensureCanAddItems(product?.quantity || 0)) {
+      return;
+    }
 
     setCart(
       cart.map((item) =>
@@ -839,7 +887,24 @@ const Terminal = () => {
     setPendingDuplicateItem(null);
   };
 
+  const handleItemLimitOverrideApproved = async (approverInfo = {}) => {
+    const role = approverInfo?.approvedByRole || "";
+    if (!OVERRIDE_ROLES.includes(role)) {
+      throw new Error("Only Manager or Owner PIN can approve this override.");
+    }
+
+    setItemLimitOverrideApproved(true);
+    setShowItemLimitOverrideModal(false);
+    toastBr.success(
+      `Item limit override approved by ${approverInfo?.approvedBy || role}.`
+    );
+  };
+
   const addToCart = (product) => {
+    if (!ensureCanAddItems(1)) {
+      return;
+    }
+
     const defaultSize =
       product.sizes && typeof product.sizes === "object" ?
         Object.keys(product.sizes)[0] || "" :
@@ -904,6 +969,13 @@ const Terminal = () => {
         removeFromCart(productId);
       }
     } else {
+      const currentItemQuantity = parseInt(item?.quantity, 10) || 0;
+      const requestedQuantity = parseInt(newQuantity, 10) || 0;
+      const increaseBy = requestedQuantity - currentItemQuantity;
+      if (increaseBy > 0 && !ensureCanAddItems(increaseBy)) {
+        return;
+      }
+
       setCart(
         cart.map((cartItem) =>
           cartItem._id === productId &&
@@ -1739,6 +1811,7 @@ const Terminal = () => {
       setCart([]);
       setSelectedDiscounts([]);
       setDiscountAmount("");
+      setItemLimitOverrideApproved(false);
 
 
       // NOTE: don't invalidate products here; we update them locally for instant UI
@@ -1860,6 +1933,7 @@ const Terminal = () => {
     setCart([]);
     setSelectedDiscounts([]);
     setDiscountAmount("");
+    setItemLimitOverrideApproved(false);
 
 
     invalidateCache("transactions");
@@ -2133,6 +2207,18 @@ const Terminal = () => {
         onConfirm={handleConfirmDuplicateAdd}
         item={pendingDuplicateItem?.product}
         existingQuantity={pendingDuplicateItem?.existingQuantity || 0} />
+
+      <RemoveItemPinModal
+        isOpen={showItemLimitOverrideModal}
+        onClose={() => setShowItemLimitOverrideModal(false)}
+        onConfirm={handleItemLimitOverrideApproved}
+        requireReason={false}
+        hideAmountCard={true}
+        allowedRoles={OVERRIDE_ROLES}
+        title="Item Limit Override"
+        subtitle={`This transaction has reached the ${CART_ITEM_LIMIT}-item limit. Manager/Owner PIN is required to continue.`}
+        confirmText="Approve Override"
+        pinLabel="Manager/Owner PIN" />
 
 
       <ProductDetailsModal

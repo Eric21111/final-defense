@@ -10,7 +10,22 @@ const voidReasons = [
 'Other'];
 
 
-const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
+const RemoveItemPinModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  item,
+  requireReason = true,
+  allowedRoles = null,
+  title = 'Void Transaction',
+  subtitle = 'This action requires manager authorization.',
+  confirmText = 'Confirm Void',
+  pinLabel = 'Manager PIN',
+  reasonLabel = 'Reason for Void',
+  reasonOptions = voidReasons,
+  hideAmountCard = false,
+  amountLabel = 'Amount to Void:'
+}) => {
   const { theme } = useTheme();
   const [pin, setPin] = useState('');
   const [showPin, setShowPin] = useState(false);
@@ -76,7 +91,7 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
 
     console.log('[RemoveItemPinModal] handleConfirm called, reason:', reason, 'pin length:', pin.length);
 
-    if (!reason) {
+    if (requireReason && !reason) {
       setError('Please select a reason for void');
       return;
     }
@@ -128,6 +143,18 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
       const data = await response.json();
 
       if (data.success) {
+        if (
+          Array.isArray(allowedRoles) &&
+          allowedRoles.length > 0 &&
+          !allowedRoles.includes(data.data?.role)
+        ) {
+          setError(
+            `Invalid PIN. Only ${allowedRoles.join(' or ')} can perform this action.`
+          );
+          setLoading(false);
+          isConfirmingRef.current = false;
+          return;
+        }
 
         console.log('[RemoveItemPinModal] PIN verified successfully, calling onConfirm with reason:', voidReason);
 
@@ -140,24 +167,28 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
 
 
 
-        if (voidReason && onConfirm) {
+        if (onConfirm && (!requireReason || voidReason)) {
           try {
 
             setLoading(false);
 
-            await onConfirm(voidReason, approverInfo);
+            if (requireReason) {
+              await onConfirm(voidReason, approverInfo);
+            } else {
+              await onConfirm(approverInfo);
+            }
             console.log('[RemoveItemPinModal] onConfirm called successfully with approver:', approverInfo);
             setLoading(false);
           } catch (error) {
             console.error('[RemoveItemPinModal] Error calling onConfirm:', error);
-            setError('Failed to void item. Please try again.');
+            setError(error?.message || 'Failed to complete authorization. Please try again.');
             setLoading(false);
             isConfirmingRef.current = false;
             return;
           }
         } else {
-          console.error('[RemoveItemPinModal] Missing voidReason or onConfirm:', { voidReason, onConfirm: !!onConfirm });
-          setError('Failed to void item. Missing reason or callback.');
+          console.error('[RemoveItemPinModal] Missing required input or onConfirm:', { voidReason, onConfirm: !!onConfirm, requireReason });
+          setError('Failed to continue. Missing required input or callback.');
           setLoading(false);
           isConfirmingRef.current = false;
           return;
@@ -182,7 +213,7 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
 
 
 
-  const itemTotal = item ? item.itemPrice.toFixed(2) : '0.00';
+  const itemTotal = item ? (item.itemPrice || 0).toFixed(2) : '0.00';
 
   return (
     <div
@@ -200,11 +231,9 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
                 <span className="text-white text-xl font-bold">!</span>
               </div>
               <div>
-                <h2 className="text-xl font-bold text-red-600">
-                  Void Transaction
-                </h2>
+                <h2 className="text-xl font-bold text-red-600">{title}</h2>
                 <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  This action requires manager authorization.
+                  {subtitle}
                 </p>
               </div>
             </div>
@@ -216,57 +245,58 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
             </button>
           </div>
 
-          <div className="mb-6">
-            <label className={`block text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Amount to Void:
-            </label>
-            <div className={`rounded-lg p-4 ${theme === 'dark' ? 'bg-red-900/30' : 'bg-red-50'}`}>
-              <span className="text-2xl font-bold text-red-600">
-                PHP {itemTotal}
-              </span>
-            </div>
-          </div>
-
-          <div className="mb-6">
-            <label className={`block text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Reason for Void <span className="text-red-500">*</span>
-            </label>
-            <div className="relative" ref={reasonDropdownRef}>
-              <button
-                type="button"
-                onClick={() => setIsReasonDropdownOpen(!isReasonDropdownOpen)}
-                className={`w-full px-4 py-3 border rounded-lg text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600' : 'bg-white border-gray-300'}`}>
-                
-                <span className={reason ? theme === 'dark' ? 'text-gray-200' : 'text-gray-700' : 'text-gray-400'}>
-                  {reason || 'Select a reason...'}
+          {!hideAmountCard && (
+            <div className="mb-6">
+              <label className={`block text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                {amountLabel}
+              </label>
+              <div className={`rounded-lg p-4 ${theme === 'dark' ? 'bg-red-900/30' : 'bg-red-50'}`}>
+                <span className="text-2xl font-bold text-red-600">
+                  PHP {itemTotal}
                 </span>
-                <FaChevronDown
-                  className={`text-gray-500 transition-transform ${isReasonDropdownOpen ? 'rotate-180' : ''}`} />
-                
-              </button>
-              {isReasonDropdownOpen &&
-              <div className={`absolute z-10 w-full mt-2 border rounded-lg shadow-lg overflow-hidden ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600' : 'bg-white border-gray-200'}`}>
-                  {voidReasons.map((voidReason) =>
-                <button
-                  key={voidReason}
-                  type="button"
-                  onClick={() => handleReasonSelect(voidReason)}
-                  className={`w-full px-4 py-2 text-left text-sm transition-colors ${reason === voidReason ?
-                  theme === 'dark' ? 'bg-red-900/30 text-red-400 font-semibold' : 'bg-red-50 text-red-600 font-semibold' :
-                  theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`
-                  }>
-                  
-                      {voidReason}
-                    </button>
-                )}
-                </div>
-              }
+              </div>
             </div>
-          </div>
+          )}
+
+          {requireReason && (
+            <div className="mb-6">
+              <label className={`block text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                {reasonLabel} <span className="text-red-500">*</span>
+              </label>
+              <div className="relative" ref={reasonDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => setIsReasonDropdownOpen(!isReasonDropdownOpen)}
+                  className={`w-full px-4 py-3 border rounded-lg text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-red-200 focus:border-red-400 transition-all ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600' : 'bg-white border-gray-300'}`}>
+                  <span className={reason ? theme === 'dark' ? 'text-gray-200' : 'text-gray-700' : 'text-gray-400'}>
+                    {reason || 'Select a reason...'}
+                  </span>
+                  <FaChevronDown
+                    className={`text-gray-500 transition-transform ${isReasonDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isReasonDropdownOpen &&
+                  <div className={`absolute z-10 w-full mt-2 border rounded-lg shadow-lg overflow-hidden ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600' : 'bg-white border-gray-200'}`}>
+                    {reasonOptions.map((voidReason) =>
+                      <button
+                        key={voidReason}
+                        type="button"
+                        onClick={() => handleReasonSelect(voidReason)}
+                        className={`w-full px-4 py-2 text-left text-sm transition-colors ${reason === voidReason ?
+                          theme === 'dark' ? 'bg-red-900/30 text-red-400 font-semibold' : 'bg-red-50 text-red-600 font-semibold' :
+                          theme === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-700 hover:bg-gray-50'}`
+                        }>
+                        {voidReason}
+                      </button>
+                    )}
+                  </div>
+                }
+              </div>
+            </div>
+          )}
 
           <div className="mb-6">
             <label className={`block text-sm font-semibold mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-              Manager PIN <span className="text-red-500">*</span>
+              {pinLabel} <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -323,10 +353,10 @@ const RemoveItemPinModal = ({ isOpen, onClose, onConfirm, item }) => {
                 e.stopPropagation();
                 handleConfirm();
               }}
-              disabled={loading || pin.length !== 6 || !reason}
+              disabled={loading || pin.length !== 6 || (requireReason && !reason)}
               className="flex-1 px-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed">
               
-              {loading ? 'Verifying...' : 'Confirm Void'}
+              {loading ? 'Verifying...' : confirmText}
             </button>
           </div>
         </div>
