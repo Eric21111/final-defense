@@ -350,8 +350,9 @@ exports.getRemittanceKpiStats = async (req, res) => {
                     {
                         $group: {
                             _id: null,
-                            totalRemitted: { $sum: { $ifNull: ['$totalCashOnHand', 0] } },
+                            totalRemitted: { $sum: { $ifNull: ['$cashToRemit', 0] } },
                             slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } },
+                            totalSlipVariance: { $sum: { $ifNull: ['$variance', 0] } },
                             remittanceCount: { $sum: 1 }
                         }
                     }
@@ -398,12 +399,13 @@ exports.getRemittanceKpiStats = async (req, res) => {
         const row = remitAgg[0] || {
             totalRemitted: 0,
             slipNetSales: 0,
+            totalSlipVariance: 0,
             remittanceCount: 0
         };
         const totalRemitted = row.totalRemitted || 0;
         const expectedCash = netRemittance + (openingFloatTotal || 0);
         const hasRemittance = (row.remittanceCount || 0) > 0;
-        const totalVariance = hasRemittance ? (totalRemitted - expectedCash) : 0;
+        const totalVariance = hasRemittance ? (row.totalSlipVariance || 0) : 0;
 
         res.json({
             success: true,
