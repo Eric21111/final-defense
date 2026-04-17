@@ -458,12 +458,23 @@ exports.returnItems = async (req, res) => {
     });
 
     const receiptNo = await generateUniqueReceiptNumber();
+    const processorIdFromAuth = req.user?._id || req.user?.id || '';
+    const safeProcessorId =
+      String(returnedById || processorIdFromAuth || originalTransaction.performedById || originalTransaction.userId || '').trim();
+    const safeProcessorName =
+      String(
+        returnedByName ||
+        req.user?.name ||
+        `${req.user?.firstName || ''} ${req.user?.lastName || ''}`.trim() ||
+        originalTransaction.performedByName ||
+        ''
+      ).trim();
 
     // Create return transaction
     const returnTransaction = await SalesTransaction.create({
-      userId: String(returnedById || returnedBy || originalTransaction.userId || 'guest'),
-      performedById: String(returnedById || returnedBy || ''),
-      performedByName: returnedByName || '',
+      userId: safeProcessorId || String(originalTransaction.userId || 'guest'),
+      performedById: safeProcessorId,
+      performedByName: safeProcessorName,
       receiptNo,
       items: returnItems,
       subtotal: -returnAmount,
@@ -472,14 +483,14 @@ exports.returnItems = async (req, res) => {
       paymentMethod: 'return',
       amountPaid: 0,
       change: returnAmount,
-      cashierName: returnedByName || '',
-      cashierId: returnedById || returnedBy || '',
+      cashierName: safeProcessorName,
+      cashierId: safeProcessorId,
       status: 'Completed',
       originalTransactionId: originalTransaction._id,
       returnReason,
-      returnedBy: returnedBy || returnedById,
-      returnedById: returnedById || returnedBy,
-      returnedByName
+      returnedBy: returnedBy || safeProcessorId,
+      returnedById: safeProcessorId,
+      returnedByName: safeProcessorName
     });
 
     // Update original transaction
