@@ -390,7 +390,7 @@ function App() {
                   <Route
                     path="/cash-remittance"
                     element={
-                      <ProtectedRoute requiredPermission="viewTransactions">
+                      <ProtectedRoute ownerOnly={true}>
                         <MainLayout>
                           <Suspense fallback={<PageLoader />}>
                             <CashRemittance />
@@ -414,7 +414,7 @@ function App() {
                   <Route
                     path="/manage-data"
                     element={
-                      <ProtectedRoute requiredPermission={null}>
+                      <ProtectedRoute ownerOnly={true}>
                         <MainLayout>
                           <Suspense fallback={<PageLoader />}>
                             <ManageData />
@@ -426,7 +426,7 @@ function App() {
                   <Route
                     path="/discount-management"
                     element={
-                      <ProtectedRoute requiredPermission={null}>
+                      <ProtectedRoute ownerOnly={true}>
                         <MainLayout>
                           <Suspense fallback={<PageLoader />}>
                             <DiscountManagement />
@@ -438,7 +438,7 @@ function App() {
                   <Route
                     path="/brand-partners"
                     element={
-                      <ProtectedRoute requiredPermission={null}>
+                      <ProtectedRoute ownerOnly={true}>
                         <MainLayout>
                           <Suspense fallback={<PageLoader />}>
                             <BrandPartners />
@@ -450,7 +450,7 @@ function App() {
                   <Route
                     path="/categories"
                     element={
-                      <ProtectedRoute requiredPermission={null}>
+                      <ProtectedRoute ownerOnly={true}>
                         <MainLayout>
                           <Suspense fallback={<PageLoader />}>
                             <Categories />

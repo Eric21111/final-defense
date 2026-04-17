@@ -6,7 +6,7 @@ const ProtectedRoute = ({
   requiredPermission,
   ownerOnly = false
 }) => {
-  const { currentUser, hasPermission, isOwner } = useAuth();
+  const { currentUser, hasPermission, isOwner, isManager } = useAuth();
   const location = useLocation();
 
 
@@ -20,7 +20,7 @@ const ProtectedRoute = ({
   }
 
 
-  if (isOwner()) {
+  if (isOwner() || isManager()) {
     return children;
   }
 
