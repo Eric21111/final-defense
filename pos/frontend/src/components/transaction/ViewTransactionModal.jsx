@@ -163,8 +163,8 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
               <div className={`${hasReturns ? 'col-span-3' : 'col-span-4'} text-sm font-semibold text-gray-600`}>Item</div>
               <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Quantity</div>
               <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Price</div>
-              {hasReturns && <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Returned Amount</div>}
               <div className={`${hasReturns ? 'col-span-1' : 'col-span-2'} text-sm font-semibold text-gray-600 text-center`}>Total</div>
+              {hasReturns && <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Returned Amount</div>}
               <div className="col-span-2 text-sm font-semibold text-gray-600 text-center">Status</div>
             </div>
 
@@ -219,6 +219,10 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                           ₱{unitPrice.toLocaleString()}
                         </div>
 
+                        <div className={`${hasReturns ? 'col-span-1' : 'col-span-2'} text-sm text-gray-600 text-center`}>
+                          ₱{lineTotal.toLocaleString()}
+                        </div>
+
                         {hasReturns && (
                           <div className="col-span-2 text-sm text-center">
                             {returnedQty > 0 ? (
@@ -230,10 +234,6 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                             )}
                           </div>
                         )}
-
-                        <div className={`${hasReturns ? 'col-span-1' : 'col-span-2'} text-sm text-gray-600 text-center`}>
-                          ₱{lineTotal.toLocaleString()}
-                        </div>
 
                         {}
                         <div className="col-span-2 text-center">
