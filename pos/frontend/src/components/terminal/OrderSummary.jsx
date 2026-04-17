@@ -30,7 +30,12 @@ const OrderSummary = memo(({
   onOpenDiscountModal,
   onSelectDiscount,
   products = [],
-  stockAllowsCheckout = true
+  stockAllowsCheckout = true,
+  seniorPwdInput = '',
+  onSeniorPwdInputChange = () => {},
+  seniorPwdAppliedAmount = 0,
+  onRequestSeniorPwdApply = () => {},
+  onRemoveSeniorPwdDiscount = () => {}
 }) => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
@@ -48,7 +53,9 @@ const OrderSummary = memo(({
   const [pendingQuantities, setPendingQuantities] = useState({});
   const [availableDiscounts, setAvailableDiscounts] = useState([]);
   const discountFetchedRef = useRef(false);
-  const hasAppliedDiscount = selectedDiscounts.length > 0;
+  const promoInputsDisabled =
+    selectedDiscounts.length > 0 || seniorPwdAppliedAmount > 0;
+  const seniorPwdInputsDisabled = selectedDiscounts.length > 0;
 
 
   useEffect(() => {
@@ -71,7 +78,7 @@ const OrderSummary = memo(({
 
 
   useEffect(() => {
-    if (hasAppliedDiscount) return;
+    if (promoInputsDisabled) return;
     if (!discountCode || !discountCode.trim() || applyingDiscount) return;
 
     const codeToFind = discountCode.trim().toLowerCase();
@@ -90,7 +97,7 @@ const OrderSummary = memo(({
         }
       }
     }
-  }, [hasAppliedDiscount, discountCode, availableDiscounts, selectedDiscounts, applyingDiscount, onSelectDiscount]);
+  }, [promoInputsDisabled, discountCode, availableDiscounts, selectedDiscounts, applyingDiscount, onSelectDiscount]);
 
   const handleProceed = () => {
     if (!stockAllowsCheckout) return;
@@ -539,7 +546,7 @@ const OrderSummary = memo(({
   };
 
   const applyDiscountCode = async () => {
-    if (hasAppliedDiscount) return;
+    if (promoInputsDisabled) return;
     if (!discountCode || !discountCode.trim()) {
       alert('Please enter a discount code');
       return;
@@ -786,15 +793,15 @@ const OrderSummary = memo(({
           <div className="flex items-center gap-2">
             <input
               type="text"
-              placeholder={hasAppliedDiscount ? 'One discount per order' : 'Enter discount code'}
+              placeholder={promoInputsDisabled ? 'One discount per order' : 'Enter discount code'}
               value={discountCode}
               onChange={(e) => setDiscountCode(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && !applyingDiscount && !hasAppliedDiscount) {
+                if (e.key === 'Enter' && !applyingDiscount && !promoInputsDisabled) {
                   applyDiscountCode();
                 }
               }}
-              disabled={hasAppliedDiscount}
+              disabled={promoInputsDisabled}
               className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ?
                 'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
                 'bg-white border-[#d6c1b5] text-gray-900'}`
@@ -803,23 +810,85 @@ const OrderSummary = memo(({
             <button
               type="button"
               onClick={onOpenDiscountModal}
-              disabled={hasAppliedDiscount}
+              disabled={promoInputsDisabled}
               className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title={hasAppliedDiscount ? 'Remove the current discount to choose another' : 'Browse discounts'}>
+              title={promoInputsDisabled ? 'Remove the current discount to choose another' : 'Browse discounts'}>
 
               <FaTag className="w-4 h-4" />
             </button>
             <button
               type="button"
               onClick={applyDiscountCode}
-              disabled={hasAppliedDiscount || applyingDiscount || !discountCode || !discountCode.trim()}
+              disabled={promoInputsDisabled || applyingDiscount || !discountCode || !discountCode.trim()}
               className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
-              title={hasAppliedDiscount ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
+              title={promoInputsDisabled ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
 
               {applyingDiscount ? 'Applying...' : 'Apply'}
             </button>
           </div>
+        </div>
+
+        <div className="mb-6">
+          <label className="block text-xs font-semibold text-[#8B7355] mb-2">
+            Discount for Senior Citizen / PWD
+          </label>
+          {seniorPwdAppliedAmount > 0 &&
+            <div className={`flex items-center gap-2 p-2 rounded-lg border mb-3 ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600' : 'bg-gray-50 border-[#d6c1b5]'}`}>
+              <div className="flex-1">
+                <div className={`text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                  Fixed discount applied
+                </div>
+                <div className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                  PHP {seniorPwdAppliedAmount.toFixed(2)}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={onRemoveSeniorPwdDiscount}
+                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-all"
+                title="Remove Senior / PWD discount">
+
+                <FaTimes className="w-4 h-4" />
+              </button>
+            </div>
+          }
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Fixed amount (PHP)"
+              value={seniorPwdInput}
+              onChange={(e) => onSeniorPwdInputChange(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !seniorPwdInputsDisabled) {
+                  onRequestSeniorPwdApply();
+                }
+              }}
+              disabled={seniorPwdInputsDisabled || seniorPwdAppliedAmount > 0}
+              className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${theme === 'dark' ?
+                'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
+                'bg-white border-[#d6c1b5] text-gray-900'}`
+              } />
+            <button
+              type="button"
+              onClick={onRequestSeniorPwdApply}
+              disabled={
+                seniorPwdInputsDisabled ||
+                seniorPwdAppliedAmount > 0 ||
+                !String(seniorPwdInput).trim()
+              }
+              className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
+              title="Owner PIN required to apply">
+
+              Apply
+            </button>
+          </div>
+          <p className={`text-[11px] mt-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
+            Owner PIN is required to apply this discount.
+          </p>
         </div>
 
         <div className="space-y-2 mb-6 text-xs">

@@ -115,6 +115,7 @@ function validateCartAgainstProducts(cart, productsList) {
 
 const CART_ITEM_LIMIT = 100;
 const OVERRIDE_ROLES = ["Manager", "Owner"];
+const SENIOR_PWD_PIN_ROLES = ["Owner"];
 
 const Terminal = () => {
   const { theme } = useTheme();
@@ -154,6 +155,10 @@ const Terminal = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [showItemLimitOverrideModal, setShowItemLimitOverrideModal] = useState(false);
   const [itemLimitOverrideApproved, setItemLimitOverrideApproved] = useState(false);
+  const [seniorPwdDiscountAmount, setSeniorPwdDiscountAmount] = useState(0);
+  const [seniorPwdInput, setSeniorPwdInput] = useState("");
+  const [showSeniorPwdPinModal, setShowSeniorPwdPinModal] = useState(false);
+  const pendingSeniorPwdRef = useRef(null);
   const [sortOption, setSortOption] = useState("newest");
   const [isProcessingTransaction, setIsProcessingTransaction] = useState(false);
   const productsBeforeTxnRef = useRef(null);
@@ -1573,6 +1578,11 @@ const Terminal = () => {
 
 
   const discount = useMemo(() => {
+    const senior = Math.max(0, Number(seniorPwdDiscountAmount) || 0);
+    if (senior > 0) {
+      return Math.min(senior, subtotal);
+    }
+
     if (selectedDiscounts.length === 0) {
       return parseFloat(discountAmount) || 0;
     }
@@ -1649,11 +1659,24 @@ const Terminal = () => {
     }
 
     return totalDiscount || parseFloat(discountAmount) || 0;
-  }, [discountAmount, selectedDiscounts, subtotal, cart, products]);
+  }, [seniorPwdDiscountAmount, discountAmount, selectedDiscounts, subtotal, cart, products]);
 
   const total = useMemo(() => {
     return subtotal - discount;
   }, [subtotal, discount]);
+
+  useEffect(() => {
+    if (cart.length === 0) {
+      setSeniorPwdDiscountAmount(0);
+      setSeniorPwdInput("");
+    }
+  }, [cart.length]);
+
+  useEffect(() => {
+    if (seniorPwdDiscountAmount > 0 && subtotal < seniorPwdDiscountAmount) {
+      setSeniorPwdDiscountAmount(Math.max(0, subtotal));
+    }
+  }, [subtotal, seniorPwdDiscountAmount]);
 
   const paginatedProducts = useMemo(() => {
     return filteredProducts.slice(
@@ -1922,6 +1945,8 @@ const Terminal = () => {
       setCart([]);
       setSelectedDiscounts([]);
       setDiscountAmount("");
+      setSeniorPwdDiscountAmount(0);
+      setSeniorPwdInput("");
       setItemLimitOverrideApproved(false);
 
 
@@ -2045,6 +2070,8 @@ const Terminal = () => {
     setCart([]);
     setSelectedDiscounts([]);
     setDiscountAmount("");
+    setSeniorPwdDiscountAmount(0);
+    setSeniorPwdInput("");
     setItemLimitOverrideApproved(false);
 
 
@@ -2091,6 +2118,13 @@ const Terminal = () => {
         return;
       }
 
+      if (seniorPwdDiscountAmount > 0) {
+        alert(
+          "Remove the Senior Citizen / PWD discount before applying a promo discount."
+        );
+        return;
+      }
+
       const validation = validateDiscountForCart(discountItem, cart);
 
       if (!validation.valid) {
@@ -2107,7 +2141,51 @@ const Terminal = () => {
       console.error("Error selecting discount:", error);
       alert("An error occurred while applying the discount. Please try again.");
     }
-  }, [selectedDiscounts, cart, validateDiscountForCart]);
+  }, [selectedDiscounts, cart, validateDiscountForCart, seniorPwdDiscountAmount]);
+
+  const handleRemoveSeniorPwdDiscount = useCallback(() => {
+    setSeniorPwdDiscountAmount(0);
+    setSeniorPwdInput("");
+  }, []);
+
+  const handleRequestSeniorPwdDiscount = useCallback(() => {
+    if (selectedDiscounts.length > 0) {
+      toastBr.error("Remove the promo discount first.");
+      return;
+    }
+    const raw = parseFloat(String(seniorPwdInput).replace(/,/g, ""));
+    if (!Number.isFinite(raw) || raw <= 0) {
+      toastBr.error("Enter a valid discount amount.");
+      return;
+    }
+    if (raw > subtotal) {
+      toastBr.error("Discount cannot exceed subtotal.");
+      return;
+    }
+    pendingSeniorPwdRef.current = Math.min(raw, subtotal);
+    setShowSeniorPwdPinModal(true);
+  }, [selectedDiscounts.length, seniorPwdInput, subtotal, toastBr]);
+
+  const handleSeniorPwdPinConfirmed = useCallback(
+    async (approverInfo) => {
+      if (!SENIOR_PWD_PIN_ROLES.includes(approverInfo?.approvedByRole)) {
+        throw new Error("Only Owner PIN can apply this discount.");
+      }
+      const pending = pendingSeniorPwdRef.current;
+      if (pending == null || pending <= 0) {
+        setShowSeniorPwdPinModal(false);
+        pendingSeniorPwdRef.current = null;
+        return;
+      }
+      const capped = Math.min(pending, subtotal);
+      setSeniorPwdDiscountAmount(capped);
+      setSeniorPwdInput("");
+      setShowSeniorPwdPinModal(false);
+      pendingSeniorPwdRef.current = null;
+      toastBr.success("Senior Citizen / PWD discount applied.");
+    },
+    [subtotal, toastBr]
+  );
 
   const handleRemoveDiscount = useCallback((discountId) => {
     if (discountId) {
@@ -2260,7 +2338,12 @@ const Terminal = () => {
               onQRPayment={handleQRPayment}
               onOpenDiscountModal={handleOpenDiscountModal}
               onSelectDiscount={handleSelectDiscount}
-              stockAllowsCheckout={cartStockAllowsCheckout} />
+              stockAllowsCheckout={cartStockAllowsCheckout}
+              seniorPwdInput={seniorPwdInput}
+              onSeniorPwdInputChange={setSeniorPwdInput}
+              seniorPwdAppliedAmount={seniorPwdDiscountAmount}
+              onRequestSeniorPwdApply={handleRequestSeniorPwdDiscount}
+              onRemoveSeniorPwdDiscount={handleRemoveSeniorPwdDiscount} />
 
           </div>
         </div>
@@ -2338,6 +2421,23 @@ const Terminal = () => {
         subtitle={`This transaction has reached the ${CART_ITEM_LIMIT}-item limit. Manager/Owner PIN is required to continue.`}
         confirmText="Approve Override"
         pinLabel="Manager/Owner PIN" />
+
+      <RemoveItemPinModal
+        isOpen={showSeniorPwdPinModal}
+        onClose={() => {
+          setShowSeniorPwdPinModal(false);
+          pendingSeniorPwdRef.current = null;
+        }}
+        onConfirm={handleSeniorPwdPinConfirmed}
+        requireReason={false}
+        hideAmountCard={true}
+        allowedRoles={SENIOR_PWD_PIN_ROLES}
+        title="Senior Citizen / PWD Discount"
+        subtitle="Enter Owner PIN to apply this fixed discount to the order."
+        confirmText="Apply discount"
+        pinLabel="Owner PIN"
+        item={null}
+      />
 
 
       <ProductDetailsModal
