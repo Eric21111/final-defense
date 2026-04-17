@@ -14,6 +14,34 @@ const isSameLocalDay = (left, right) => {
     return a.getTime() === b.getTime();
 };
 
+const sumOpeningFloatsInRange = async ({ employeeId, lo, hi, allTime }) => {
+    const settings = await GlobalSettings.findOne().lean();
+    if (!settings || !Array.isArray(settings.openingFloats)) {
+        return 0;
+    }
+
+    const employeeIdStr = employeeId && String(employeeId).trim() ? String(employeeId).trim() : null;
+
+    return settings.openingFloats.reduce((sum, entry) => {
+        if (!entry) return sum;
+
+        if (employeeIdStr && String(entry.employeeId || '').trim() !== employeeIdStr) {
+            return sum;
+        }
+
+        const effectiveDate = new Date(entry.businessDate || entry.createdAt || 0);
+        if (Number.isNaN(effectiveDate.getTime())) {
+            return sum;
+        }
+
+        if (!allTime && (effectiveDate < lo || effectiveDate > hi)) {
+            return sum;
+        }
+
+        return sum + (Number(entry.amount) || 0);
+    }, 0);
+};
+
 const getOpeningFloatForEmployee = async (employeeId) => {
     const settings = await GlobalSettings.findOne().lean();
     if (!settings) {
@@ -225,8 +253,11 @@ exports.createRemittance = async (req, res) => {
 
 /**
  * GET /api/remittances/kpi-stats?startMs=&endMs=&employeeId=
- * posNetSales = sum of POS totals (Completed / Partially Returned / Returned, excl. paymentMethod return); refunds already reduce totalAmount on originals.
- * grossSales = posNetSales + returns (return rows). Total Remitted = sum of cashToRemit. Outstanding = max(0, posNetSales - remitted).
+ * KPI basis:
+ * - posNetSales: cashier net sales after return deductions
+ * - totalRemitted: sum of totalCashOnHand (actual cash handed over, includes opening float)
+ * - expectedCash: posNetSales + assigned opening floats
+ * - totalVariance: totalRemitted - expectedCash (positive: extra, negative: short)
  */
 exports.getRemittanceKpiStats = async (req, res) => {
     try {
@@ -288,7 +319,7 @@ exports.getRemittanceKpiStats = async (req, res) => {
             salesMatch.performedById = empIdStr;
         }
 
-        const [completedTransactions, rawReturnTransactions, remitAgg] = await Promise.all([
+        const [completedTransactions, rawReturnTransactions, remitAgg, openingFloatTotal] = await Promise.all([
             SalesTransaction.find(salesMatch).select('totalAmount').lean(),
             SalesTransaction.find({
                 paymentMethod: 'return',
@@ -315,13 +346,18 @@ exports.getRemittanceKpiStats = async (req, res) => {
                     {
                         $group: {
                             _id: null,
-                            totalRemitted: { $sum: { $ifNull: ['$cashToRemit', 0] } },
-                            totalVariance: { $sum: { $ifNull: ['$variance', 0] } },
+                            totalRemitted: { $sum: { $ifNull: ['$totalCashOnHand', 0] } },
                             slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } }
                         }
                     }
                 ]);
-            })()
+            })(),
+            sumOpeningFloatsInRange({
+                employeeId: empIdStr,
+                lo,
+                hi,
+                allTime
+            })
         ]);
 
         const posNetSales = completedTransactions.reduce(
@@ -337,12 +373,11 @@ exports.getRemittanceKpiStats = async (req, res) => {
 
         const row = remitAgg[0] || {
             totalRemitted: 0,
-            totalVariance: 0,
             slipNetSales: 0
         };
         const totalRemitted = row.totalRemitted || 0;
-        const totalVariance = row.totalVariance || 0;
-        const unremittedCash = Math.max(0, netSalesAfterReturns - totalRemitted);
+        const expectedCash = netSalesAfterReturns + (openingFloatTotal || 0);
+        const totalVariance = totalRemitted - expectedCash;
 
         res.json({
             success: true,
@@ -350,10 +385,12 @@ exports.getRemittanceKpiStats = async (req, res) => {
                 posNetSales: netSalesAfterReturns,
                 grossSales,
                 returns,
+                openingFloatTotal: openingFloatTotal || 0,
+                expectedCash,
                 totalRemitted,
                 totalVariance,
                 slipNetSalesSum: row.slipNetSales || 0,
-                unremittedCash
+                unremittedCash: expectedCash
             }
         });
     } catch (error) {

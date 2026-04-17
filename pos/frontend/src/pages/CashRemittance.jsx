@@ -615,6 +615,8 @@ const CashRemittance = () => {
 
     const [kpiStats, setKpiStats] = useState({
         posNetSales: 0,
+        openingFloatTotal: 0,
+        expectedCash: 0,
         totalRemitted: 0,
         totalVariance: 0,
         unremittedCash: 0
@@ -641,13 +643,17 @@ const CashRemittance = () => {
                 if (data.success && data.data) {
                     setKpiStats({
                         posNetSales: data.data.posNetSales ?? 0,
+                        openingFloatTotal: data.data.openingFloatTotal ?? 0,
+                        expectedCash: data.data.expectedCash ?? data.data.unremittedCash ?? 0,
                         totalRemitted: data.data.totalRemitted ?? 0,
                         totalVariance: data.data.totalVariance ?? 0,
-                        unremittedCash: data.data.unremittedCash ?? 0
+                        unremittedCash: data.data.unremittedCash ?? data.data.expectedCash ?? 0
                     });
                 } else {
                     setKpiStats({
                         posNetSales: 0,
+                        openingFloatTotal: 0,
+                        expectedCash: 0,
                         totalRemitted: 0,
                         totalVariance: 0,
                         unremittedCash: 0
@@ -658,6 +664,8 @@ const CashRemittance = () => {
                 if (!cancelled) {
                     setKpiStats({
                         posNetSales: 0,
+                        openingFloatTotal: 0,
+                        expectedCash: 0,
                         totalRemitted: 0,
                         totalVariance: 0,
                         unremittedCash: 0
@@ -771,8 +779,8 @@ const CashRemittance = () => {
                     />
                     <KpiCard
                         icon={FaClock}
-                        label="Outstanding (Unremitted)"
-                        value={kpiLoading ? "…" : formatCurrency(kpiStats.unremittedCash)}
+                        label="Expected Cash"
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.expectedCash)}
                         barGradient="linear-gradient(180deg, #B91C1C 0%, #EF4444 100%)"
                         iconBg="bg-red-50"
                         iconColor="text-red-500"
