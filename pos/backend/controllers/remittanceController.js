@@ -265,11 +265,12 @@ exports.createRemittance = async (req, res) => {
 /**
  * GET /api/remittances/kpi-stats?startMs=&endMs=&employeeId=
  * KPI basis:
- * - posNetSales: cashier net remittance (gross sales before return deductions minus returns processed by the cashier)
+ * - posNetSales: cashier total sales KPI basis (same as Transactions page "Total Sales")
+ * - netRemittance: grossSales - returnsProcessed (returns processed by this cashier)
  * - totalRemitted: sum of totalCashOnHand (actual cash handed over, includes opening float)
- * - expectedCash: posNetSales + assigned opening floats
+ * - expectedCash: netRemittance + assigned opening floats
  * - totalVariance: totalRemitted - expectedCash (positive: extra, negative: short)
- */
+  */
 exports.getRemittanceKpiStats = async (req, res) => {
     try {
         const { startMs, endMs, startDate, endDate, employeeId } = req.query;
@@ -412,9 +413,10 @@ exports.getRemittanceKpiStats = async (req, res) => {
         res.json({
             success: true,
             data: {
-                posNetSales: netRemittance,
+                posNetSales: salesAfterReturnDeductions,
                 grossSales,
                 returns: returnsProcessed,
+                netRemittance,
                 openingFloatTotal: openingFloatTotal || 0,
                 expectedCash,
                 totalRemitted,
