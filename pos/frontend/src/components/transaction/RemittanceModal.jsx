@@ -112,7 +112,8 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
     const useManualTotal = parsedManualTotal !== null;
     const totalCashOnHand = useManualTotal ? parsedManualTotal : totalFromDenominations;
     const cashToRemit = totalCashOnHand - openingFloat;
-    const variance = cashToRemit - summary.netSales;
+    const expectedNetRemittance = summary.netRemittance ?? summary.netSales ?? 0;
+    const variance = cashToRemit - expectedNetRemittance;
 
     const fetchSummary = useCallback(async () => {
         if (!employeeId) return;
@@ -171,13 +172,14 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                     shiftDate: summary.shiftDate,
                     grossSales: summary.grossSales,
                     returns: summary.returns,
-                    netSales: summary.netSales,
+                    netSales: expectedNetRemittance,
+                    netRemittance: expectedNetRemittance,
                     noOfSales: summary.noOfSales,
                     denominations,
                     totalCashOnHand,
                     openingFloat,
                     cashToRemit,
-                    expectedCash: summary.netSales,
+                    expectedCash: expectedNetRemittance,
                     variance,
                     remarks,
                     receivedBy,
@@ -343,9 +345,9 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                                     <div className="border-t border-gray-200 my-2" />
 
                                                     <div className="flex justify-between text-sm">
-                                                        <span className="text-gray-700 font-semibold">Net Sales</span>
+                                                        <span className="text-gray-700 font-semibold">Net Remittance</span>
                                                         <span className="font-bold text-gray-800">
-                                                            {formatCurrency(summary.netSales)}
+                                                            {formatCurrency(expectedNetRemittance)}
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between text-sm">
@@ -557,8 +559,8 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
 
                                         <div className="space-y-2">
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600">Net Sales</span>
-                                                <span className="font-semibold">{formatCurrency(summary.netSales)}</span>
+                                                <span className="text-gray-600">Net Remittance</span>
+                                                <span className="font-semibold">{formatCurrency(expectedNetRemittance)}</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Total Cash on Hand</span>
