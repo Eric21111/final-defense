@@ -21,11 +21,14 @@ const sumOpeningFloatsInRange = async ({ employeeId, lo, hi, allTime }) => {
     }
 
     const employeeIdStr = employeeId && String(employeeId).trim() ? String(employeeId).trim() : null;
+    const loDay = allTime ? null : startOfLocalDay(lo);
+    const hiDay = allTime ? null : startOfLocalDay(hi);
 
     return settings.openingFloats.reduce((sum, entry) => {
         if (!entry) return sum;
 
-        if (employeeIdStr && String(entry.employeeId || '').trim() !== employeeIdStr) {
+        const entryEmployeeId = String(entry?.employeeId?._id || entry?.employeeId || '').trim();
+        if (employeeIdStr && entryEmployeeId !== employeeIdStr) {
             return sum;
         }
 
@@ -34,11 +37,19 @@ const sumOpeningFloatsInRange = async ({ employeeId, lo, hi, allTime }) => {
             return sum;
         }
 
-        if (!allTime && (effectiveDate < lo || effectiveDate > hi)) {
+        if (!allTime) {
+            const entryDay = startOfLocalDay(effectiveDate);
+            if (entryDay < loDay || entryDay > hiDay) {
+                return sum;
+            }
+        }
+
+        const amount = Number(entry.amount);
+        if (!Number.isFinite(amount)) {
             return sum;
         }
 
-        return sum + (Number(entry.amount) || 0);
+        return sum + amount;
     }, 0);
 };
 
@@ -254,7 +265,7 @@ exports.createRemittance = async (req, res) => {
 /**
  * GET /api/remittances/kpi-stats?startMs=&endMs=&employeeId=
  * KPI basis:
- * - posNetSales: cashier net sales after return deductions
+ * - posNetSales: cashier net remittance (gross sales before return deductions minus returns processed by the cashier)
  * - totalRemitted: sum of totalCashOnHand (actual cash handed over, includes opening float)
  * - expectedCash: posNetSales + assigned opening floats
  * - totalVariance: totalRemitted - expectedCash (positive: extra, negative: short)
@@ -320,7 +331,7 @@ exports.getRemittanceKpiStats = async (req, res) => {
         }
 
         const [completedTransactions, rawReturnTransactions, remitAgg, openingFloatTotal] = await Promise.all([
-            SalesTransaction.find(salesMatch).select('totalAmount').lean(),
+            SalesTransaction.find(salesMatch).select('_id totalAmount').lean(),
             SalesTransaction.find({
                 paymentMethod: 'return',
                 ...(empIdStr
@@ -360,31 +371,50 @@ exports.getRemittanceKpiStats = async (req, res) => {
             })
         ]);
 
-        const posNetSales = completedTransactions.reduce(
+        const completedTransactionIds = completedTransactions
+            .map((t) => t?._id)
+            .filter(Boolean);
+
+        const ownSalesReturnTransactions =
+            completedTransactionIds.length > 0
+                ? await SalesTransaction.find({
+                      paymentMethod: 'return',
+                      originalTransactionId: { $in: completedTransactionIds },
+                      ...(transactionDateOr || {})
+                  })
+                      .select('totalAmount')
+                      .lean()
+                : [];
+
+        const salesAfterReturnDeductions = completedTransactions.reduce(
             (s, t) => s + (Number(t.totalAmount) || 0),
             0
         );
-        const returns = rawReturnTransactions.reduce(
+        const returnsAgainstOwnSales = ownSalesReturnTransactions.reduce(
             (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
             0
         );
-        const grossSales = posNetSales + returns;
-        const netSalesAfterReturns = posNetSales;
+        const grossSales = salesAfterReturnDeductions + returnsAgainstOwnSales;
+        const returnsProcessed = rawReturnTransactions.reduce(
+            (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
+            0
+        );
+        const netRemittance = grossSales - returnsProcessed;
 
         const row = remitAgg[0] || {
             totalRemitted: 0,
             slipNetSales: 0
         };
         const totalRemitted = row.totalRemitted || 0;
-        const expectedCash = netSalesAfterReturns + (openingFloatTotal || 0);
+        const expectedCash = netRemittance + (openingFloatTotal || 0);
         const totalVariance = totalRemitted - expectedCash;
 
         res.json({
             success: true,
             data: {
-                posNetSales: netSalesAfterReturns,
+                posNetSales: netRemittance,
                 grossSales,
-                returns,
+                returns: returnsProcessed,
                 openingFloatTotal: openingFloatTotal || 0,
                 expectedCash,
                 totalRemitted,
