@@ -1,5 +1,22 @@
 const Discount = require('../models/Discount');
 
+function validateDiscountValueBody(discountType, discountValue) {
+  const n =
+    typeof discountValue === 'number'
+      ? discountValue
+      : parseFloat(discountValue);
+  if (Number.isNaN(n) || n < 0) {
+    return { ok: false, message: 'Invalid discount value' };
+  }
+  if (discountType === 'percentage' && n > 100) {
+    return {
+      ok: false,
+      message: 'Percentage discount cannot exceed 100%',
+    };
+  }
+  return { ok: true, value: n };
+}
+
 exports.getAllDiscounts = async (req, res) => {
   try {
     const discounts = await Discount.find({}).sort({ dateCreated: -1 }).lean();
@@ -97,6 +114,18 @@ exports.createDiscount = async (req, res) => {
       discountData.status = 'active';
     }
 
+    const valueCheck = validateDiscountValueBody(
+      discountData.discountType,
+      discountData.discountValue,
+    );
+    if (!valueCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: valueCheck.message,
+      });
+    }
+    discountData.discountValue = valueCheck.value;
+
     const discount = await Discount.create(discountData);
 
     res.status(201).json({
@@ -128,8 +157,27 @@ exports.updateDiscount = async (req, res) => {
     if (!currentDiscount) {
       return res.status(404).json({
         success: false,
-        message: 'Discount not found'
+        message: 'Discount not found',
       });
+    }
+
+    if (
+      updateData.discountType !== undefined ||
+      updateData.discountValue !== undefined
+    ) {
+      const dtype = updateData.discountType ?? currentDiscount.discountType;
+      const dval =
+        updateData.discountValue !== undefined
+          ? updateData.discountValue
+          : currentDiscount.discountValue;
+      const valueCheck = validateDiscountValueBody(dtype, dval);
+      if (!valueCheck.ok) {
+        return res.status(400).json({
+          success: false,
+          message: valueCheck.message,
+        });
+      }
+      updateData.discountValue = valueCheck.value;
     }
 
     // Auto-reactivate if usageLimit is increased above current usage

@@ -208,6 +208,15 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
       alert('Please select at least one product');
       return;
     }
+    const numVal = parseFloat(String(formData.discountValue).replace(/,/g, ''));
+    if (Number.isNaN(numVal) || numVal < 0) {
+      alert('Please enter a valid discount value');
+      return;
+    }
+    if (formData.discountType === 'percentage' && numVal > 100) {
+      alert('Percentage discount cannot exceed 100%.');
+      return;
+    }
     if (discountToEdit) {
       onEdit(discountToEdit._id, formData);
     } else {
@@ -218,10 +227,44 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    if (type === 'checkbox') {
+      setFormData((prev) => ({ ...prev, [name]: checked }));
+      return;
+    }
+    if (name === 'discountType') {
+      setFormData((prev) => {
+        const next = { ...prev, discountType: value };
+        if (value === 'percentage' && prev.discountValue !== '') {
+          const n = parseFloat(String(prev.discountValue).replace(/,/g, ''));
+          if (!Number.isNaN(n) && n > 100) {
+            next.discountValue = '100';
+          }
+        }
+        return next;
+      });
+      return;
+    }
+    if (name === 'discountValue') {
+      setFormData((prev) => {
+        if (prev.discountType !== 'percentage') {
+          return { ...prev, discountValue: value };
+        }
+        if (value === '') {
+          return { ...prev, discountValue: '' };
+        }
+        const n = parseFloat(String(value).replace(/,/g, ''));
+        if (Number.isNaN(n)) {
+          return { ...prev, discountValue: value };
+        }
+        const clamped = Math.min(100, Math.max(0, n));
+        return { ...prev, discountValue: String(clamped) };
+      });
+      return;
+    }
     setFormData((prev) => ({
       ...prev,
       ...(name === 'category' ? { subCategory: '' } : {}),
-      [name]: type === 'checkbox' ? checked : value
+      [name]: value
     }));
   };
 
@@ -364,6 +407,9 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           name="discountValue"
                           value={formData.discountValue}
                           onChange={handleChange}
+                          min={0}
+                          max={formData.discountType === 'percentage' ? 100 : undefined}
+                          step="any"
                           placeholder="e.g 15"
                           className={`flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${isDark ?
                           'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
@@ -375,6 +421,11 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           {formData.discountType === 'percentage' ? '% OFF' : '₱ OFF'}
                         </span>
                       </div>
+                      {formData.discountType === 'percentage' &&
+                        <p className={`text-[11px] mt-1.5 ${isDark ? 'text-gray-500' : 'text-gray-500'}`}>
+                          Maximum 100%.
+                        </p>
+                      }
                     </div>
 
                     <div>
