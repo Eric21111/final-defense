@@ -506,14 +506,12 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
 
                                     <div className="space-y-1.5 mb-3">
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">Total Cash on Hand</span>
-                                            <span className="font-semibold">{formatCurrency(totalCashOnHand)}</span>
+                                            <span className="text-gray-600">Net Remittance</span>
+                                            <span className="font-semibold">{formatCurrency(expectedNetRemittance)}</span>
                                         </div>
                                         <div className="flex justify-between text-sm">
-                                            <span className="text-gray-600">Less: Opening Float</span>
-                                            <span className="font-semibold text-red-500">
-                                                ({formatAbs(openingFloat)})
-                                            </span>
+                                            <span className="text-gray-600">Opening Float</span>
+                                            <span className="font-semibold">{formatCurrency(openingFloat)}</span>
                                         </div>
 
                                         <div className="border-t border-gray-200 my-1" />
@@ -563,14 +561,12 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                                                 <span className="font-semibold">{formatCurrency(expectedNetRemittance)}</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600">Total Cash on Hand</span>
-                                                <span className="font-semibold">{formatCurrency(totalCashOnHand)}</span>
+                                                <span className="text-gray-600">Opening Float</span>
+                                                <span className="font-semibold">{formatCurrency(openingFloat)}</span>
                                             </div>
                                             <div className="flex justify-between text-sm">
-                                                <span className="text-gray-600">Less Opening Float</span>
-                                                <span className="font-semibold text-red-500">
-                                                    ({formatAbs(openingFloat)})
-                                                </span>
+                                                <span className="text-gray-600">Total Counted</span>
+                                                <span className="font-semibold">{formatCurrency(totalCashOnHand)}</span>
                                             </div>
 
                                             <div className="border-t border-gray-200 my-2" />

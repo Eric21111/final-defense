@@ -246,11 +246,11 @@ const ReceiptContent = ({ remit }) => {
                             <span className="font-bold text-gray-800">{formatCurrency(remit.totalCashOnHand)}</span>
                         </div>
                         <div className="flex justify-between text-[11px]">
-                            <span className="text-gray-600">Less: Opening Float</span>
+                            <span className="text-gray-600">Opening Float</span>
                             <span className="font-bold text-gray-800">({formatAbs(remit.openingFloat || 0)})</span>
                         </div>
                         <div className="border-t border-dashed border-gray-300 pt-1 flex justify-between items-center">
-                            <span className="text-xs font-extrabold text-gray-900 tracking-wide">CASH TO REMIT</span>
+                            <span className="text-xs font-extrabold text-gray-900 tracking-wide">Cash to Remit</span>
                             <span className="text-sm font-extrabold text-gray-900">{formatCurrency(remit.cashToRemit)}</span>
                         </div>
                     </div>
@@ -1081,9 +1081,9 @@ const CashRemittance = () => {
                                     <tr className="bg-gray-50 border-b border-gray-100">
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date & Time</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Cashier</th>
-                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Net Sales</th>
+                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Net Remitted</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Opening Float</th>
-                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Cash to Remit</th>
+                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Cash Remitted</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Variance</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
                                     </tr>
