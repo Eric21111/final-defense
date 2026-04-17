@@ -176,6 +176,7 @@ const AddProductModal = ({
     let total = 0;
     if (hasAnyCombos) {
       combos.forEach(({ variant: v, size: s }) => {
+        if (!isComboChecked(s, v)) return;
         if (v && s) total += parseInt(newProduct.variantQuantities?.[s]?.[v], 10) || 0;
         else if (s) total += parseInt(newProduct.sizeQuantities?.[s], 10) || 0;
         else total += parseInt(newProduct.currentStock, 10) || 0;
@@ -196,6 +197,7 @@ const AddProductModal = ({
   const [fillAllCost, setFillAllCost] = useState("");
   const [fillAllPrice, setFillAllPrice] = useState("");
   const [fillAllQty, setFillAllQty] = useState("");
+  const [checkedVariantCombos, setCheckedVariantCombos] = useState({});
 
   const [currentStep, setCurrentStep] = useState(1);
   const [reviewImgIdx, setReviewImgIdx] = useState(0);
@@ -219,6 +221,80 @@ const AddProductModal = ({
     }
 
     return (selectedVariants || []).filter(Boolean);
+  };
+
+  const getComboKey = (size, variant) => `${String(size || "")}|${String(variant || "")}`;
+
+  const getCurrentCombos = () => {
+    const combos = [];
+    const variants = selectedVariants.length > 0 ? selectedVariants : [null];
+    const sizes = (newProduct.selectedSizes?.length > 0) ? newProduct.selectedSizes : [VARIANT_ONLY_KEY];
+    variants.forEach((variant) => {
+      sizes.forEach((size) => {
+        combos.push({ variant, size, key: getComboKey(size, variant) });
+      });
+    });
+    return combos;
+  };
+
+  const isComboChecked = (size, variant) => checkedVariantCombos[getComboKey(size, variant)] !== false;
+
+  const removeVariantEntryFromMap = (source, size, variant) => {
+    const updated = { ...(source || {}) };
+    const perSize = { ...(updated[size] || {}) };
+    delete perSize[variant];
+    if (Object.keys(perSize).length > 0) {
+      updated[size] = perSize;
+    } else {
+      delete updated[size];
+    }
+    return updated;
+  };
+
+  const removeSizeEntryFromMap = (source, size) => {
+    const updated = { ...(source || {}) };
+    delete updated[size];
+    return updated;
+  };
+
+  const handleComboCheckToggle = (size, variant) => {
+    const key = getComboKey(size, variant);
+    const wasChecked = checkedVariantCombos[key] !== false;
+    setCheckedVariantCombos((prev) => ({ ...prev, [key]: !wasChecked }));
+
+    if (!wasChecked) return;
+
+    if (size && variant) {
+      setVariantQuantities((prev) => {
+        const source = Object.keys(prev || {}).length > 0 ? prev : (newProduct.variantQuantities || {});
+        const updated = removeVariantEntryFromMap(source, size, variant);
+        setNewProduct((p) => ({ ...p, variantQuantities: updated }));
+        return updated;
+      });
+      setVariantPrices((prev) => {
+        const source = Object.keys(prev || {}).length > 0 ? prev : (newProduct.variantPrices || {});
+        return removeVariantEntryFromMap(source, size, variant);
+      });
+      setVariantCostPrices((prev) => {
+        const source = Object.keys(prev || {}).length > 0 ? prev : (newProduct.variantCostPrices || {});
+        return removeVariantEntryFromMap(source, size, variant);
+      });
+      setNewProduct((p) => ({
+        ...p,
+        variantPrices: removeVariantEntryFromMap(p.variantPrices || {}, size, variant),
+        variantCostPrices: removeVariantEntryFromMap(p.variantCostPrices || {}, size, variant)
+      }));
+      return;
+    }
+
+    if (size && !variant) {
+      setNewProduct((p) => ({
+        ...p,
+        sizeQuantities: removeSizeEntryFromMap(p.sizeQuantities || {}, size),
+        sizePrices: removeSizeEntryFromMap(p.sizePrices || {}, size),
+        sizeCostPrices: removeSizeEntryFromMap(p.sizeCostPrices || {}, size)
+      }));
+    }
   };
 
   const getTotalStockFromInputs = () => {
@@ -457,6 +533,28 @@ const AddProductModal = ({
     });
   };
 
+  useEffect(() => {
+    if (!showAddModal) {
+      setCheckedVariantCombos({});
+      return;
+    }
+
+    const combos = getCurrentCombos();
+    if (!hasVariants || combos.length === 0) {
+      setCheckedVariantCombos({});
+      return;
+    }
+
+    setCheckedVariantCombos((prev) => {
+      const next = {};
+      combos.forEach(({ size, variant }) => {
+        const key = getComboKey(size, variant);
+        next[key] = prev[key] !== undefined ? prev[key] : true;
+      });
+      return next;
+    });
+  }, [showAddModal, hasVariants, selectedVariants, newProduct.selectedSizes]);
+
 
   useEffect(() => {
     if (!showAddModal) {
@@ -464,6 +562,7 @@ const AddProductModal = ({
       setShowVariantDropdown(false);
       setCustomColorInput("");
       setVariantQuantities({});
+      setCheckedVariantCombos({});
       setShowCustomSizeInput(false);
       setCustomSizeValue("");
       setCustomSizes([]);
@@ -541,6 +640,53 @@ const AddProductModal = ({
         ? newProduct.brandName
         : "Default";
 
+    const sourceVariantQuantities =
+      Object.keys(variantQuantities || {}).length > 0
+        ? variantQuantities
+        : (newProduct.variantQuantities || {});
+    const sourceVariantPrices =
+      Object.keys(variantPrices || {}).length > 0
+        ? variantPrices
+        : (newProduct.variantPrices || {});
+    const sourceVariantCostPrices =
+      Object.keys(variantCostPrices || {}).length > 0
+        ? variantCostPrices
+        : (newProduct.variantCostPrices || {});
+
+    const filteredVariantQuantities = {};
+    Object.entries(sourceVariantQuantities).forEach(([size, perVariant]) => {
+      if (!perVariant || typeof perVariant !== "object") return;
+      Object.entries(perVariant).forEach(([variant, qty]) => {
+        if (!isComboChecked(size, variant)) return;
+        if (!filteredVariantQuantities[size]) filteredVariantQuantities[size] = {};
+        filteredVariantQuantities[size][variant] = parseInt(qty, 10) || 0;
+      });
+    });
+
+    const filteredVariantPrices = {};
+    Object.entries(sourceVariantPrices).forEach(([size, perVariant]) => {
+      if (!perVariant || typeof perVariant !== "object") return;
+      Object.entries(perVariant).forEach(([variant, price]) => {
+        if (!isComboChecked(size, variant)) return;
+        if (!filteredVariantPrices[size]) filteredVariantPrices[size] = {};
+        filteredVariantPrices[size][variant] = parseFloat(price) || 0;
+      });
+    });
+
+    const filteredVariantCostPrices = {};
+    Object.entries(sourceVariantCostPrices).forEach(([size, perVariant]) => {
+      if (!perVariant || typeof perVariant !== "object") return;
+      Object.entries(perVariant).forEach(([variant, price]) => {
+        if (!isComboChecked(size, variant)) return;
+        if (!filteredVariantCostPrices[size]) filteredVariantCostPrices[size] = {};
+        filteredVariantCostPrices[size][variant] = parseFloat(price) || 0;
+      });
+    });
+
+    setVariantQuantities(filteredVariantQuantities);
+    setVariantPrices(filteredVariantPrices);
+    setVariantCostPrices(filteredVariantCostPrices);
+
     const completeProductData = {
       ...newProduct,
       brandName: normalizedBrandName,
@@ -553,13 +699,11 @@ const AddProductModal = ({
         multipleVariantsPerSize: multipleVariantsPerSize
       }),
 
-      ...(Object.keys(variantQuantities).length > 0 && {
-        variantQuantities: variantQuantities
-      }),
+      variantQuantities: filteredVariantQuantities,
 
       differentPricesPerVariant: differentPricesPerVariant,
-      ...(Object.keys(variantPrices).length > 0 && { variantPrices: variantPrices }),
-      ...(Object.keys(variantCostPrices).length > 0 && { variantCostPrices: variantCostPrices }),
+      variantPrices: filteredVariantPrices,
+      variantCostPrices: filteredVariantCostPrices,
 
       ...(editingProduct && Object.keys(editableSizePrices).length > 0 && {
         editableSizePrices: editableSizePrices
@@ -1123,16 +1267,15 @@ const AddProductModal = ({
                 {currentStep === 3 && (
                   <div className="space-y-5">
                     {(() => {
-                      const combos = [];
-                      const variants = selectedVariants.length > 0 ? selectedVariants : [null];
-                      const sizes = (newProduct.selectedSizes?.length > 0) ? newProduct.selectedSizes : [VARIANT_ONLY_KEY];
-                      variants.forEach(v => { sizes.forEach(s => { combos.push({ variant: v, size: s, key: `${v || ''}-${s || ''}` }); }); });
+                      const combos = getCurrentCombos();
                       const hasAnyCombos = hasVariants && combos.length > 0 && (combos[0].variant || combos[0].size);
+                      const checkedComboCount = combos.filter(({ variant: v, size: s }) => isComboChecked(s, v)).length;
 
                       const handleFillAll = () => {
                         if (!hasAnyCombos) return;
                         const cost = fillAllCost; const price = fillAllPrice; const qty = fillAllQty;
                         combos.forEach(({ variant: v, size: s }) => {
+                          if (!isComboChecked(s, v)) return;
                           if (v && s) {
                             if (cost) handleVariantCostPriceChange(s, v, cost);
                             if (price) handleVariantPriceChange(s, v, price);
@@ -1157,6 +1300,40 @@ const AddProductModal = ({
 
                       return hasAnyCombos ? (
                         <>
+                          <div className={`flex flex-wrap items-center justify-between gap-2 p-2 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+                            <p className={`text-xs ${theme === "dark" ? "text-gray-300" : "text-gray-600"}`}>
+                              Select variant combos to include in opening stock ({checkedComboCount}/{combos.length} selected)
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = {};
+                                  combos.forEach(({ size: s, variant: v }) => {
+                                    updated[getComboKey(s, v)] = true;
+                                  });
+                                  setCheckedVariantCombos((prev) => ({ ...prev, ...updated }));
+                                }}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${theme === "dark" ? "border-gray-600 text-gray-200 hover:bg-gray-700" : "border-gray-300 text-gray-700 hover:bg-white"}`}
+                              >
+                                Select all
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = {};
+                                  combos.forEach(({ size: s, variant: v }) => {
+                                    updated[getComboKey(s, v)] = false;
+                                  });
+                                  setCheckedVariantCombos((prev) => ({ ...prev, ...updated }));
+                                }}
+                                className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${theme === "dark" ? "border-gray-600 text-gray-200 hover:bg-gray-700" : "border-gray-300 text-gray-700 hover:bg-white"}`}
+                              >
+                                Unselect all
+                              </button>
+                            </div>
+                          </div>
+
                           {/* Fill All row */}
                           <div className={`flex items-end gap-2 p-3 rounded-xl border ${theme === "dark" ? "bg-[#1E1B18] border-gray-700" : "bg-gray-50 border-gray-200"}`}>
                             <div className="flex-1">
@@ -1181,7 +1358,8 @@ const AddProductModal = ({
                           {/* Combo table */}
                           <div className={`rounded-xl border overflow-hidden ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
                             {/* Header */}
-                            <div className={`grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-0 text-[10px] font-bold uppercase tracking-wider ${theme === "dark" ? "bg-[#2A2724] text-gray-400" : "bg-gray-100 text-gray-500"}`}>
+                            <div className={`grid grid-cols-[0.7fr_1.5fr_1fr_1fr_0.8fr] gap-0 text-[10px] font-bold uppercase tracking-wider ${theme === "dark" ? "bg-[#2A2724] text-gray-400" : "bg-gray-100 text-gray-500"}`}>
+                              <div className="px-3 py-2.5">Use</div>
                               <div className="px-3 py-2.5">Variant Combo</div>
                               <div className="px-3 py-2.5">Cost Price ₱</div>
                               <div className="px-3 py-2.5">Selling Price ₱</div>
@@ -1189,7 +1367,15 @@ const AddProductModal = ({
                       </div>
                             {/* Rows */}
                             {combos.map(({ variant: v, size: s, key }) => (
-                              <div key={key} className={`grid grid-cols-[1.5fr_1fr_1fr_0.8fr] gap-0 items-center border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                              <div key={key} className={`grid grid-cols-[0.7fr_1.5fr_1fr_1fr_0.8fr] gap-0 items-center border-t ${theme === "dark" ? "border-gray-700" : "border-gray-200"}`}>
+                                <div className="px-3 py-2">
+                                  <input
+                                    type="checkbox"
+                                    checked={isComboChecked(s, v)}
+                                    onChange={() => handleComboCheckToggle(s, v)}
+                                    className="w-4 h-4 text-[#09A046] rounded border-gray-300 focus:ring-[#09A046]"
+                                  />
+                                </div>
                                 <div className="px-3 py-2 flex flex-wrap gap-1">
                                   {s && s !== VARIANT_ONLY_KEY && <span className={`inline-block px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-blue-500/20 text-blue-400" : "bg-blue-100 text-blue-700"}`}>{s}</span>}
                                   {v && <span className={`inline-block px-2 py-0.5 text-[11px] rounded-full font-medium ${theme === "dark" ? "bg-pink-500/20 text-pink-400" : "bg-pink-100 text-pink-700"}`}>{v}</span>}
@@ -1203,6 +1389,7 @@ const AddProductModal = ({
                                       else setNewProduct(p => ({ ...p, costPrice: e.target.value }));
                                     }}
                                     placeholder="₱"
+                                    disabled={!isComboChecked(s, v)}
                                     className={`w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
                         </div>
                                 <div className="px-2 py-1.5">
@@ -1214,6 +1401,7 @@ const AddProductModal = ({
                                       else setNewProduct(p => ({ ...p, itemPrice: e.target.value }));
                                     }}
                                     placeholder="₱"
+                                    disabled={!isComboChecked(s, v)}
                                     className={`w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
                                             </div>
                                 <div className="px-2 py-1.5">
@@ -1231,6 +1419,7 @@ const AddProductModal = ({
                                       else { setNewProduct(p => ({ ...p, currentStock: val })); }
                                     }}
                                     placeholder="0"
+                                    disabled={!isComboChecked(s, v)}
                                     className={`w-full px-2 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-1 focus:ring-[#09A046] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`} />
                                   </div>
                                 </div>
@@ -1380,11 +1569,12 @@ const AddProductModal = ({
                   const rsizes = (newProduct.selectedSizes?.length > 0) ? newProduct.selectedSizes : [VARIANT_ONLY_KEY];
                   rvariants.forEach(v => { rsizes.forEach(s => { combos.push({ variant: v, size: s }); }); });
                   const hasAnyCombos = hasVariants && combos.length > 0 && (combos[0].variant || combos[0].size);
-                  const totalSkus = hasAnyCombos ? combos.length : 1;
+                  const reviewCombos = hasAnyCombos ? combos.filter(({ variant: v, size: s }) => isComboChecked(s, v)) : [];
+                  const totalSkus = hasAnyCombos ? reviewCombos.length : 1;
                   const variantType = hasVariants ? `${optionGroup1Name || "Color"}${newProduct.selectedSizes?.length > 0 ? ` x ${optionGroup2Name || "Size"}` : ""}` : "None";
                   let totalStock = 0;
                   if (hasAnyCombos) {
-                    combos.forEach(({ variant: v, size: s }) => {
+                    reviewCombos.forEach(({ variant: v, size: s }) => {
                       if (v && s) totalStock += parseInt(newProduct.variantQuantities?.[s]?.[v]) || 0;
                       else if (s) totalStock += parseInt(newProduct.sizeQuantities?.[s]) || 0;
                       else totalStock += parseInt(newProduct.currentStock) || 0;
@@ -1467,7 +1657,12 @@ const AddProductModal = ({
                         </div>
                           {/* Scrollable rows */}
                           <div className="overflow-y-auto flex-1">
-                            {combos.map(({ variant: v, size: s }, idx) => {
+                            {reviewCombos.length === 0 && (
+                              <div className={`px-4 py-3 text-sm ${theme === "dark" ? "text-gray-400" : "text-gray-500"}`}>
+                                No variant combo selected for opening stock.
+                              </div>
+                            )}
+                            {reviewCombos.map(({ variant: v, size: s }, idx) => {
                               const sell = v && s ? (variantPrices[s]?.[v] ?? newProduct.itemPrice ?? "") : s ? (newProduct.sizePrices?.[s] ?? newProduct.itemPrice ?? "") : (newProduct.itemPrice ?? "");
                               const cost = v && s ? (variantCostPrices[s]?.[v] ?? newProduct.costPrice ?? "") : s ? (newProduct.sizeCostPrices?.[s] ?? newProduct.costPrice ?? "") : (newProduct.costPrice ?? "");
                               const qty = v && s ? (newProduct.variantQuantities?.[s]?.[v] ?? "") : s ? (newProduct.sizeQuantities?.[s] ?? "") : (newProduct.currentStock ?? "");
