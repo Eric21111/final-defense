@@ -48,6 +48,7 @@ const OrderSummary = memo(({
   const [pendingQuantities, setPendingQuantities] = useState({});
   const [availableDiscounts, setAvailableDiscounts] = useState([]);
   const discountFetchedRef = useRef(false);
+  const hasAppliedDiscount = selectedDiscounts.length > 0;
 
 
   useEffect(() => {
@@ -70,6 +71,7 @@ const OrderSummary = memo(({
 
 
   useEffect(() => {
+    if (hasAppliedDiscount) return;
     if (!discountCode || !discountCode.trim() || applyingDiscount) return;
 
     const codeToFind = discountCode.trim().toLowerCase();
@@ -88,7 +90,7 @@ const OrderSummary = memo(({
         }
       }
     }
-  }, [discountCode, availableDiscounts, selectedDiscounts, applyingDiscount, onSelectDiscount]);
+  }, [hasAppliedDiscount, discountCode, availableDiscounts, selectedDiscounts, applyingDiscount, onSelectDiscount]);
 
   const handleProceed = () => {
     if (!stockAllowsCheckout) return;
@@ -537,6 +539,7 @@ const OrderSummary = memo(({
   };
 
   const applyDiscountCode = async () => {
+    if (hasAppliedDiscount) return;
     if (!discountCode || !discountCode.trim()) {
       alert('Please enter a discount code');
       return;
@@ -783,31 +786,36 @@ const OrderSummary = memo(({
           <div className="flex items-center gap-2">
             <input
               type="text"
-              placeholder="Enter discount code"
+              placeholder={hasAppliedDiscount ? 'One discount per order' : 'Enter discount code'}
               value={discountCode}
               onChange={(e) => setDiscountCode(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && !applyingDiscount) {
+                if (e.key === 'Enter' && !applyingDiscount && !hasAppliedDiscount) {
                   applyDiscountCode();
                 }
               }}
-              className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${theme === 'dark' ?
+              disabled={hasAppliedDiscount}
+              className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ?
                 'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
                 'bg-white border-[#d6c1b5] text-gray-900'}`
               } />
 
             <button
+              type="button"
               onClick={onOpenDiscountModal}
-              className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title="Browse discounts">
+              disabled={hasAppliedDiscount}
+              className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              title={hasAppliedDiscount ? 'Remove the current discount to choose another' : 'Browse discounts'}>
 
               <FaTag className="w-4 h-4" />
             </button>
             <button
+              type="button"
               onClick={applyDiscountCode}
-              disabled={applyingDiscount || !discountCode || !discountCode.trim()}
+              disabled={hasAppliedDiscount || applyingDiscount || !discountCode || !discountCode.trim()}
               className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
+              style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
+              title={hasAppliedDiscount ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
 
               {applyingDiscount ? 'Applying...' : 'Apply'}
             </button>

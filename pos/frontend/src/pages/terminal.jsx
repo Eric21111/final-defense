@@ -2084,6 +2084,12 @@ const Terminal = () => {
         return;
       }
 
+      if (selectedDiscounts.length > 0) {
+        alert(
+          "Only one discount can be applied per transaction. Remove the current discount first."
+        );
+        return;
+      }
 
       const validation = validateDiscountForCart(discountItem, cart);
 
