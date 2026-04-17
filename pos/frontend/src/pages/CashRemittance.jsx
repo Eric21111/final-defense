@@ -305,7 +305,7 @@ const CashRemittance = () => {
     const [staffList, setStaffList] = useState([]);
 
     // Opening Floats
-    const [globalFloat, setGlobalFloat] = useState(2000);
+    const [globalFloat, setGlobalFloat] = useState(0);
     const [openingFloatEntries, setOpeningFloatEntries] = useState([]);
     const [showFloatModal, setShowFloatModal] = useState(false);
     const [floatInput, setFloatInput] = useState("");
@@ -319,7 +319,7 @@ const CashRemittance = () => {
             const res = await fetch(API_ENDPOINTS.globalSettings);
             const data = await res.json();
             if (data.success && data.data) {
-                setGlobalFloat(data.data.openingFloat || 2000);
+                setGlobalFloat(data.data.openingFloat || 0);
                 setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
             }
         } catch (err) {
@@ -363,7 +363,7 @@ const CashRemittance = () => {
             });
             const data = await res.json();
             if (data.success) {
-                setGlobalFloat(data.data.openingFloat || 2000);
+                setGlobalFloat(data.data.openingFloat || 0);
                 setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
                 setFloatInput("");
                 setEditingFloatEntryId("");
@@ -390,7 +390,7 @@ const CashRemittance = () => {
             });
             const data = await res.json();
             if (data.success) {
-                setGlobalFloat(data.data.openingFloat || 2000);
+                setGlobalFloat(data.data.openingFloat || 0);
                 setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
 
                 if (editingFloatEntryId === entryId) {
@@ -810,7 +810,7 @@ const CashRemittance = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 h-full">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-3xl font-black text-gray-800">{formatCurrency(totalAssignedOpeningFloats || globalFloat)}</p>
+                                <p className="text-3xl font-black text-gray-800">{formatCurrency(totalAssignedOpeningFloats)}</p>
                                 <p className="text-sm font-semibold text-gray-400 mt-1">Today's Assigned Opening Floats</p>
                             </div>
                             {isOwner() && (
