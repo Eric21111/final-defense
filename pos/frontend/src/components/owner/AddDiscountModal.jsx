@@ -18,6 +18,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     validUntil: '',
     noExpiration: false,
     minPurchaseAmount: '',
+    maxPurchaseAmount: '',
     usageLimit: '',
     description: ''
   });
@@ -171,7 +172,16 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
           validFrom: discountToEdit.validFrom && discountToEdit.validFrom !== 'Permanent' ? new Date(discountToEdit.validFrom).toISOString().split('T')[0] : '',
           validUntil: discountToEdit.validTo && discountToEdit.validTo !== 'Permanent' ? new Date(discountToEdit.validTo).toISOString().split('T')[0] : '',
           noExpiration: discountToEdit.noExpiration || false,
-          minPurchaseAmount: discountToEdit.minPurchaseAmount || '',
+          minPurchaseAmount:
+            discountToEdit.minPurchaseAmount !== undefined &&
+            discountToEdit.minPurchaseAmount !== null
+              ? String(discountToEdit.minPurchaseAmount)
+              : '',
+          maxPurchaseAmount:
+            discountToEdit.maxPurchaseAmount !== undefined &&
+            discountToEdit.maxPurchaseAmount !== null
+              ? String(discountToEdit.maxPurchaseAmount)
+              : '',
           usageLimit: discountToEdit.usageLimit || '',
           description: discountToEdit.description || ''
         });
@@ -189,6 +199,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
           validUntil: '',
           noExpiration: false,
           minPurchaseAmount: '',
+          maxPurchaseAmount: '',
           usageLimit: '',
           description: ''
         });
@@ -215,6 +226,31 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     }
     if (formData.discountType === 'percentage' && numVal > 100) {
       alert('Percentage discount cannot exceed 100%.');
+      return;
+    }
+    const minPurchase = formData.minPurchaseAmount
+      ? parseFloat(String(formData.minPurchaseAmount).replace(/,/g, ''))
+      : NaN;
+    const maxPurchase =
+      formData.maxPurchaseAmount === '' ||
+      formData.maxPurchaseAmount === null ||
+      formData.maxPurchaseAmount === undefined
+        ? null
+        : parseFloat(String(formData.maxPurchaseAmount).replace(/,/g, ''));
+    if (maxPurchase != null && !Number.isNaN(maxPurchase) && maxPurchase < 0) {
+      alert('Maximum purchase amount cannot be negative.');
+      return;
+    }
+    if (
+      maxPurchase != null &&
+      !Number.isNaN(maxPurchase) &&
+      !Number.isNaN(minPurchase) &&
+      minPurchase > 0 &&
+      maxPurchase < minPurchase
+    ) {
+      alert(
+        'Maximum purchase amount must be greater than or equal to minimum purchase amount.'
+      );
       return;
     }
     if (discountToEdit) {
@@ -635,6 +671,28 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         
                       </div>
                       <p className="text-xs text-gray-400 mt-1">Customer must spend at least this amount</p>
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>
+                        <span>Maximum Purchase Amount</span>
+                        <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600">₱</span>
+                        <input
+                          type="number"
+                          name="maxPurchaseAmount"
+                          value={formData.maxPurchaseAmount}
+                          onChange={handleChange}
+                          min="0"
+                          step="0.01"
+                          placeholder="No upper limit"
+                          className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${isDark ? 'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' : 'border-gray-300 bg-white placeholder-gray-400'}`} />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Discount applies only when eligible cart total is at or below this amount (leave empty for no limit)
+                      </p>
                     </div>
 
                     <div>

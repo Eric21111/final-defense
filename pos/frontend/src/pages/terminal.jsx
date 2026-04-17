@@ -1509,14 +1509,7 @@ const Terminal = () => {
       return { valid: false, message: "Cart is empty" };
     }
 
-
     const appliesToType = discountItem.appliesToType || discountItem.appliesTo;
-
-
-    if (appliesToType === "all") {
-      return { valid: true };
-    }
-
 
     if (appliesToType === "category" && discountItem.category) {
       const hasMatchingItem = cartItems.some((item) =>
@@ -1529,14 +1522,11 @@ const Terminal = () => {
           message: `This discount only applies to items in the "${discountItem.category}" category.`
         };
       }
-      return { valid: true };
-    }
-
-
-    if (
+    } else if (
       appliesToType === "products" &&
       discountItem.productIds &&
-      discountItem.productIds.length > 0) {
+      discountItem.productIds.length > 0
+    ) {
       const hasMatchingItem = cartItems.some((item) => {
         const itemId = item._id || item.productId || item.id;
         return discountItem.productIds.some((pid) => {
@@ -1553,10 +1543,68 @@ const Terminal = () => {
             "This discount only applies to specific products. Your cart does not contain any eligible items."
         };
       }
-      return { valid: true };
+    } else if (appliesToType !== "all") {
+      return { valid: false, message: "Discount configuration is invalid" };
     }
 
-    return { valid: false, message: "Discount configuration is invalid" };
+    let eligibleSubtotal = 0;
+    if (appliesToType === "all") {
+      eligibleSubtotal = cartItems.reduce(
+        (s, item) => s + (item.itemPrice || 0) * (item.quantity || 1),
+        0
+      );
+    } else if (appliesToType === "category" && discountItem.category) {
+      eligibleSubtotal = cartItems.reduce((sum, item) => {
+        if (
+          itemMatchesDiscountCategory(
+            item,
+            discountItem.category,
+            discountItem.subCategory
+          )
+        ) {
+          return sum + (item.itemPrice || 0) * (item.quantity || 1);
+        }
+        return sum;
+      }, 0);
+    } else if (
+      appliesToType === "products" &&
+      discountItem.productIds &&
+      discountItem.productIds.length > 0
+    ) {
+      eligibleSubtotal = cartItems.reduce((sum, item) => {
+        const itemId = item._id || item.productId || item.id;
+        const isEligible = discountItem.productIds.some((pid) => {
+          const pidStr = pid.toString ? pid.toString() : pid;
+          const itemIdStr = itemId.toString ? itemId.toString() : itemId;
+          return pidStr === itemIdStr;
+        });
+        if (isEligible) {
+          return sum + (item.itemPrice || 0) * (item.quantity || 1);
+        }
+        return sum;
+      }, 0);
+    }
+
+    const minP = Number(discountItem.minPurchaseAmount);
+    if (Number.isFinite(minP) && minP > 0 && eligibleSubtotal < minP) {
+      return {
+        valid: false,
+        message: `This discount requires a minimum eligible total of ₱${minP.toFixed(2)} (current: ₱${eligibleSubtotal.toFixed(2)}).`
+      };
+    }
+
+    const maxRaw = discountItem.maxPurchaseAmount;
+    if (maxRaw != null && maxRaw !== "") {
+      const maxP = Number(maxRaw);
+      if (Number.isFinite(maxP) && maxP >= 0 && eligibleSubtotal > maxP) {
+        return {
+          valid: false,
+          message: `This discount only applies when the eligible total is at most ₱${maxP.toFixed(2)} (current: ₱${eligibleSubtotal.toFixed(2)}).`
+        };
+      }
+    }
+
+    return { valid: true };
   };
 
 

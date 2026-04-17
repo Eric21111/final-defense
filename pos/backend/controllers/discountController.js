@@ -17,6 +17,34 @@ function validateDiscountValueBody(discountType, discountValue) {
   return { ok: true, value: n };
 }
 
+function validatePurchaseRange(minPurchaseAmount, maxPurchaseAmount) {
+  const min =
+    minPurchaseAmount != null && minPurchaseAmount !== ''
+      ? Number(minPurchaseAmount)
+      : 0;
+  const max =
+    maxPurchaseAmount != null && maxPurchaseAmount !== ''
+      ? Number(maxPurchaseAmount)
+      : null;
+  if (max != null && !Number.isNaN(max) && max < 0) {
+    return { ok: false, message: 'Maximum purchase amount cannot be negative' };
+  }
+  if (
+    max != null &&
+    !Number.isNaN(max) &&
+    !Number.isNaN(min) &&
+    min > 0 &&
+    max < min
+  ) {
+    return {
+      ok: false,
+      message:
+        'Maximum purchase amount must be greater than or equal to minimum purchase amount',
+    };
+  }
+  return { ok: true };
+}
+
 exports.getAllDiscounts = async (req, res) => {
   try {
     const discounts = await Discount.find({}).sort({ dateCreated: -1 }).lean();
@@ -126,6 +154,17 @@ exports.createDiscount = async (req, res) => {
     }
     discountData.discountValue = valueCheck.value;
 
+    const rangeCheck = validatePurchaseRange(
+      discountData.minPurchaseAmount,
+      discountData.maxPurchaseAmount,
+    );
+    if (!rangeCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: rangeCheck.message,
+      });
+    }
+
     const discount = await Discount.create(discountData);
 
     res.status(201).json({
@@ -178,6 +217,22 @@ exports.updateDiscount = async (req, res) => {
         });
       }
       updateData.discountValue = valueCheck.value;
+    }
+
+    const mergedMin =
+      updateData.minPurchaseAmount !== undefined
+        ? updateData.minPurchaseAmount
+        : currentDiscount.minPurchaseAmount;
+    const mergedMax =
+      updateData.maxPurchaseAmount !== undefined
+        ? updateData.maxPurchaseAmount
+        : currentDiscount.maxPurchaseAmount;
+    const rangeCheck = validatePurchaseRange(mergedMin, mergedMax);
+    if (!rangeCheck.ok) {
+      return res.status(400).json({
+        success: false,
+        message: rangeCheck.message,
+      });
     }
 
     // Auto-reactivate if usageLimit is increased above current usage
