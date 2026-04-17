@@ -619,6 +619,7 @@ const CashRemittance = () => {
         expectedCash: 0,
         totalRemitted: 0,
         totalVariance: 0,
+        hasRemittance: false,
         unremittedCash: 0
     });
     const [kpiLoading, setKpiLoading] = useState(false);
@@ -647,6 +648,7 @@ const CashRemittance = () => {
                         expectedCash: data.data.expectedCash ?? data.data.unremittedCash ?? 0,
                         totalRemitted: data.data.totalRemitted ?? 0,
                         totalVariance: data.data.totalVariance ?? 0,
+                        hasRemittance: Boolean(data.data.hasRemittance),
                         unremittedCash: data.data.unremittedCash ?? data.data.expectedCash ?? 0
                     });
                 } else {
@@ -656,6 +658,7 @@ const CashRemittance = () => {
                         expectedCash: 0,
                         totalRemitted: 0,
                         totalVariance: 0,
+                        hasRemittance: false,
                         unremittedCash: 0
                     });
                 }
@@ -668,6 +671,7 @@ const CashRemittance = () => {
                         expectedCash: 0,
                         totalRemitted: 0,
                         totalVariance: 0,
+                        hasRemittance: false,
                         unremittedCash: 0
                     });
                 }
@@ -770,7 +774,13 @@ const CashRemittance = () => {
                     <KpiCard
                         icon={FaBalanceScale}
                         label="Total Variance"
-                        value={kpiLoading ? "…" : `${kpiStats.totalVariance > 0 ? "+" : ""}${formatCurrency(kpiStats.totalVariance)}`}
+                        value={
+                            kpiLoading
+                                ? "…"
+                                : kpiStats.hasRemittance
+                                    ? `${kpiStats.totalVariance > 0 ? "+" : ""}${formatCurrency(kpiStats.totalVariance)}`
+                                    : "—"
+                        }
                         barGradient="linear-gradient(180deg, #D97706 0%, #F59E0B 100%)"
                         iconBg="bg-amber-50"
                         iconColor="text-amber-500"

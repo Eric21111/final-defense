@@ -268,7 +268,7 @@ exports.createRemittance = async (req, res) => {
  * - posNetSales: cashier total sales KPI basis (same as Transactions page "Total Sales")
  * - netRemittance: grossSales - returnsProcessed (returns processed by this cashier)
  * - totalRemitted: sum of totalCashOnHand (actual cash handed over, includes opening float)
- * - expectedCash: netRemittance + assigned opening floats
+ * - expectedCash: posNetSales + assigned opening floats
  * - totalVariance: totalRemitted - expectedCash (positive: extra, negative: short)
   */
 exports.getRemittanceKpiStats = async (req, res) => {
@@ -359,7 +359,8 @@ exports.getRemittanceKpiStats = async (req, res) => {
                         $group: {
                             _id: null,
                             totalRemitted: { $sum: { $ifNull: ['$totalCashOnHand', 0] } },
-                            slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } }
+                            slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } },
+                            remittanceCount: { $sum: 1 }
                         }
                     }
                 ]);
@@ -404,11 +405,13 @@ exports.getRemittanceKpiStats = async (req, res) => {
 
         const row = remitAgg[0] || {
             totalRemitted: 0,
-            slipNetSales: 0
+            slipNetSales: 0,
+            remittanceCount: 0
         };
         const totalRemitted = row.totalRemitted || 0;
-        const expectedCash = netRemittance + (openingFloatTotal || 0);
-        const totalVariance = totalRemitted - expectedCash;
+        const expectedCash = salesAfterReturnDeductions + (openingFloatTotal || 0);
+        const hasRemittance = (row.remittanceCount || 0) > 0;
+        const totalVariance = hasRemittance ? (totalRemitted - expectedCash) : 0;
 
         res.json({
             success: true,
@@ -421,6 +424,7 @@ exports.getRemittanceKpiStats = async (req, res) => {
                 expectedCash,
                 totalRemitted,
                 totalVariance,
+                hasRemittance,
                 slipNetSalesSum: row.slipNetSales || 0,
                 unremittedCash: expectedCash
             }
