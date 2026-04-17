@@ -3,6 +3,7 @@ const SalesTransaction = require('../models/SalesTransaction');
 const VoidLog = require('../models/VoidLog');
 const Product = require('../models/Product');
 const Discount = require('../models/Discount');
+const { assertSaleStockAvailable } = require('../utils/saleStockValidation');
 
 // Helper function to safely convert to ObjectId
 const toObjectId = (id) => {
@@ -209,6 +210,15 @@ exports.createTransaction = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Items are required'
+      });
+    }
+
+    try {
+      await assertSaleStockAvailable(items);
+    } catch (stockErr) {
+      return res.status(400).json({
+        success: false,
+        message: stockErr.message || 'Insufficient stock for this sale'
       });
     }
 

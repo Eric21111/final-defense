@@ -25,6 +25,94 @@ import makeupIcon from "../assets/inventory-icons/make up.svg";
 import shoesIcon from "../assets/inventory-icons/shoe.svg";
 import topIcon from "../assets/inventory-icons/Top.svg";
 
+function findSizeKeyInProduct(sizesObj, size) {
+  if (!sizesObj || typeof sizesObj !== "object" || !size) return null;
+  if (sizesObj instanceof Map) {
+    const target = String(size).trim().toLowerCase();
+    for (const k of sizesObj.keys()) {
+      if (String(k).trim().toLowerCase() === target) return k;
+    }
+    return null;
+  }
+  if (Object.prototype.hasOwnProperty.call(sizesObj, size)) return size;
+  const target = String(size).trim().toLowerCase();
+  return (
+    Object.keys(sizesObj).find(
+      (k) => String(k).trim().toLowerCase() === target
+    ) || null
+  );
+}
+
+function resolveItemSizeForStock(item = {}) {
+  if (item.selectedSize) return item.selectedSize;
+  if (item.sizes && typeof item.sizes === "object") {
+    return Object.keys(item.sizes)[0] || "";
+  }
+  if (item.size) return item.size;
+  return "";
+}
+
+function hasSimpleVariants(product) {
+  if (product?.variant && typeof product.variant === "string") {
+    const variants = product.variant
+      .split(",")
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+    return variants.length > 1;
+  }
+  return false;
+}
+
+function getVariantQtyForStock(variantData) {
+  if (typeof variantData === "number") return variantData;
+  if (typeof variantData === "object" && variantData !== null) {
+    return Number(variantData.quantity || 0);
+  }
+  return 0;
+}
+
+function getAvailableStockForCartLine(product, item) {
+  if (!product) return 0;
+  const size = resolveItemSizeForStock(item);
+  const variant = item.selectedVariation || item.variant || "";
+
+  const productHasSimpleVariants = hasSimpleVariants(product);
+
+  if (product.sizes && typeof product.sizes === "object" && size) {
+    const sizeKey = findSizeKeyInProduct(product.sizes, size);
+    if (!sizeKey) return 0;
+    const sizeData =
+      product.sizes instanceof Map
+        ? product.sizes.get(sizeKey)
+        : product.sizes[sizeKey];
+    if (typeof sizeData === "object" && sizeData !== null) {
+      if (sizeData.variants && variant && !productHasSimpleVariants) {
+        const variantData = sizeData.variants[variant];
+        return getVariantQtyForStock(variantData);
+      }
+      return Number(sizeData.quantity || 0);
+    }
+    return typeof sizeData === "number" ? sizeData : 0;
+  }
+  return Math.max(0, Number(product.currentStock || 0));
+}
+
+function validateCartAgainstProducts(cart, productsList) {
+  if (!Array.isArray(cart) || cart.length === 0) return true;
+  if (!Array.isArray(productsList) || productsList.length === 0) return false;
+  const pmap = new Map();
+  productsList.forEach((p) => {
+    const id = String(p._id || p.id);
+    if (id) pmap.set(id, p);
+  });
+  return cart.every((item) => {
+    const pid = String(item.productId || item._id || "");
+    const product = pmap.get(pid);
+    const need = Number(item.quantity) || 1;
+    return getAvailableStockForCartLine(product, item) >= need;
+  });
+}
+
 const CART_ITEM_LIMIT = 100;
 const OVERRIDE_ROLES = ["Manager", "Owner"];
 
@@ -463,6 +551,7 @@ const Terminal = () => {
   }, [selectedMainCategory, selectedSubCategory, searchQuery]);
 
   const fetchProducts = async (background = false) => {
+    let latestList = null;
     try {
       if (!background) setLoading(true);
 
@@ -471,6 +560,7 @@ const Terminal = () => {
       const minimalData = await minimalRes.json();
 
       if (minimalData.success) {
+        latestList = minimalData.data;
         setProducts(minimalData.data);
         if (!background) setLoading(false);
 
@@ -481,6 +571,7 @@ const Terminal = () => {
           if (fullData.success) {
             setProducts(fullData.data);
             setCachedData("products", fullData.data);
+            latestList = fullData.data;
           }
         } catch (imgErr) {
           console.warn("Background image fetch failed:", imgErr);
@@ -491,6 +582,7 @@ const Terminal = () => {
     } finally {
       if (!background) setLoading(false);
     }
+    return latestList;
   };
 
 
@@ -504,6 +596,16 @@ const Terminal = () => {
     });
     return map;
   }, [products]);
+
+  const cartStockAllowsCheckout = useMemo(() => {
+    if (!cart.length) return true;
+    return cart.every((item) => {
+      const pid = String(item.productId || item._id || "");
+      const product = productMap.get(pid);
+      const need = Number(item.quantity) || 1;
+      return getAvailableStockForCartLine(product, item) >= need;
+    });
+  }, [cart, productMap]);
 
   const handleProductClick = useCallback(async (product) => {
 
@@ -1575,6 +1677,7 @@ const Terminal = () => {
   };
 
   const handleCashPayment = () => {
+    if (!cartStockAllowsCheckout) return;
     setShowCashPaymentModal(true);
   };
 
@@ -1743,13 +1846,21 @@ const Terminal = () => {
 
     const cartSnapshot = [...cart];
 
-
     const stockItems = mapCartItemsForStockUpdate();
     const transactionItems = mapCartItemsForTransaction();
     const currentTotal = total;
     const currentDiscountIds = selectedDiscounts.map((d) => d._id);
 
     try {
+      const freshProducts = await fetchProducts(true);
+      if (!validateCartAgainstProducts(cartSnapshot, freshProducts)) {
+        toastBr.error(
+          "One or more items are out of stock or the quantity exceeds available stock. Please update your cart."
+        );
+        setIsProcessingTransaction(false);
+        return null;
+      }
+
       // Instant UX: apply stock-out immediately (before waiting on the network).
       // If the transaction fails, we'll roll back from the snapshot.
       applyStockOutOptimistically(stockItems, { capturePrev: true });
@@ -1915,6 +2026,7 @@ const Terminal = () => {
   };
 
   const handleQRPayment = () => {
+    if (!cartStockAllowsCheckout) return;
     setShowQRPaymentModal(true);
   };
 
@@ -2141,7 +2253,8 @@ const Terminal = () => {
               onCashPayment={handleCashPayment}
               onQRPayment={handleQRPayment}
               onOpenDiscountModal={handleOpenDiscountModal}
-              onSelectDiscount={handleSelectDiscount} />
+              onSelectDiscount={handleSelectDiscount}
+              stockAllowsCheckout={cartStockAllowsCheckout} />
 
           </div>
         </div>

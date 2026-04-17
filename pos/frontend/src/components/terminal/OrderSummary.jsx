@@ -29,7 +29,8 @@ const OrderSummary = memo(({
   onQRPayment,
   onOpenDiscountModal,
   onSelectDiscount,
-  products = []
+  products = [],
+  stockAllowsCheckout = true
 }) => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
@@ -90,6 +91,7 @@ const OrderSummary = memo(({
   }, [discountCode, availableDiscounts, selectedDiscounts, applyingDiscount, onSelectDiscount]);
 
   const handleProceed = () => {
+    if (!stockAllowsCheckout) return;
     if (selectedPaymentMethod === 'cash' && onCashPayment) {
       onCashPayment();
     } else if (selectedPaymentMethod === 'qr' && onQRPayment) {
@@ -854,8 +856,10 @@ const OrderSummary = memo(({
         </div>
 
         <button
+          type="button"
           onClick={handleProceed}
-          disabled={cart.length === 0 || !selectedPaymentMethod}
+          disabled={cart.length === 0 || !selectedPaymentMethod || !stockAllowsCheckout}
+          title={!stockAllowsCheckout ? 'One or more items are out of stock or exceed available quantity' : undefined}
           className="w-full py-3 text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
           style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
 

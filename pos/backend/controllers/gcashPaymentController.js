@@ -19,6 +19,7 @@ const SalesTransaction = require("../models/SalesTransaction");
 const Product = require("../models/Product");
 const Discount = require("../models/Discount");
 const gcashService = require("../services/gcashPaymentService");
+const { assertSaleStockAvailable } = require("../utils/saleStockValidation");
 
 const clearTransactionAnalyticsCache = () => {
   try {
@@ -132,6 +133,15 @@ exports.createGCashPayment = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Valid total amount is required",
+      });
+    }
+
+    try {
+      await assertSaleStockAvailable(items);
+    } catch (stockErr) {
+      return res.status(400).json({
+        success: false,
+        message: stockErr.message || "Insufficient stock for this sale",
       });
     }
 
