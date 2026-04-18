@@ -21,6 +21,7 @@ import {
   FaKey,
   FaLink,
   FaPalette,
+  FaReceipt,
   FaShieldAlt,
   FaSpinner,
   FaSync,
@@ -39,6 +40,11 @@ import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { SidebarContext } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
+import {
+  DEFAULT_RECEIPT_PROFILE,
+  mapGlobalSettingsToReceiptCache,
+  setReceiptProfileCache
+} from "../utils/receiptProfile";
 
 const PRODUCTS_BUMP_KEY = "pos-products-bump";
 
@@ -101,6 +107,10 @@ const Settings = () => {
   const [showPrivateKey, setShowPrivateKey] = useState(false);
   const [gcashMessage, setGcashMessage] = useState({ type: "", text: "" });
   const [lastUpdated, setLastUpdated] = useState(null);
+
+  const [receiptForm, setReceiptForm] = useState(() => ({ ...DEFAULT_RECEIPT_PROFILE }));
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptSaving, setReceiptSaving] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -516,6 +526,62 @@ const Settings = () => {
     }
   }, [activeTab, fetchGcashSettings]);
 
+  const fetchReceiptSettings = useCallback(async () => {
+    setReceiptLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/global-settings`, { cache: "no-store" });
+      const data = await response.json();
+      if (data.success && data.data) {
+        setReceiptForm(mapGlobalSettingsToReceiptCache(data.data));
+      }
+    } catch (error) {
+      console.error("Error loading receipt settings:", error);
+    } finally {
+      setReceiptLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "receipt") {
+      fetchReceiptSettings();
+    }
+  }, [activeTab, fetchReceiptSettings]);
+
+  const handleReceiptSave = async (e) => {
+    e.preventDefault();
+    setReceiptSaving(true);
+    setError("");
+    try {
+      const normalized = mapGlobalSettingsToReceiptCache(receiptForm);
+      const response = await fetch(`${API_BASE}/api/global-settings`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          storeName: normalized.storeName,
+          receiptTagline: normalized.receiptTagline,
+          receiptAddress: normalized.receiptAddress,
+          receiptContactNumber: normalized.receiptContactNumber,
+          receiptThankYouMessage: normalized.receiptThankYouMessage,
+          receiptDisclaimer: normalized.receiptDisclaimer
+        })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setReceiptForm(mapGlobalSettingsToReceiptCache(data.data));
+        setReceiptProfileCache(data.data);
+        setSuccessMessage("Receipt layout saved. New print-outs will use these details.");
+        setShowSuccessModal(true);
+      } else {
+        setError(data.message || "Could not save receipt settings.");
+      }
+    } catch (err) {
+      console.error(err);
+      setError("Could not save receipt settings. Is the backend running?");
+    } finally {
+      setReceiptSaving(false);
+    }
+  };
+
   const formatDateTime = (dateString) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
@@ -904,6 +970,16 @@ const Settings = () => {
             GCash Configuration
           </button>
           <button
+            onClick={() => setActiveTab("receipt")}
+            className={`px-6 py-3 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 ${activeTab === "receipt" ?
+                `text-[#AD7F65] border-b-4 border-[#AD7F65] ${theme === "dark" ? "bg-[#2A2724]" : "bg-white"}` :
+                `${theme === "dark" ? "bg-[#2A2724] text-gray-300 border border-gray-700" : "bg-white text-gray-800 border border-gray-200"}`}`
+            }>
+
+            <FaReceipt className="w-4 h-4" />
+            Receipt
+          </button>
+          <button
             onClick={() => navigate("/manage-data")}
             className={`px-6 py-3 font-bold rounded-xl transition-all shadow-md flex items-center gap-2 ${theme === "dark" ? "bg-[#2A2724] text-gray-300 border border-gray-700 hover:border-[#AD7F65]" : "bg-white text-gray-800 border border-gray-200 hover:border-[#AD7F65]"}`}>
 
@@ -1255,6 +1331,227 @@ const Settings = () => {
               </form>
             </div>
           </div>) :
+
+        activeTab === "receipt" ?
+          receiptLoading ?
+            <div className="flex items-center justify-center min-h-[60vh]">
+              <FaSpinner className="w-8 h-8 text-[#8B7355] animate-spin" />
+            </div> :
+
+            <div className="max-w-5xl mx-auto mt-6">
+              <div
+                className={`rounded-3xl shadow-lg overflow-hidden ${isDark ? "bg-[#2A2724]" : "bg-white"}`}>
+
+                <div className="px-8 pt-8 pb-6 flex items-start gap-4 border-b border-gray-200/10">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#C2A68C] via-[#AD7F65] to-[#76462B] flex items-center justify-center shadow-md">
+                    <FaReceipt className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3
+                      className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
+
+                      Receipt management
+                    </h3>
+                    <p
+                      className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+
+                      Edit the store name, address, contact, tagline, and footer lines used on POS receipts and
+                      browser print-outs.
+                    </p>
+                  </div>
+                </div>
+
+                <form onSubmit={handleReceiptSave} className="px-8 pb-8 pt-6 grid lg:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <div>
+                      <label
+                        className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                        Store name
+                      </label>
+                      <input
+                        type="text"
+                        value={receiptForm.storeName}
+                        onChange={(e) =>
+                          setReceiptForm((prev) => ({
+                            ...prev,
+                            storeName: e.target.value
+                          }))
+                        }
+                        className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                        Tagline
+                        {" "}
+                        <span className={`text-xs font-normal ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                          (optional)
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        value={receiptForm.receiptTagline}
+                        onChange={(e) =>
+                          setReceiptForm((prev) => ({
+                            ...prev,
+                            receiptTagline: e.target.value
+                          }))
+                        }
+                        placeholder="e.g. Quality apparel since 2010"
+                        className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"}`}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        value={receiptForm.receiptAddress}
+                        onChange={(e) =>
+                          setReceiptForm((prev) => ({
+                            ...prev,
+                            receiptAddress: e.target.value
+                          }))
+                        }
+                        className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                        Contact number
+                      </label>
+                      <input
+                        type="text"
+                        value={receiptForm.receiptContactNumber}
+                        onChange={(e) =>
+                          setReceiptForm((prev) => ({
+                            ...prev,
+                            receiptContactNumber: e.target.value
+                          }))
+                        }
+                        className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                        Thank-you line
+                      </label>
+                      <input
+                        type="text"
+                        value={receiptForm.receiptThankYouMessage}
+                        onChange={(e) =>
+                          setReceiptForm((prev) => ({
+                            ...prev,
+                            receiptThankYouMessage: e.target.value
+                          }))
+                        }
+                        className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                      />
+                    </div>
+                    <div>
+                      <label
+                        className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                        Disclaimer
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={receiptForm.receiptDisclaimer}
+                        onChange={(e) =>
+                          setReceiptForm((prev) => ({
+                            ...prev,
+                            receiptDisclaimer: e.target.value
+                          }))
+                        }
+                        className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] resize-y min-h-[72px] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p
+                      className={`text-sm font-semibold mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                      Preview
+                    </p>
+                    <div
+                      className={`rounded-xl p-4 font-mono text-[11px] leading-relaxed ${isDark ? "bg-[#1E1B18] border border-gray-600" : "bg-gray-50 border border-gray-200"}`}>
+
+                      <div className="text-center space-y-1 mb-3">
+                        <p className={`font-bold text-sm ${isDark ? "text-white" : "text-gray-900"}`}>
+                          {receiptForm.storeName || "—"}
+                        </p>
+                        {receiptForm.receiptTagline ?
+                          <p className={`text-[10px] ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                            {receiptForm.receiptTagline}
+                          </p> :
+
+                          null}
+                        <p className={`text-[10px] ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                          {receiptForm.receiptAddress}
+                        </p>
+                        <p className={`text-[10px] ${isDark ? "text-gray-500" : "text-gray-500"}`}>
+                          {receiptForm.receiptContactNumber}
+                        </p>
+                      </div>
+                      <div className={`border-t border-dashed my-3 ${isDark ? "border-gray-600" : "border-gray-300"}`} />
+                      <p className="text-center text-[10px] text-gray-500 mb-1">#000000</p>
+                      <div className={`border-t border-dashed my-3 ${isDark ? "border-gray-600" : "border-gray-300"}`} />
+                      <div className="text-center space-y-1">
+                        <p className={isDark ? "text-gray-400" : "text-gray-600"}>
+                          {receiptForm.receiptThankYouMessage}
+                        </p>
+                        <p className={`text-[10px] ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                          {receiptForm.receiptDisclaimer}
+                        </p>
+                      </div>
+                    </div>
+                    <p className={`text-xs mt-3 ${isDark ? "text-gray-500" : "text-gray-400"}`}>
+                      Thermal prints use the same header/footer when the local print bridge is configured.
+                    </p>
+                  </div>
+
+                  <div className="lg:col-span-2 flex flex-wrap justify-end gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError("");
+                        fetchReceiptSettings();
+                      }}
+                      disabled={receiptSaving || receiptLoading}
+                      className={`py-3 px-6 rounded-xl font-semibold text-sm transition-all ${isDark ? "bg-[#1E1B18] text-gray-300 border border-gray-600 hover:bg-[#322f2c]" : "bg-gray-100 text-gray-600 border border-gray-200 hover:bg-gray-200"} disabled:opacity-50`}>
+
+                      Reload
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={receiptSaving}
+                      className="py-3 px-8 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#AD7F65] to-[#76462B] hover:opacity-95 transition-all disabled:opacity-50 flex items-center gap-2 shadow-md">
+
+                      {receiptSaving ?
+                        <>
+                          <FaSpinner className="w-4 h-4 animate-spin" />
+                          Saving...
+                        </> :
+
+                        "Save receipt layout"
+                      }
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div> :
 
         activeTab === "archives" ?
           <div className="space-y-4">

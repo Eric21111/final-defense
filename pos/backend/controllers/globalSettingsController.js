@@ -10,6 +10,12 @@ const toNumericFloat = (value, fallback = 0) => {
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 };
 
+const trimStr = (value, maxLen) => {
+    if (value === undefined || value === null) return "";
+    const s = String(value).trim();
+    return maxLen && s.length > maxLen ? s.slice(0, maxLen) : s;
+};
+
 const normalizeOpeningFloatEntry = (entry = {}) => {
     const id = String(entry._id || entry.id || "").trim();
     const employeeId = String(entry.employeeId || "").trim();
@@ -52,7 +58,19 @@ exports.getGlobalSettings = async (req, res) => {
 // PUT /api/global-settings
 exports.updateGlobalSettings = async (req, res) => {
     try {
-        const { openingFloat, openingFloats, addOpeningFloat, updateOpeningFloat, removeOpeningFloat } = req.body;
+        const {
+            openingFloat,
+            openingFloats,
+            addOpeningFloat,
+            updateOpeningFloat,
+            removeOpeningFloat,
+            storeName,
+            receiptTagline,
+            receiptAddress,
+            receiptContactNumber,
+            receiptThankYouMessage,
+            receiptDisclaimer,
+        } = req.body;
         let settings = await GlobalSettings.findOne();
         if (!settings) {
             settings = await GlobalSettings.create({});
@@ -151,18 +169,50 @@ exports.updateGlobalSettings = async (req, res) => {
             entry.deleteOne();
         }
 
-        if (
-            openingFloat === undefined &&
-            !Array.isArray(openingFloats) &&
-            !addOpeningFloat &&
-            !updateOpeningFloat &&
-            !removeOpeningFloat
-        ) {
+        if (storeName !== undefined) {
+            const t = trimStr(storeName, 120);
+            if (t) settings.storeName = t;
+        }
+        if (receiptTagline !== undefined) {
+            settings.receiptTagline = trimStr(receiptTagline, 200);
+        }
+        if (receiptAddress !== undefined) {
+            const t = trimStr(receiptAddress, 200);
+            settings.receiptAddress = t || "Pasonanca, Zamboanga City";
+        }
+        if (receiptContactNumber !== undefined) {
+            const t = trimStr(receiptContactNumber, 60);
+            settings.receiptContactNumber = t || "+631112224444";
+        }
+        if (receiptThankYouMessage !== undefined) {
+            const t = trimStr(receiptThankYouMessage, 300);
+            settings.receiptThankYouMessage = t || "Thank you for your purchase!";
+        }
+        if (receiptDisclaimer !== undefined) {
+            const t = trimStr(receiptDisclaimer, 300);
+            settings.receiptDisclaimer = t || "This is not an official receipt";
+        }
+
+        const hasOpeningFloatPayload =
+            openingFloat !== undefined ||
+            Array.isArray(openingFloats) ||
+            !!addOpeningFloat ||
+            !!updateOpeningFloat ||
+            !!removeOpeningFloat;
+
+        const hasReceiptPayload =
+            storeName !== undefined ||
+            receiptTagline !== undefined ||
+            receiptAddress !== undefined ||
+            receiptContactNumber !== undefined ||
+            receiptThankYouMessage !== undefined ||
+            receiptDisclaimer !== undefined;
+
+        if (!hasOpeningFloatPayload && !hasReceiptPayload) {
             return res.status(400).json({
                 success: false,
                 message: "No settings update payload provided",
             });
-        } else {
         }
 
         await settings.save();

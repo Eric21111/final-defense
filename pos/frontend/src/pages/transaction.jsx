@@ -39,6 +39,7 @@ import {
   lineSubtotalFromItems,
   resolveTransactionDiscount
 } from "../utils/transactionDisplay";
+import { getReceiptBranding } from "../utils/receiptProfile";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { useTheme } from "../context/ThemeContext";
@@ -243,6 +244,7 @@ const Transaction = () => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
   const { setCachedData, invalidateCache } = useDataCache();
+  const receiptBranding = getReceiptBranding();
   const currentUserFilterId = String(currentUser?._id || currentUser?.id || "All");
 
   const [transactions, setTransactions] = useState([]);
@@ -2305,9 +2307,14 @@ const Transaction = () => {
               }>
 
               <div className="mb-4">
-                <p className="text-sm text-gray-400">Create Your Style</p>
+                <p className="text-sm text-gray-400">{receiptBranding.storeName}</p>
+                {receiptBranding.receiptTagline ?
+                <p className="text-[11px] text-gray-500 mb-0.5">
+                    {receiptBranding.receiptTagline}
+                  </p> :
+                null}
                 <p className="text-xs text-gray-400">
-                  Pasonanca, Zamboanga City
+                  {receiptBranding.location}
                 </p>
               </div>
               <div

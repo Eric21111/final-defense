@@ -10,7 +10,15 @@ import { DataCacheProvider } from "./context/DataCacheContext";
 import { SidebarContext } from "./context/SidebarContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { API_ENDPOINTS } from "./config/api";
+import { hydrateReceiptProfileFromServer } from "./utils/receiptProfile";
 
+
+function ReceiptProfileBootstrap() {
+  useEffect(() => {
+    hydrateReceiptProfileFromServer().catch(() => {});
+  }, []);
+  return null;
+}
 
 const lazyWithRetry = (componentImport) => {
   return lazy(async () => {
@@ -258,6 +266,7 @@ function App() {
         <AuthProvider>
           <DataCacheProvider>
             <Router>
+              <ReceiptProfileBootstrap />
               <Toaster
                 position="top-center"
                 reverseOrder={false}

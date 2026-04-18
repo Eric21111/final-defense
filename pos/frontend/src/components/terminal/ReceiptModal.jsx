@@ -5,6 +5,7 @@ import PrintingModal from './PrintingModal';
 import PrintCompleteModal from './PrintCompleteModal';
 import '../../styles/print.css';
 import { sendReceiptToPrinter } from '../../utils/printBridge';
+import { getReceiptBranding } from '../../utils/receiptProfile';
 import { formatReceiptVariantSizeLine } from '../../utils/transactionDisplay';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -36,6 +37,8 @@ const ReceiptModal = ({
     date: new Date().toLocaleDateString(),
     time: new Date().toLocaleTimeString()
   };
+
+  const branding = getReceiptBranding();
 
   const handlePrint = useCallback(async () => {
     setIsPrinting(true);
@@ -123,8 +126,11 @@ const ReceiptModal = ({
         
         {}
         <div style={{ textAlign: 'center', marginBottom: '10px' }}>
-          <h2 style={{ margin: '5px 0', fontSize: '18px', fontWeight: 'bold', color: '#1a365d' }}>Create Your Style</h2>
-          <p style={{ fontSize: '10px', margin: '2px 0', color: '#4a5568' }}>Pasonanca, Zamboanga City</p>
+          <h2 style={{ margin: '5px 0', fontSize: '18px', fontWeight: 'bold', color: '#1a365d' }}>{branding.storeName}</h2>
+          {branding.receiptTagline ?
+          <p style={{ fontSize: '9px', margin: '2px 0', color: '#718096' }}>{branding.receiptTagline}</p> :
+          null}
+          <p style={{ fontSize: '10px', margin: '2px 0', color: '#4a5568' }}>{branding.location}</p>
         </div>
         <div style={{ borderBottom: '1px dashed #000', marginBottom: '10px' }}></div>
 
@@ -189,8 +195,8 @@ const ReceiptModal = ({
 
         {}
         <div style={{ textAlign: 'center', paddingTop: '5px' }}>
-          <p style={{ fontSize: '11px', color: '#4a5568', margin: '2px 0' }}>Thank you for your purchase!</p>
-          <p style={{ fontSize: '10px', color: '#a0aec0', margin: '2px 0' }}>This is not an official receipt</p>
+          <p style={{ fontSize: '11px', color: '#4a5568', margin: '2px 0' }}>{branding.thankYouMessage}</p>
+          <p style={{ fontSize: '10px', color: '#a0aec0', margin: '2px 0' }}>{branding.disclaimer}</p>
         </div>
       </div>
 
@@ -202,8 +208,11 @@ const ReceiptModal = ({
           <div className="p-6">
             {}
             <div className="text-center mb-4">
-              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>Create Your Style</h2>
-              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Pasonanca, Zamboanga City</p>
+              <h2 className={`text-xl font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>{branding.storeName}</h2>
+              {branding.receiptTagline ?
+              <p className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{branding.receiptTagline}</p> :
+              null}
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{branding.location}</p>
             </div>
 
             {}
@@ -274,8 +283,8 @@ const ReceiptModal = ({
 
             {}
             <div className={`text-center py-6 mt-4 border-t border-dashed ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}>
-              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Thank you for your purchase!</p>
-              <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>This is not an official receipt</p>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{branding.thankYouMessage}</p>
+              <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-400'}`}>{branding.disclaimer}</p>
             </div>
 
             {}

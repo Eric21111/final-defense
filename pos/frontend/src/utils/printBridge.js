@@ -1,4 +1,21 @@
 import { formatReceiptVariantSizeLine } from './transactionDisplay';
+import { getReceiptProfile } from './receiptProfile';
+
+function mergeReceiptWithStoreProfile(receipt = {}) {
+  const p = getReceiptProfile();
+  return {
+    ...receipt,
+    storeName: receipt.storeName ?? p.storeName,
+    location: receipt.location ?? p.receiptAddress,
+    contactNumber: receipt.contactNumber ?? p.receiptContactNumber,
+    receiptTagline:
+      receipt.receiptTagline !== undefined && receipt.receiptTagline !== null
+        ? receipt.receiptTagline
+        : p.receiptTagline,
+    thankYouMessage: receipt.thankYouMessage ?? p.receiptThankYouMessage,
+    disclaimer: receipt.disclaimer ?? p.receiptDisclaimer
+  };
+}
 
 const MAX_WIDTH = Number(import.meta.env.VITE_RECEIPT_LINE_WIDTH || 32);
 
@@ -26,20 +43,21 @@ const chunkText = (text) => {
 };
 
 export const buildReceiptLines = (receipt) => {
+  const r = mergeReceiptWithStoreProfile(receipt);
   const lines = [];
-  const storeName = receipt.storeName || 'Create Your Style';
-  const location = receipt.location || 'Pasonanca, Zamboanga City';
-  const receiptNo = receipt.receiptNo || '000000';
-  const paymentMethod = receipt.paymentMethod || 'Cash';
-  const cashier = receipt.cashier || receipt.cashierName || receipt.performedByName || 'Staff';
+  const storeName = r.storeName || 'Create Your Style';
+  const location = r.location || 'Pasonanca, Zamboanga City';
+  const receiptNo = r.receiptNo || '000000';
+  const paymentMethod = r.paymentMethod || 'Cash';
+  const cashier = r.cashier || r.cashierName || r.performedByName || 'Staff';
 
 
-  const receiptDate = receipt.date || new Date().toLocaleDateString('en-US', {
+  const receiptDate = r.date || new Date().toLocaleDateString('en-US', {
     month: 'numeric',
     day: 'numeric',
     year: 'numeric'
   });
-  const receiptTime = receipt.time || new Date().toLocaleTimeString('en-US', {
+  const receiptTime = r.time || new Date().toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true
@@ -47,6 +65,9 @@ export const buildReceiptLines = (receipt) => {
 
 
   lines.push(centerText(storeName));
+  if ((r.receiptTagline || '').trim()) {
+    chunkText(String(r.receiptTagline).trim()).forEach((c) => lines.push(centerText(c)));
+  }
   lines.push(centerText(location));
   lines.push('--------------------------------');
 
@@ -62,7 +83,7 @@ export const buildReceiptLines = (receipt) => {
   lines.push('--------------------------------');
 
 
-  (receipt.items || []).forEach((item) => {
+  (r.items || []).forEach((item) => {
 
     let itemName = (item.name || item.itemName || 'Item').toString();
     itemName = itemName.replace(/\s*\([^)]*\)\s*$/, '').trim();
@@ -81,22 +102,24 @@ export const buildReceiptLines = (receipt) => {
   lines.push('--------------------------------');
 
 
-  lines.push(padLine('Subtotal:', `PHP ${Number(receipt.subtotal || 0).toFixed(2)}`));
-  lines.push(padLine('Discount:', `PHP ${Number(receipt.discount || 0).toFixed(2)}`));
+  lines.push(padLine('Subtotal:', `PHP ${Number(r.subtotal || 0).toFixed(2)}`));
+  lines.push(padLine('Discount:', `PHP ${Number(r.discount || 0).toFixed(2)}`));
   lines.push('');
-  lines.push(padLine('Total:', `PHP ${Number(receipt.total || 0).toFixed(2)}`));
+  lines.push(padLine('Total:', `PHP ${Number(r.total || 0).toFixed(2)}`));
 
-  if (receipt.cash !== undefined) {
-    lines.push(padLine('Amount Received:', `PHP ${Number(receipt.cash).toFixed(2)}`));
+  if (r.cash !== undefined) {
+    lines.push(padLine('Amount Received:', `PHP ${Number(r.cash).toFixed(2)}`));
   }
 
-  if (receipt.change !== undefined) {
-    lines.push(padLine('Change:', `PHP ${Number(receipt.change).toFixed(2)}`));
+  if (r.change !== undefined) {
+    lines.push(padLine('Change:', `PHP ${Number(r.change).toFixed(2)}`));
   }
 
   lines.push('--------------------------------');
-  lines.push(centerText('Thank you for your purchase!'));
-  lines.push(centerText('This is not an official receipt'));
+  const thanks = r.thankYouMessage || 'Thank you for your purchase!';
+  const disc = r.disclaimer || 'This is not an official receipt';
+  chunkText(thanks).forEach((c) => lines.push(centerText(c)));
+  chunkText(disc).forEach((c) => lines.push(centerText(c)));
 
   return lines;
 };
@@ -104,9 +127,18 @@ export const buildReceiptLines = (receipt) => {
 
 
 
-const buildReceiptHTML = (receipt) => {
-  const storeName = 'Create Your Style';
-  const location = receipt.location || 'Pasonanca, Zamboanga City';
+const htmlEsc = (s) =>
+  String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+const buildReceiptHTML = (receiptRaw) => {
+  const receipt = mergeReceiptWithStoreProfile(receiptRaw);
+  const storeName = htmlEsc(receipt.storeName || 'Create Your Style');
+  const location = htmlEsc(receipt.location || 'Pasonanca, Zamboanga City');
+  const tagline = (receipt.receiptTagline || '').trim();
   const receiptNo = receipt.receiptNo || '000000';
   const paymentMethod = receipt.paymentMethod || 'Cash';
   const subtotal = Number(receipt.subtotal || 0);
@@ -222,6 +254,7 @@ const buildReceiptHTML = (receipt) => {
         <!-- Header -->
         <div style="text-align: center; margin-bottom: 10px;">
           <div style="font-size: 16px; font-weight: bold; color: #1a365d; margin-bottom: 4px;">${storeName}</div>
+          ${tagline ? `<div style="font-size: 9px; color: #718096; margin-bottom: 2px;">${htmlEsc(tagline)}</div>` : ''}
           <div style="font-size: 10px; color: #4a5568;">${location}</div>
         </div>
 
@@ -294,8 +327,8 @@ const buildReceiptHTML = (receipt) => {
 
         <!-- Footer -->
         <div style="text-align: center; margin-top: 10px;">
-          <div style="font-size: 11px; color: #4a5568;">Thank you for your purchase!</div>
-          <div style="font-size: 10px; color: #a0aec0; margin-top: 2px;">This is not an official receipt</div>
+          <div style="font-size: 11px; color: #4a5568;">${htmlEsc(receipt.thankYouMessage || 'Thank you for your purchase!')}</div>
+          <div style="font-size: 10px; color: #a0aec0; margin-top: 2px;">${htmlEsc(receipt.disclaimer || 'This is not an official receipt')}</div>
         </div>
 
       </div>
@@ -311,24 +344,25 @@ const buildReceiptHTML = (receipt) => {
 export async function sendReceiptToPrinter(receipt) {
   if (!receipt) throw new Error('No receipt payload provided');
 
+  const merged = mergeReceiptWithStoreProfile(receipt);
 
   const printData = {
 
-    storeName: receipt.storeName || 'Create Your Style',
-    contactNumber: receipt.contactNumber || '+631112224444',
-    location: receipt.location || 'Pasonanca, Zamboanga City',
+    storeName: merged.storeName || 'Create Your Style',
+    contactNumber: merged.contactNumber || '+631112224444',
+    location: merged.location || 'Pasonanca, Zamboanga City',
 
 
-    receiptNo: receipt.receiptNo || '000000',
-    referenceNo: receipt.referenceNo || receipt.reference || '-',
-    date: receipt.date || new Date().toLocaleDateString(),
-    time: receipt.time || new Date().toLocaleTimeString(),
+    receiptNo: merged.receiptNo || '000000',
+    referenceNo: merged.referenceNo || merged.reference || '-',
+    date: merged.date || new Date().toLocaleDateString(),
+    time: merged.time || new Date().toLocaleTimeString(),
 
 
-    cashier: receipt.cashier || receipt.performedByName || 'N/A',
+    cashier: merged.cashier || merged.performedByName || 'N/A',
 
 
-    items: (receipt.items || []).map((item) => ({
+    items: (merged.items || []).map((item) => ({
       name: item.name || item.itemName || 'Item',
       qty: item.qty || item.quantity || 1,
       price: item.price || item.itemPrice || 0,
@@ -340,13 +374,13 @@ export async function sendReceiptToPrinter(receipt) {
     })),
 
 
-    paymentMethod: receipt.paymentMethod || 'CASH',
-    subtotal: receipt.subtotal || 0,
-    discount: receipt.discount || 0,
-    discounts: receipt.discounts || [],
-    total: receipt.total || 0,
-    cash: receipt.cash,
-    change: receipt.change
+    paymentMethod: merged.paymentMethod || 'CASH',
+    subtotal: merged.subtotal || 0,
+    discount: merged.discount || 0,
+    discounts: merged.discounts || [],
+    total: merged.total || 0,
+    cash: merged.cash,
+    change: merged.change
   };
 
   try {
@@ -379,7 +413,7 @@ export async function sendReceiptToPrinter(receipt) {
 
     return new Promise((resolve, reject) => {
       try {
-        const receiptHTML = buildReceiptHTML(receipt);
+        const receiptHTML = buildReceiptHTML(merged);
 
 
         let iframe = document.getElementById('receipt-print-iframe');

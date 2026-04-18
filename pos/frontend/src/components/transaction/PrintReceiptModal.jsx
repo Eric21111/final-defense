@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { FaTimes, FaPrint } from 'react-icons/fa';
 import { sendReceiptToPrinter } from '../../utils/printBridge';
+import { getReceiptBranding } from '../../utils/receiptProfile';
 import {
   lineSubtotalFromItems,
   resolveTransactionDiscount,
@@ -41,6 +42,7 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
 
   if (!isOpen || !transaction) return null;
 
+  const branding = getReceiptBranding();
 
   const lineSub = lineSubtotalFromItems(transaction) || transaction.totalAmount || 0;
   const hasReturnActivity =
@@ -60,9 +62,9 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
 
       const receipt = {
         receiptNo: transaction.receiptNo || '000000',
-        storeName: 'Create Your Style',
-        location: 'Pasonanca, Zamboanga City',
-        contactNumber: '+631112224444',
+        storeName: branding.storeName,
+        location: branding.location,
+        contactNumber: branding.contactNumber,
         time: formatTime(transaction.checkedOutAt || transaction.createdAt),
         referenceNo: transaction.referenceNo || transaction._id?.substring(0, 12) || '-',
         items: transaction.items?.map((item) => ({
@@ -138,8 +140,11 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
           {}
           <div ref={printRef} className="bg-white p-6 border-2 border-dashed border-gray-300 rounded-lg font-mono text-sm">
             <div className="text-center mb-4">
-              <h3 className="text-lg font-bold text-gray-800">Create Your Style</h3>
-              <p className="text-xs text-gray-600">Pasonanca, Zamboanga City</p>
+              <h3 className="text-lg font-bold text-gray-800">{branding.storeName}</h3>
+              {branding.receiptTagline ?
+              <p className="text-[11px] text-gray-500 mt-0.5">{branding.receiptTagline}</p> :
+              null}
+              <p className="text-xs text-gray-600">{branding.location}</p>
             </div>
 
             <div className="border-t border-b border-gray-300 py-3 my-3">
@@ -217,8 +222,8 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
             </div>
 
             <div className="border-t border-gray-300 mt-4 pt-4 text-center">
-              <p className="text-xs text-gray-500">Thank you for your purchase!</p>
-              <p className="text-xs text-gray-400 mt-1">This is not an official receipt</p>
+              <p className="text-xs text-gray-500">{branding.thankYouMessage}</p>
+              <p className="text-xs text-gray-400 mt-1">{branding.disclaimer}</p>
             </div>
           </div>
         </div>

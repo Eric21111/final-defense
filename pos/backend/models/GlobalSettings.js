@@ -44,6 +44,31 @@ const globalSettingsSchema = new mongoose.Schema(
             type: String,
             default: "Create Your Style",
         },
+        receiptTagline: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        receiptAddress: {
+            type: String,
+            default: "Pasonanca, Zamboanga City",
+            trim: true,
+        },
+        receiptContactNumber: {
+            type: String,
+            default: "+631112224444",
+            trim: true,
+        },
+        receiptThankYouMessage: {
+            type: String,
+            default: "Thank you for your purchase!",
+            trim: true,
+        },
+        receiptDisclaimer: {
+            type: String,
+            default: "This is not an official receipt",
+            trim: true,
+        },
         openingFloat: {
             type: Number,
             default: 2000,
