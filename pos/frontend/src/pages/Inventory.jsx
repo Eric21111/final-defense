@@ -633,10 +633,14 @@ const Inventory = () => {
         adjustedLoading = true;
         adjustInventoryProductsLoading(1);
       }
-      const response = await fetch(`${API_BASE_URL}/api/products`, {
-        cache: "no-store",
-        signal: controller.signal
-      });
+      // 1) List path without base64 images — fast even with many products (matches terminal page).
+      const response = await fetch(
+        `${API_BASE_URL}/api/products?fields=minimal`,
+        {
+          cache: "no-store",
+          signal: controller.signal
+        }
+      );
 
       if (myGen !== productsListFetchGenRef.current) {
         return;
@@ -656,8 +660,46 @@ const Inventory = () => {
       if (data.success) {
         setProducts(data.data);
         setCachedData("products", data.data);
+        if (!silent && adjustedLoading) {
+          adjustInventoryProductsLoading(-1);
+          adjustedLoading = false;
+        }
       } else if (!silent) {
         alert(data.message || "Could not load products.");
+      }
+
+      clearTimeout(timeoutId);
+
+      // 2) Background: full documents with images (can be MBs) — does not block the table.
+      if (data?.success && myGen === productsListFetchGenRef.current) {
+        const fullController = new AbortController();
+        const fullTimeout = setTimeout(() => fullController.abort(), 120000);
+        try {
+          const fullRes = await fetch(`${API_BASE_URL}/api/products`, {
+            cache: "no-store",
+            signal: fullController.signal
+          });
+          if (myGen !== productsListFetchGenRef.current) {
+            return;
+          }
+          if (!fullRes.ok) {
+            return;
+          }
+          const fullData = await fullRes.json();
+          if (
+            fullData.success &&
+            myGen === productsListFetchGenRef.current
+          ) {
+            setProducts(fullData.data);
+            setCachedData("products", fullData.data);
+          }
+        } catch (imgErr) {
+          if (imgErr?.name !== "AbortError") {
+            console.warn("Background product fetch (full detail) failed:", imgErr);
+          }
+        } finally {
+          clearTimeout(fullTimeout);
+        }
       }
     } catch (error) {
       if (error?.name === "AbortError") {

@@ -39,9 +39,10 @@ router.get('/low-stock', async (req, res) => {
   try {
     const Product = require('../models/Product');
     const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    // Omit itemImage: base64 blobs make this route huge and slow once products have photos.
     const products = await Product.find({ isArchived: { $ne: true } })
       .select(
-        'itemName sku currentStock reorderNumber itemImage category expirationDate expirationThresholdDays sizes',
+        'itemName sku currentStock reorderNumber category expirationDate expirationThresholdDays sizes',
       )
       .lean();
 
@@ -106,7 +107,7 @@ router.get('/low-stock', async (req, res) => {
         itemName: product.itemName || 'Unnamed Product',
         sku: product.sku || '',
         currentStock: stock,
-        itemImage: product.itemImage || '',
+        itemImage: '',
         category: product.category || '',
       };
 

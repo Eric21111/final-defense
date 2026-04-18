@@ -12,7 +12,10 @@ const MIN_EMAIL_INTERVAL_MS = 5 * 60 * 60 * 1000; // 5 hours in milliseconds
  */
 const getLowStockItems = async () => {
   try {
-    const products = await Product.find({});
+    // Do not load full documents — itemImage/productImages base64 makes find({}) huge and slow.
+    const products = await Product.find({ isArchived: { $ne: true } })
+      .select('itemName sku currentStock reorderNumber isArchived')
+      .lean();
     
     const lowStockItems = products.filter(p => {
       if (p.isArchived) return false;

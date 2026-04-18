@@ -29,9 +29,12 @@ exports.getAllProducts = async (req, res) => {
     let skip = 0;
 
     // Build projection: always exclude stockHistory, optionally exclude heavy fields
-    // ?fields=minimal excludes itemImage (base64 strings can be 50-500KB per product)
+    // ?fields=minimal drops base64 image blobs (often 50KB–2MB+ per product) — main cause of
+    // timeouts when the DB is small by count but large by document size.
     const isMinimal = req.query.fields === "minimal";
-    const projection = isMinimal ? "-stockHistory -itemImage" : "-stockHistory";
+    const projection = isMinimal
+      ? "-stockHistory -itemImage -productImages"
+      : "-stockHistory";
 
     let query = Product.find({ isArchived: { $ne: true } }, projection).sort({ dateAdded: -1 });
 
@@ -44,7 +47,7 @@ exports.getAllProducts = async (req, res) => {
     // Run find and count in parallel instead of sequentially
     const [products, totalCount] = await Promise.all([
       query.lean(),
-      Product.countDocuments(),
+      Product.countDocuments({ isArchived: { $ne: true } }),
     ]);
 
     const formattedProducts = products.map((product) => {
