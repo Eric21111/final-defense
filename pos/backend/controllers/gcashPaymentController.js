@@ -16,10 +16,16 @@
 
 const apicache = require("apicache");
 const SalesTransaction = require("../models/SalesTransaction");
+const GlobalSettings = require("../models/GlobalSettings");
 const Product = require("../models/Product");
 const Discount = require("../models/Discount");
 const gcashService = require("../services/gcashPaymentService");
 const { assertSaleStockAvailable } = require("../utils/saleStockValidation");
+const { generateRandomReceiptNumber } = require("../utils/receiptNumbering");
+const {
+  computeVatInclusiveBreakdown,
+  getNextSequentialReceiptNo,
+} = require("../utils/birReceipt");
 
 const clearTransactionAnalyticsCache = () => {
   try {
@@ -68,24 +74,6 @@ const notifyPaymentUpdate = (merchantOrderId, data) => {
 };
 
 /**
- * Helper: Generate unique receipt number
- */
-const generateUniqueReceiptNumber = async () => {
-  let attempts = 0;
-  while (attempts < 10) {
-    const receiptNo = Math.floor(100000 + Math.random() * 900000).toString();
-    const existing = await SalesTransaction.findOne({ receiptNo });
-    if (!existing) {
-      return receiptNo;
-    }
-    attempts++;
-  }
-  const timestamp = Date.now().toString().slice(-4);
-  const random = Math.floor(10 + Math.random() * 90).toString();
-  return `${timestamp}${random}`;
-};
-
-/**
  * POST /api/payments/gcash/create
  *
  * Creates a GCash payment order:
@@ -119,6 +107,7 @@ exports.createGCashPayment = async (req, res) => {
       discountType,
       discountValue,
       appliedDiscountIds,
+      terminalId: bodyTerminalId,
     } = req.body;
 
     // Validate
@@ -147,7 +136,39 @@ exports.createGCashPayment = async (req, res) => {
 
     // Generate unique IDs
     const merchantOrderId = gcashService.generateMerchantOrderId();
-    const receiptNo = await generateUniqueReceiptNumber();
+
+    let gs = await GlobalSettings.findOne();
+    if (!gs) {
+      gs = await GlobalSettings.create({});
+    }
+    const birOn = !!gs.birCompliantEnabled;
+
+    let receiptNo;
+    let resolvedTerminalId = null;
+    if (birOn) {
+      try {
+        const seq = await getNextSequentialReceiptNo(bodyTerminalId);
+        receiptNo = seq.receiptNo;
+        resolvedTerminalId = seq.terminalId;
+      } catch (e) {
+        if (e.code === "TERMINAL_ID_REQUIRED") {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Terminal ID is required for BIR-compliant GCash sales. Set it under Settings → Receipt on this device.",
+          });
+        }
+        throw e;
+      }
+    } else {
+      receiptNo = await generateRandomReceiptNumber();
+    }
+
+    const vatRate = Number(gs.vatRatePercent ?? 12);
+    const vatBreak =
+      birOn && Number.isFinite(totalAmount)
+        ? computeVatInclusiveBreakdown(totalAmount, vatRate)
+        : null;
 
     // Get merchant config for expiry time
     const MerchantSettings = require("../models/MerchantSettings");
@@ -184,6 +205,12 @@ exports.createGCashPayment = async (req, res) => {
       gcashStatus: "PENDING",
       gcashExpiresAt: expiresAt,
       checkedOutAt: new Date(),
+      terminalId: birOn ? resolvedTerminalId : null,
+      netOfVat: vatBreak ? vatBreak.netOfVat : null,
+      vatAmount: vatBreak ? vatBreak.vatAmount : null,
+      vatRateApplied: vatBreak ? vatBreak.vatRateApplied : null,
+      birTinSnapshot: birOn ? (gs.storeTin || "").trim() || null : null,
+      birPtuSnapshot: birOn ? (gs.ptuNumber || "").trim() || null : null,
     };
 
     const transaction = await SalesTransaction.create(transactionData);
@@ -278,7 +305,7 @@ exports.checkPaymentStatus = async (req, res) => {
 
     const transaction = await SalesTransaction.findOne({ merchantOrderId })
       .select(
-        "merchantOrderId gcashStatus gcashPaidAt gcashReference receiptNo totalAmount status gcashExpiresAt",
+        "merchantOrderId gcashStatus gcashPaidAt gcashReference receiptNo totalAmount status gcashExpiresAt netOfVat vatAmount vatRateApplied birTinSnapshot birPtuSnapshot terminalId",
       )
       .lean();
 
@@ -314,6 +341,12 @@ exports.checkPaymentStatus = async (req, res) => {
         totalAmount: transaction.totalAmount,
         transactionStatus: transaction.status,
         expiresAt: transaction.gcashExpiresAt,
+        netOfVat: transaction.netOfVat,
+        vatAmount: transaction.vatAmount,
+        vatRateApplied: transaction.vatRateApplied,
+        birTinSnapshot: transaction.birTinSnapshot,
+        birPtuSnapshot: transaction.birPtuSnapshot,
+        terminalId: transaction.terminalId,
       },
     });
   } catch (error) {
@@ -507,6 +540,12 @@ exports.handleWebhook = async (req, res) => {
       gcashReference: transaction.gcashReference,
       receiptNo: transaction.receiptNo,
       totalAmount: transaction.totalAmount,
+      netOfVat: transaction.netOfVat,
+      vatAmount: transaction.vatAmount,
+      vatRateApplied: transaction.vatRateApplied,
+      birTinSnapshot: transaction.birTinSnapshot,
+      birPtuSnapshot: transaction.birPtuSnapshot,
+      terminalId: transaction.terminalId,
     });
 
     // Respond 200 to acknowledge webhook

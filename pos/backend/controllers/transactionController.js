@@ -1,9 +1,15 @@
 const mongoose = require('mongoose');
 const SalesTransaction = require('../models/SalesTransaction');
+const GlobalSettings = require('../models/GlobalSettings');
 const VoidLog = require('../models/VoidLog');
 const Product = require('../models/Product');
 const Discount = require('../models/Discount');
 const { assertSaleStockAvailable } = require('../utils/saleStockValidation');
+const { generateRandomReceiptNumber } = require('../utils/receiptNumbering');
+const {
+  computeVatInclusiveBreakdown,
+  getNextSequentialReceiptNo,
+} = require('../utils/birReceipt');
 
 // Helper function to safely convert to ObjectId
 const toObjectId = (id) => {
@@ -26,24 +32,6 @@ const isArchiveReturnReason = (reason) => {
     .trim()
     .toLowerCase();
   return ['damaged', 'defective', 'expired'].includes(head);
-};
-
-// Generate a unique receipt number
-const generateUniqueReceiptNumber = async () => {
-  let attempts = 0;
-  while (attempts < 10) {
-    // Generate a random 6-digit number (100000–999999)
-    const receiptNo = Math.floor(100000 + Math.random() * 900000).toString();
-    const existing = await SalesTransaction.findOne({ receiptNo });
-    if (!existing) {
-      return receiptNo;
-    }
-    attempts++;
-  }
-  // Fallback: timestamp + random to minimize collision chance
-  const timestamp = Date.now().toString().slice(-4);
-  const random = Math.floor(10 + Math.random() * 90).toString();
-  return `${timestamp}${random}`;
 };
 
 // Generate a unique void ID
@@ -203,7 +191,8 @@ exports.createTransaction = async (req, res) => {
       originalTransactionId,
 
       checkedOutAt,
-      appliedDiscountIds // Array of discount IDs used in this transaction
+      appliedDiscountIds, // Array of discount IDs used in this transaction
+      terminalId: bodyTerminalId,
     } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -222,7 +211,39 @@ exports.createTransaction = async (req, res) => {
       });
     }
 
-    const receiptNo = providedReceiptNo || await generateUniqueReceiptNumber();
+    let gs = await GlobalSettings.findOne();
+    if (!gs) {
+      gs = await GlobalSettings.create({});
+    }
+    const birOn = !!gs.birCompliantEnabled;
+
+    let receiptNo;
+    let resolvedTerminalId = null;
+
+    if (birOn) {
+      try {
+        const seq = await getNextSequentialReceiptNo(bodyTerminalId);
+        receiptNo = seq.receiptNo;
+        resolvedTerminalId = seq.terminalId;
+      } catch (e) {
+        if (e.code === 'TERMINAL_ID_REQUIRED') {
+          return res.status(400).json({
+            success: false,
+            message:
+              'Terminal ID is required for BIR-compliant sales. Set it under Settings → Receipt on this device.',
+          });
+        }
+        throw e;
+      }
+    } else {
+      receiptNo = providedReceiptNo || (await generateRandomReceiptNumber());
+    }
+
+    const vatRate = Number(gs.vatRatePercent ?? 12);
+    const vatBreak =
+      birOn && Number.isFinite(totalAmount)
+        ? computeVatInclusiveBreakdown(totalAmount, vatRate)
+        : null;
 
     const transactionData = {
       receiptNo,
@@ -262,6 +283,12 @@ exports.createTransaction = async (req, res) => {
       referenceNo: referenceNo || null,
       originalTransactionId: originalTransactionId || null,
       checkedOutAt: checkedOutAt || new Date(),
+      terminalId: birOn ? resolvedTerminalId : null,
+      netOfVat: vatBreak ? vatBreak.netOfVat : null,
+      vatAmount: vatBreak ? vatBreak.vatAmount : null,
+      vatRateApplied: vatBreak ? vatBreak.vatRateApplied : null,
+      birTinSnapshot: birOn ? (gs.storeTin || '').trim() || null : null,
+      birPtuSnapshot: birOn ? (gs.ptuNumber || '').trim() || null : null,
       appliedDiscountIds:
         Array.isArray(appliedDiscountIds) && appliedDiscountIds.length > 0 ?
           appliedDiscountIds.map((id) => toObjectId(id)).filter(Boolean) :
@@ -457,7 +484,7 @@ exports.returnItems = async (req, res) => {
       };
     });
 
-    const receiptNo = await generateUniqueReceiptNumber();
+    const receiptNo = await generateRandomReceiptNumber();
     const processorIdFromAuth = req.user?._id || req.user?.id || '';
     const safeProcessorId =
       String(returnedById || processorIdFromAuth || originalTransaction.performedById || originalTransaction.userId || '').trim();

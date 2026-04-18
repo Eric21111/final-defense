@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import { useTheme } from "../../context/ThemeContext";
+import { getReceiptProfile } from "../../utils/receiptProfile";
+import { getTerminalId } from "../../utils/terminalIdentity";
 import { sendReceiptToPrinter } from "../../utils/printBridge";
 import CheckoutConfirmationModal from "./CheckoutConfirmationModal";
 import PrintingModal from "./PrintingModal";
@@ -85,11 +87,21 @@ const CashPaymentModal = ({
     // Always compute change freshly here to avoid stale state
     const changeAmount = Math.max(0, received - totalAmount);
     setShowConfirmation(false);
+
+    const profile = getReceiptProfile();
+    if (profile.birCompliantEnabled && !getTerminalId()) {
+      alert(
+        "BIR-compliant receipts are on. Set a Terminal ID under Settings → Receipt on this device before checking out."
+      );
+      return;
+    }
+
     setShowSuccess(true);
 
     try {
-
-      const generatedReceiptNo = generateReceiptNumber();
+      const useServerReceipt =
+        profile.birCompliantEnabled && !!getTerminalId();
+      const generatedReceiptNo = useServerReceipt ? undefined : generateReceiptNumber();
       const savedTransaction = await onProceed(
         received,
         changeAmount,
@@ -121,11 +133,23 @@ const CashPaymentModal = ({
           value: d.discountValue
         })),
         total: totalAmount,
+        totalAmount,
         cash: received,
         change: changeAmount,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString()
       };
+
+      if (savedTransaction) {
+        receipt.netOfVat = savedTransaction.netOfVat;
+        receipt.vatAmount = savedTransaction.vatAmount;
+        receipt.vatRateApplied = savedTransaction.vatRateApplied;
+        receipt.birTinSnapshot = savedTransaction.birTinSnapshot;
+        receipt.birPtuSnapshot = savedTransaction.birPtuSnapshot;
+        receipt.birCompliantEnabled =
+          profile.birCompliantEnabled;
+        receipt.terminalId = savedTransaction.terminalId;
+      }
 
       setReceiptData(receipt);
 

@@ -70,6 +70,10 @@ exports.updateGlobalSettings = async (req, res) => {
             receiptContactNumber,
             receiptThankYouMessage,
             receiptDisclaimer,
+            birCompliantEnabled,
+            storeTin,
+            ptuNumber,
+            vatRatePercent,
         } = req.body;
         let settings = await GlobalSettings.findOne();
         if (!settings) {
@@ -192,6 +196,21 @@ exports.updateGlobalSettings = async (req, res) => {
             const t = trimStr(receiptDisclaimer, 300);
             settings.receiptDisclaimer = t || "This is not an official receipt";
         }
+        if (birCompliantEnabled !== undefined) {
+            settings.birCompliantEnabled = Boolean(birCompliantEnabled);
+        }
+        if (storeTin !== undefined) {
+            const t = trimStr(storeTin, 32);
+            settings.storeTin = t || "000-000-000-000";
+        }
+        if (ptuNumber !== undefined) {
+            settings.ptuNumber = trimStr(ptuNumber, 64);
+        }
+        if (vatRatePercent !== undefined) {
+            const v = Number(vatRatePercent);
+            settings.vatRatePercent =
+                Number.isFinite(v) && v >= 0 && v <= 100 ? v : settings.vatRatePercent ?? 12;
+        }
 
         const hasOpeningFloatPayload =
             openingFloat !== undefined ||
@@ -206,7 +225,11 @@ exports.updateGlobalSettings = async (req, res) => {
             receiptAddress !== undefined ||
             receiptContactNumber !== undefined ||
             receiptThankYouMessage !== undefined ||
-            receiptDisclaimer !== undefined;
+            receiptDisclaimer !== undefined ||
+            birCompliantEnabled !== undefined ||
+            storeTin !== undefined ||
+            ptuNumber !== undefined ||
+            vatRatePercent !== undefined;
 
         if (!hasOpeningFloatPayload && !hasReceiptPayload) {
             return res.status(400).json({

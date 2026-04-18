@@ -16,6 +16,7 @@ import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { useTheme } from "../context/ThemeContext";
+import { getTerminalId } from "../utils/terminalIdentity";
 
 import accessoriesIcon from "../assets/inventory-icons/accesories.svg";
 import allIcon from "../assets/inventory-icons/ALL.svg";
@@ -1966,7 +1967,8 @@ const Terminal = () => {
             performedById: currentUser?._id || currentUser?.id,
             performedByName: currentUser?.name,
             status: "Completed",
-            appliedDiscountIds: currentDiscountIds
+            appliedDiscountIds: currentDiscountIds,
+            terminalId: getTerminalId() || undefined
           })
         }
       );

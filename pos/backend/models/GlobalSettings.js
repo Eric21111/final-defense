@@ -69,6 +69,29 @@ const globalSettingsSchema = new mongoose.Schema(
             default: "This is not an official receipt",
             trim: true,
         },
+        /** BIR registration–ready receipt mode (sequential receipt #, TIN/PTU/VAT on receipt). */
+        birCompliantEnabled: {
+            type: Boolean,
+            default: false,
+        },
+        /** Placeholder until actual TIN registration — shown on receipt when BIR mode is on. */
+        storeTin: {
+            type: String,
+            default: "000-000-000-000",
+            trim: true,
+        },
+        ptuNumber: {
+            type: String,
+            default: "",
+            trim: true,
+        },
+        /** Standard PH VAT rate for VAT-inclusive totals (default 12). */
+        vatRatePercent: {
+            type: Number,
+            default: 12,
+            min: 0,
+            max: 100,
+        },
         openingFloat: {
             type: Number,
             default: 2000,

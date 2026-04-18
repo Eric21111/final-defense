@@ -27,6 +27,8 @@ import gcashHeader from "../../assets/gcashHeader.png";
 import { API_BASE_URL as API_BASE, WS_BASE_URL as WS_BASE } from "../../config/api";
 import { useTheme } from "../../context/ThemeContext";
 import { sendReceiptToPrinter } from "../../utils/printBridge";
+import { getReceiptProfile } from "../../utils/receiptProfile";
+import { getTerminalId } from "../../utils/terminalIdentity";
 import PrintingModal from "./PrintingModal";
 import ReceiptModal from "./ReceiptModal";
 import SuccessModal from "./SuccessModal";
@@ -146,6 +148,15 @@ const QRCodePaymentModal = ({
   const initiatePayment = useCallback(async () => {
     if (paymentStatus !== STATUS.IDLE) return;
 
+    const profile = getReceiptProfile();
+    if (profile.birCompliantEnabled && !getTerminalId()) {
+      setPaymentStatus(STATUS.FAILED);
+      setErrorMessage(
+        "Terminal ID is required when BIR-compliant receipts are on. Set it under Settings → Receipt on this device."
+      );
+      return;
+    }
+
     setPaymentStatus(STATUS.CREATING);
     setErrorMessage("");
 
@@ -190,7 +201,8 @@ const QRCodePaymentModal = ({
           userId: userId || performedById || "system",
           performedById: performedById || "",
           performedByName: performedByName || "",
-          appliedDiscountIds: selectedDiscounts.map((d) => d._id)
+          appliedDiscountIds: selectedDiscounts.map((d) => d._id),
+          terminalId: getTerminalId() || undefined
         })
       });
 
@@ -321,7 +333,13 @@ const QRCodePaymentModal = ({
             status,
             paidAt,
             gcashReference: ref,
-            receiptNo: receipt
+            receiptNo: receipt,
+            netOfVat,
+            vatAmount,
+            vatRateApplied,
+            birTinSnapshot,
+            birPtuSnapshot,
+            terminalId
           } = data.data;
 
           if (status === "PAID") {
@@ -329,7 +347,13 @@ const QRCodePaymentModal = ({
               status: "PAID",
               paidAt,
               gcashReference: ref,
-              receiptNo: receipt
+              receiptNo: receipt,
+              netOfVat,
+              vatAmount,
+              vatRateApplied,
+              birTinSnapshot,
+              birPtuSnapshot,
+              terminalId
             });
           } else if (status === "EXPIRED") {
             handlePaymentStatusChange({ status: "EXPIRED" });
@@ -358,7 +382,7 @@ const QRCodePaymentModal = ({
           setPaymentStatus(STATUS.PAID);
           if (ref) setGcashReference(ref);
           if (receipt) setReceiptNo(receipt);
-          handlePaymentSuccess(ref, receipt);
+          handlePaymentSuccess(ref, receipt, data);
           break;
 
         case "EXPIRED":
@@ -384,12 +408,13 @@ const QRCodePaymentModal = ({
 
 
   const handlePaymentSuccess = useCallback(
-    (ref, receipt) => {
+    (ref, receipt, birData = {}) => {
       setShowSuccess(true);
 
 
       const snapshotItems = cartSnapshotRef.current;
       const snapshotAmounts = paymentAmountsRef.current;
+      const profile = getReceiptProfile();
 
       const receiptInfo = {
         receiptNo: receipt || receiptNo || "------",
@@ -411,12 +436,20 @@ const QRCodePaymentModal = ({
           value: d.discountValue
         })),
         total: snapshotAmounts.total || totalAmount,
+        totalAmount: snapshotAmounts.total || totalAmount,
         cash: snapshotAmounts.total || totalAmount,
         change: 0,
         referenceNo: ref || gcashReference || "",
         cashierName: performedByName || "Staff",
         date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+        time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+        birCompliantEnabled: profile.birCompliantEnabled,
+        netOfVat: birData.netOfVat,
+        vatAmount: birData.vatAmount,
+        vatRateApplied: birData.vatRateApplied,
+        birTinSnapshot: birData.birTinSnapshot,
+        birPtuSnapshot: birData.birPtuSnapshot,
+        terminalId: birData.terminalId
       };
 
       setReceiptData(receiptInfo);

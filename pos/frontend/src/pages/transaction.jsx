@@ -2387,10 +2387,26 @@ const Transaction = () => {
                     {formatCurrency(sidebarReceiptTotals.discount)}
                   </span>
                 </div>
+                {selectedTransaction?.netOfVat != null &&
+                  selectedTransaction?.vatAmount != null &&
+                  <div className="space-y-1 pt-1 border-t border-dashed border-gray-600/40">
+                    <div className="flex justify-between">
+                      <span>Net (vatable) sales</span>
+                      <span>{formatCurrency(selectedTransaction.netOfVat)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>
+                        VAT {Number(selectedTransaction.vatRateApplied ?? receiptBranding.vatRatePercent)}%
+                      </span>
+                      <span>{formatCurrency(selectedTransaction.vatAmount)}</span>
+                    </div>
+                  </div>}
                 <div
                   className={`flex justify-between font-semibold text-base pt-2 border-t ${theme === "dark" ? "text-white border-gray-700" : "text-gray-800 border-gray-100"}`}>
 
-                  <span>Total</span>
+                  <span>
+                    {selectedTransaction?.netOfVat != null ? "Total (incl. VAT)" : "Total"}
+                  </span>
                   <span>
                     {formatCurrency(selectedTransaction?.totalAmount || 0)}
                   </span>

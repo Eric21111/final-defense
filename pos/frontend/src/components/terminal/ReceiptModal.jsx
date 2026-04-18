@@ -39,6 +39,15 @@ const ReceiptModal = ({
   };
 
   const branding = getReceiptBranding();
+  const tinDisplay = receipt.birTinSnapshot ?? branding.storeTin;
+  const ptuDisplay = receipt.birPtuSnapshot ?? branding.ptuNumber;
+  const showBirHeader =
+    (receipt.birCompliantEnabled ?? branding.birCompliantEnabled) &&
+    (tinDisplay || ptuDisplay);
+  const showBirVat =
+    receipt.netOfVat != null &&
+    receipt.vatAmount != null;
+  const totalPay = Number(receipt.total ?? receipt.totalAmount ?? 0);
 
   const handlePrint = useCallback(async () => {
     setIsPrinting(true);
@@ -131,6 +140,12 @@ const ReceiptModal = ({
           <p style={{ fontSize: '9px', margin: '2px 0', color: '#718096' }}>{branding.receiptTagline}</p> :
           null}
           <p style={{ fontSize: '10px', margin: '2px 0', color: '#4a5568' }}>{branding.location}</p>
+          {showBirHeader ?
+          <div style={{ marginTop: '6px', fontSize: '9px', color: '#4a5568' }}>
+            {tinDisplay ? <div>TIN: {tinDisplay}</div> : null}
+            {ptuDisplay ? <div>PTU: {ptuDisplay}</div> : null}
+          </div> :
+          null}
         </div>
         <div style={{ borderBottom: '1px dashed #000', marginBottom: '10px' }}></div>
 
@@ -178,10 +193,27 @@ const ReceiptModal = ({
             <span style={{ color: '#4a5568' }}>Discount:</span>
             <span style={{ color: '#1a202c' }}>PHP {receipt.discount.toFixed(2)}</span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', paddingTop: '8px' }}>
-            <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>Total:</span>
-            <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>PHP {receipt.total.toFixed(2)}</span>
-          </div>
+          {showBirVat ? (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0', paddingTop: '6px' }}>
+                <span style={{ color: '#4a5568' }}>Net (vatable) sales:</span>
+                <span style={{ color: '#1a202c' }}>PHP {Number(receipt.netOfVat).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+                <span style={{ color: '#4a5568' }}>VAT {Number(receipt.vatRateApplied ?? branding.vatRatePercent)}%:</span>
+                <span style={{ color: '#1a202c' }}>PHP {Number(receipt.vatAmount).toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', paddingTop: '8px' }}>
+                <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>Total (incl. VAT):</span>
+                <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>PHP {totalPay.toFixed(2)}</span>
+              </div>
+            </>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', paddingTop: '8px' }}>
+              <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>Total:</span>
+              <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>PHP {receipt.total.toFixed(2)}</span>
+            </div>
+          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Amount Received:</span>
             <span style={{ color: '#1a202c' }}>PHP {receipt.cash.toFixed(2)}</span>
@@ -213,6 +245,13 @@ const ReceiptModal = ({
               <p className={`text-xs mt-0.5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>{branding.receiptTagline}</p> :
               null}
               <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{branding.location}</p>
+              {showBirHeader ?
+              <div className={`text-xs mt-2 space-y-0.5 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'}`}>
+                {tinDisplay ? <p>TIN: {tinDisplay}</p> : null}
+                {ptuDisplay ? <p>PTU: {ptuDisplay}</p> : null}
+              </div> :
+
+              null}
             </div>
 
             {}
@@ -267,10 +306,27 @@ const ReceiptModal = ({
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Discount:</span>
                 <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {receipt.discount.toFixed(2)}</span>
               </div>
-              <div className={`flex justify-between pt-3 mt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-                <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>Total:</span>
-                <span className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>PHP {receipt.total.toFixed(2)}</span>
-              </div>
+              {showBirVat ? (
+                <>
+                  <div className="flex justify-between text-sm pt-2">
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Net (vatable) sales:</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {Number(receipt.netOfVat).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>VAT {Number(receipt.vatRateApplied ?? branding.vatRatePercent)}%:</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {Number(receipt.vatAmount).toFixed(2)}</span>
+                  </div>
+                  <div className={`flex justify-between pt-3 mt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>Total (incl. VAT):</span>
+                    <span className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>PHP {totalPay.toFixed(2)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className={`flex justify-between pt-3 mt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>Total:</span>
+                  <span className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>PHP {receipt.total.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Amount Received:</span>
                 <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {receipt.cash.toFixed(2)}</span>

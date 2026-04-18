@@ -45,6 +45,7 @@ import {
   mapGlobalSettingsToReceiptCache,
   setReceiptProfileCache
 } from "../utils/receiptProfile";
+import { getTerminalId, setTerminalId } from "../utils/terminalIdentity";
 
 const PRODUCTS_BUMP_KEY = "pos-products-bump";
 
@@ -109,6 +110,7 @@ const Settings = () => {
   const [lastUpdated, setLastUpdated] = useState(null);
 
   const [receiptForm, setReceiptForm] = useState(() => ({ ...DEFAULT_RECEIPT_PROFILE }));
+  const [terminalIdLocal, setTerminalIdLocal] = useState("");
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [receiptSaving, setReceiptSaving] = useState(false);
 
@@ -533,6 +535,7 @@ const Settings = () => {
       const data = await response.json();
       if (data.success && data.data) {
         setReceiptForm(mapGlobalSettingsToReceiptCache(data.data));
+        setTerminalIdLocal(getTerminalId());
       }
     } catch (error) {
       console.error("Error loading receipt settings:", error);
@@ -562,11 +565,17 @@ const Settings = () => {
           receiptAddress: normalized.receiptAddress,
           receiptContactNumber: normalized.receiptContactNumber,
           receiptThankYouMessage: normalized.receiptThankYouMessage,
-          receiptDisclaimer: normalized.receiptDisclaimer
+          receiptDisclaimer: normalized.receiptDisclaimer,
+          birCompliantEnabled: normalized.birCompliantEnabled,
+          storeTin: normalized.storeTin,
+          ptuNumber: normalized.ptuNumber,
+          vatRatePercent: normalized.vatRatePercent
         })
       });
       const data = await response.json();
       if (data.success) {
+        const savedTerm = setTerminalId(terminalIdLocal);
+        setTerminalIdLocal(savedTerm);
         setReceiptForm(mapGlobalSettingsToReceiptCache(data.data));
         setReceiptProfileCache(data.data);
         setSuccessMessage("Receipt layout saved. New print-outs will use these details.");
@@ -1477,6 +1486,143 @@ const Settings = () => {
                         className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] resize-y min-h-[72px] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
                       />
                     </div>
+
+                    <div
+                      className={`rounded-xl p-4 space-y-4 ${isDark ? "bg-[#252220] border border-gray-700" : "bg-amber-50/50 border border-amber-100"}`}>
+
+                      <div>
+                        <label
+                          className={`block text-sm font-bold mb-1 ${isDark ? "text-white" : "text-gray-900"}`}>
+
+                          BIR-ready receipts
+                        </label>
+                        <p className={`text-xs mb-3 ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                          Receipt must be BIR-compliant — ready for registration: sequential receipt numbers tied to this
+                          terminal, TIN & PTU on the slip, and VAT shown from VAT-inclusive totals (net + VAT = total).
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReceiptForm((prev) => ({
+                                ...prev,
+                                birCompliantEnabled: true
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${receiptForm.birCompliantEnabled ?
+                                "bg-[#AD7F65] text-white shadow" :
+                                isDark ?
+                                  "bg-[#1E1B18] border border-gray-600 text-gray-400" :
+                                  "bg-white border border-gray-200 text-gray-600"}`
+                            }>
+
+                            On
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReceiptForm((prev) => ({
+                                ...prev,
+                                birCompliantEnabled: false
+                              }))
+                            }
+                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${!receiptForm.birCompliantEnabled ?
+                                "bg-[#AD7F65] text-white shadow" :
+                                isDark ?
+                                  "bg-[#1E1B18] border border-gray-600 text-gray-400" :
+                                  "bg-white border border-gray-200 text-gray-600"}`
+                            }>
+
+                            Off
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label
+                          className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                          TIN (store)
+                        </label>
+                        <input
+                          type="text"
+                          value={receiptForm.storeTin}
+                          onChange={(e) =>
+                            setReceiptForm((prev) => ({
+                              ...prev,
+                              storeTin: e.target.value
+                            }))
+                          }
+                          placeholder="000-000-000-000"
+                          className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"}`}
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                          PTU number
+                        </label>
+                        <input
+                          type="text"
+                          value={receiptForm.ptuNumber}
+                          onChange={(e) =>
+                            setReceiptForm((prev) => ({
+                              ...prev,
+                              ptuNumber: e.target.value
+                            }))
+                          }
+                          placeholder="Printer / PTU registration no."
+                          className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"}`}
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                          VAT rate (% on VAT-inclusive sales)
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                          value={receiptForm.vatRatePercent}
+                          onChange={(e) =>
+                            setReceiptForm((prev) => ({
+                              ...prev,
+                              vatRatePercent: Math.min(
+                                100,
+                                Math.max(0, parseFloat(e.target.value) || 0)
+                              )
+                            }))
+                          }
+                          className={`w-full max-w-[140px] px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-gray-50 border-gray-200 text-gray-900"}`}
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+
+                          Terminal ID (this device)
+                        </label>
+                        <input
+                          type="text"
+                          value={terminalIdLocal}
+                          onChange={(e) => setTerminalIdLocal(e.target.value)}
+                          placeholder="e.g. POS01"
+                          className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"}`}
+                        />
+                        <p className={`text-xs mt-1.5 ${isDark ? "text-gray-500" : "text-gray-500"}`}>
+                          Saved only on this browser. Sequential receipt numbers are{" "}
+                          <span className="font-semibold">{terminalIdLocal || "…"}-000001</span>
+                          , etc.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
@@ -1504,9 +1650,43 @@ const Settings = () => {
                         <p className={`text-[10px] ${isDark ? "text-gray-500" : "text-gray-500"}`}>
                           {receiptForm.receiptContactNumber}
                         </p>
+                        {receiptForm.birCompliantEnabled ?
+                          <div className={`text-[9px] mt-2 space-y-0.5 ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                            <p>TIN: {receiptForm.storeTin || "—"}</p>
+                            <p>PTU: {receiptForm.ptuNumber || "—"}</p>
+                          </div> :
+
+                          null}
                       </div>
                       <div className={`border-t border-dashed my-3 ${isDark ? "border-gray-600" : "border-gray-300"}`} />
-                      <p className="text-center text-[10px] text-gray-500 mb-1">#000000</p>
+                      <p className="text-center text-[10px] text-gray-500 mb-1">
+                        {terminalIdLocal ? `${terminalIdLocal}-000001` : "#000000"}
+                      </p>
+                      {receiptForm.birCompliantEnabled ?
+                        <div className={`text-[9px] space-y-0.5 mb-2 ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                          <div className="flex justify-between">
+                            <span>Net sales</span>
+                            <span>
+                              PHP{" "}
+                              {(
+                                1120 /
+                                (1 + (Number(receiptForm.vatRatePercent) || 12) / 100)
+                              ).toFixed(2)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>VAT {Number(receiptForm.vatRatePercent) || 12}%</span>
+                            <span>
+                              PHP{" "}
+                              {(
+                                1120 -
+                                1120 / (1 + (Number(receiptForm.vatRatePercent) || 12) / 100)
+                              ).toFixed(2)}
+                            </span>
+                          </div>
+                        </div> :
+
+                        null}
                       <div className={`border-t border-dashed my-3 ${isDark ? "border-gray-600" : "border-gray-300"}`} />
                       <div className="text-center space-y-1">
                         <p className={isDark ? "text-gray-400" : "text-gray-600"}>

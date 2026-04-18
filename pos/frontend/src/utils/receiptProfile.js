@@ -8,14 +8,25 @@ export const DEFAULT_RECEIPT_PROFILE = {
   receiptAddress: 'Pasonanca, Zamboanga City',
   receiptContactNumber: '+631112224444',
   receiptThankYouMessage: 'Thank you for your purchase!',
-  receiptDisclaimer: 'This is not an official receipt'
+  receiptDisclaimer: 'This is not an official receipt',
+  birCompliantEnabled: false,
+  storeTin: '000-000-000-000',
+  ptuNumber: '',
+  vatRatePercent: 12
 };
 
 const clamp = (s, max) => String(s ?? '').slice(0, max);
 
 export function mapGlobalSettingsToReceiptCache(data = {}) {
+  const vatRaw = Number(data.vatRatePercent);
+  const vatRatePercent =
+    Number.isFinite(vatRaw) && vatRaw >= 0 && vatRaw <= 100
+      ? vatRaw
+      : DEFAULT_RECEIPT_PROFILE.vatRatePercent;
+
   return {
-    storeName: clamp(data.storeName ?? DEFAULT_RECEIPT_PROFILE.storeName, 120).trim() || DEFAULT_RECEIPT_PROFILE.storeName,
+    storeName: clamp(data.storeName ?? DEFAULT_RECEIPT_PROFILE.storeName, 120).trim() ||
+      DEFAULT_RECEIPT_PROFILE.storeName,
     receiptTagline: clamp(data.receiptTagline ?? '', 200),
     receiptAddress:
       clamp(data.receiptAddress ?? DEFAULT_RECEIPT_PROFILE.receiptAddress, 200).trim() ||
@@ -28,7 +39,13 @@ export function mapGlobalSettingsToReceiptCache(data = {}) {
       DEFAULT_RECEIPT_PROFILE.receiptThankYouMessage,
     receiptDisclaimer:
       clamp(data.receiptDisclaimer ?? DEFAULT_RECEIPT_PROFILE.receiptDisclaimer, 300).trim() ||
-      DEFAULT_RECEIPT_PROFILE.receiptDisclaimer
+      DEFAULT_RECEIPT_PROFILE.receiptDisclaimer,
+    birCompliantEnabled: Boolean(data.birCompliantEnabled),
+    storeTin:
+      clamp(data.storeTin ?? DEFAULT_RECEIPT_PROFILE.storeTin, 32).trim() ||
+      DEFAULT_RECEIPT_PROFILE.storeTin,
+    ptuNumber: clamp(data.ptuNumber ?? '', 64),
+    vatRatePercent
   };
 }
 
@@ -59,7 +76,11 @@ export function getReceiptBranding() {
     location: p.receiptAddress,
     contactNumber: p.receiptContactNumber,
     thankYouMessage: p.receiptThankYouMessage,
-    disclaimer: p.receiptDisclaimer
+    disclaimer: p.receiptDisclaimer,
+    birCompliantEnabled: p.birCompliantEnabled,
+    storeTin: p.storeTin,
+    ptuNumber: p.ptuNumber,
+    vatRatePercent: p.vatRatePercent
   };
 }
 

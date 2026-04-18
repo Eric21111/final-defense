@@ -77,6 +77,17 @@ const salesTransactionSchema = new mongoose.Schema(
     changeGiven: Number,
     referenceNo: String,
     receiptNo: String,
+    /** POS terminal key when BIR sequential receipts are used. */
+    terminalId: {
+      type: String,
+      default: null,
+    },
+    /** VAT breakdown (amounts are VAT-inclusive total split). */
+    netOfVat: { type: Number, default: null },
+    vatAmount: { type: Number, default: null },
+    vatRateApplied: { type: Number, default: null },
+    birTinSnapshot: { type: String, default: null },
+    birPtuSnapshot: { type: String, default: null },
     totalAmount: {
       type: Number,
       required: true,

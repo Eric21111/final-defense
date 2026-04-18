@@ -65,6 +65,13 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
         storeName: branding.storeName,
         location: branding.location,
         contactNumber: branding.contactNumber,
+        birCompliantEnabled: branding.birCompliantEnabled,
+        storeTin: transaction.birTinSnapshot ?? branding.storeTin,
+        ptuNumber: transaction.birPtuSnapshot ?? branding.ptuNumber,
+        netOfVat: transaction.netOfVat,
+        vatAmount: transaction.vatAmount,
+        vatRateApplied: transaction.vatRateApplied ?? branding.vatRatePercent,
+        totalAmount: transaction.totalAmount,
         time: formatTime(transaction.checkedOutAt || transaction.createdAt),
         referenceNo: transaction.referenceNo || transaction._id?.substring(0, 12) || '-',
         items: transaction.items?.map((item) => ({
