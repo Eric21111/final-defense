@@ -133,11 +133,25 @@ class DatabaseManager {
         }
       }
 
+      // Tuning notes (Render ↔ Atlas / remote Mongo):
+      // - MongoNetworkTimeoutError usually means network blips, Atlas asleep (M0), IP allowlist, or heavy queries.
+      // - Ensure Atlas "Network Access" allows 0.0.0.0/0 or Render outbound IPs; avoid direct `mongodb://IP` unless firewall allows Render.
+      const poolMax = Number(process.env.MONGO_MAX_POOL_SIZE) || 10;
+      const poolMin = Number(process.env.MONGO_MIN_POOL_SIZE) || 1;
+
       await mongoose.connect(this.currentURI, {
-        maxPoolSize: 10,          // Max connections in pool (default is 5, 10 handles concurrent mobile+web)
-        minPoolSize: 2,           // Keep 2 warm connections ready
-        socketTimeoutMS: 45000,   // Close sockets after 45s of inactivity
-        serverSelectionTimeoutMS: 10000,  // Fail fast if no server available (10s vs default 30s)
+        maxPoolSize: poolMax,
+        minPoolSize: poolMin,
+        maxIdleTimeMS: 60000,
+        // How long picking a server may take (cluster election, cold Atlas wake-up).
+        serverSelectionTimeoutMS: 45000,
+        // Initial TCP handshake to each host — give slow routes time before failing.
+        connectTimeoutMS: 30000,
+        // Max time to wait for a reply on a socket (large finds / aggregations). 45s was tight for busy Atlas.
+        socketTimeoutMS: 120000,
+        retryWrites: true,
+        retryReads: true,
+        heartbeatFrequencyMS: 10000,
       });
 
       console.log(`✓ MongoDB Connected: ${mongoose.connection.host}`);
@@ -165,7 +179,11 @@ class DatabaseManager {
         );
         try {
           this.currentURI = this.localURI;
-          await mongoose.connect(this.currentURI);
+          await mongoose.connect(this.currentURI, {
+            serverSelectionTimeoutMS: 10000,
+            socketTimeoutMS: 45000,
+            connectTimeoutMS: 10000,
+          });
           console.log(
             `✓ MongoDB Connected (Local Fallback): ${mongoose.connection.host}`,
           );

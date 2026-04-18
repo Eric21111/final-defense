@@ -157,9 +157,32 @@ app.get("/", (req, res) => {
   });
 });
 
-// Lightweight ping for connection warmup (no DB query)
+// Lightweight ping — does not touch MongoDB (good for plain load balancers)
 app.get("/api/ping", (req, res) => {
   res.json({ ok: true });
+});
+
+// Health check with MongoDB ping — use this for uptime monitors (UptimeRobot, etc.) so the
+// Render service and DB connection stay exercised instead of going cold / timing out.
+app.get("/api/health", async (req, res) => {
+  try {
+    const mongoose = require("mongoose");
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({
+        ok: false,
+        db: "disconnected",
+        readyState: mongoose.connection.readyState,
+      });
+    }
+    await mongoose.connection.db.admin().command({ ping: 1 });
+    res.json({ ok: true, db: "up" });
+  } catch (error) {
+    res.status(503).json({
+      ok: false,
+      db: "error",
+      message: error.message,
+    });
+  }
 });
 
 app.use("/api/products", require("./routes/productRoutes"));
