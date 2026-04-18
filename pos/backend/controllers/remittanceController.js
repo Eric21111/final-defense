@@ -14,6 +14,45 @@ const isSameLocalDay = (left, right) => {
     return a.getTime() === b.getTime();
 };
 
+const sumOpeningFloatsInRange = async ({ employeeId, lo, hi, allTime }) => {
+    const settings = await GlobalSettings.findOne().lean();
+    if (!settings || !Array.isArray(settings.openingFloats)) {
+        return 0;
+    }
+
+    const employeeIdStr = employeeId && String(employeeId).trim() ? String(employeeId).trim() : null;
+    const loDay = allTime ? null : startOfLocalDay(lo);
+    const hiDay = allTime ? null : startOfLocalDay(hi);
+
+    return settings.openingFloats.reduce((sum, entry) => {
+        if (!entry) return sum;
+
+        const entryEmployeeId = String(entry?.employeeId?._id || entry?.employeeId || '').trim();
+        if (employeeIdStr && entryEmployeeId !== employeeIdStr) {
+            return sum;
+        }
+
+        const effectiveDate = new Date(entry.businessDate || entry.createdAt || 0);
+        if (Number.isNaN(effectiveDate.getTime())) {
+            return sum;
+        }
+
+        if (!allTime) {
+            const entryDay = startOfLocalDay(effectiveDate);
+            if (entryDay < loDay || entryDay > hiDay) {
+                return sum;
+            }
+        }
+
+        const amount = Number(entry.amount);
+        if (!Number.isFinite(amount)) {
+            return sum;
+        }
+
+        return sum + amount;
+    }, 0);
+};
+
 const getOpeningFloatForEmployee = async (employeeId) => {
     const settings = await GlobalSettings.findOne().lean();
     if (!settings) {
@@ -63,19 +102,20 @@ exports.getRemittanceSummary = async (req, res) => {
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-        // Base sales belong to the cashier who made the sale.
-        // Returns are deducted from the cashier who processed the refund,
-        // because that cashier's drawer released the cash.
+        // Cash remittance basis:
+        // 1) Gross Sales = sales made by this cashier BEFORE any return deductions
+        // 2) Returns Processed = refunds this cashier processed (even for another cashier's sale)
+        // 3) Net Remittance = Gross Sales - Returns Processed
         const completedTransactions = await SalesTransaction.find({
             performedById: employeeId,
             status: { $in: ['Completed', 'Partially Returned', 'Returned'] },
             checkedOutAt: { $gte: startOfDay, $lt: endOfDay },
             paymentMethod: { $ne: 'return' }
         })
-            .select('totalAmount status')
+            .select('_id totalAmount status')
             .lean();
 
-        const returnTransactions = await SalesTransaction.find({
+        const returnTransactionsProcessed = await SalesTransaction.find({
             paymentMethod: 'return',
             $or: [
                 { performedById: employeeId },
@@ -86,6 +126,21 @@ exports.getRemittanceSummary = async (req, res) => {
             .select('totalAmount')
             .lean();
 
+        const completedTransactionIds = completedTransactions
+            .map((t) => t?._id)
+            .filter(Boolean);
+
+        const returnTransactionsAgainstOwnSales =
+            completedTransactionIds.length > 0
+                ? await SalesTransaction.find({
+                      paymentMethod: 'return',
+                      originalTransactionId: { $in: completedTransactionIds },
+                      checkedOutAt: { $gte: startOfDay, $lt: endOfDay }
+                  })
+                      .select('totalAmount')
+                      .lean()
+                : [];
+
         const [existingTodayRemittance, openingFloatTotal] = await Promise.all([
             Remittance.findOne(
                 buildTodayRemittanceQuery(employeeId, startOfDay, endOfDay)
@@ -95,9 +150,11 @@ exports.getRemittanceSummary = async (req, res) => {
             getOpeningFloatForEmployee(employeeId)
         ]);
 
-        const netSales = completedTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
-        const returns = returnTransactions.reduce((sum, t) => sum + Math.abs(t.totalAmount || 0), 0);
-        const grossSales = netSales + returns;
+        const salesAfterReturnDeductions = completedTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
+        const returnsAgainstOwnSales = returnTransactionsAgainstOwnSales.reduce((sum, t) => sum + Math.abs(t.totalAmount || 0), 0);
+        const grossSales = salesAfterReturnDeductions + returnsAgainstOwnSales;
+        const returnsProcessed = returnTransactionsProcessed.reduce((sum, t) => sum + Math.abs(t.totalAmount || 0), 0);
+        const netRemittance = grossSales - returnsProcessed;
         const noOfSales = completedTransactions.filter((t) => t.status !== 'Returned').length;
 
         res.json({
@@ -105,8 +162,10 @@ exports.getRemittanceSummary = async (req, res) => {
             data: {
                 shiftDate: startOfDay,
                 grossSales,
-                returns,
-                netSales,
+                returns: returnsProcessed,
+                returnsProcessed,
+                netSales: netRemittance,
+                netRemittance,
                 noOfSales,
                 openingFloatTotal,
                 alreadyRemittedToday: !!existingTodayRemittance,
@@ -203,11 +262,7 @@ exports.createRemittance = async (req, res) => {
     }
 };
 
-/**
- * GET /api/remittances/kpi-stats?startMs=&endMs=&employeeId=
- * posNetSales = sum of POS totals (Completed / Partially Returned / Returned, excl. paymentMethod return); refunds already reduce totalAmount on originals.
- * grossSales = posNetSales + returns (return rows). Total Remitted = sum of cashToRemit. Outstanding = max(0, posNetSales - remitted).
- */
+
 exports.getRemittanceKpiStats = async (req, res) => {
     try {
         const { startMs, endMs, startDate, endDate, employeeId } = req.query;
@@ -268,8 +323,8 @@ exports.getRemittanceKpiStats = async (req, res) => {
             salesMatch.performedById = empIdStr;
         }
 
-        const [completedTransactions, rawReturnTransactions, remitAgg] = await Promise.all([
-            SalesTransaction.find(salesMatch).select('totalAmount').lean(),
+        const [completedTransactions, rawReturnTransactions, remitAgg, openingFloatTotal] = await Promise.all([
+            SalesTransaction.find(salesMatch).select('_id totalAmount').lean(),
             SalesTransaction.find({
                 paymentMethod: 'return',
                 ...(empIdStr
@@ -296,44 +351,76 @@ exports.getRemittanceKpiStats = async (req, res) => {
                         $group: {
                             _id: null,
                             totalRemitted: { $sum: { $ifNull: ['$cashToRemit', 0] } },
-                            totalVariance: { $sum: { $ifNull: ['$variance', 0] } },
-                            slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } }
+                            slipNetSales: { $sum: { $ifNull: ['$netSales', 0] } },
+                            totalSlipVariance: { $sum: { $ifNull: ['$variance', 0] } },
+                            remittanceCount: { $sum: 1 }
                         }
                     }
                 ]);
-            })()
+            })(),
+            sumOpeningFloatsInRange({
+                employeeId: empIdStr,
+                lo,
+                hi,
+                allTime
+            })
         ]);
 
-        const posNetSales = completedTransactions.reduce(
+        const completedTransactionIds = completedTransactions
+            .map((t) => t?._id)
+            .filter(Boolean);
+
+        const ownSalesReturnTransactions =
+            completedTransactionIds.length > 0
+                ? await SalesTransaction.find({
+                      paymentMethod: 'return',
+                      originalTransactionId: { $in: completedTransactionIds },
+                      ...(transactionDateOr || {})
+                  })
+                      .select('totalAmount')
+                      .lean()
+                : [];
+
+        const salesAfterReturnDeductions = completedTransactions.reduce(
             (s, t) => s + (Number(t.totalAmount) || 0),
             0
         );
-        const returns = rawReturnTransactions.reduce(
+        const returnsAgainstOwnSales = ownSalesReturnTransactions.reduce(
             (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
             0
         );
-        const grossSales = posNetSales + returns;
-        const netSalesAfterReturns = posNetSales;
+        const grossSales = salesAfterReturnDeductions + returnsAgainstOwnSales;
+        const returnsProcessed = rawReturnTransactions.reduce(
+            (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
+            0
+        );
+        const netRemittance = grossSales - returnsProcessed;
 
         const row = remitAgg[0] || {
             totalRemitted: 0,
-            totalVariance: 0,
-            slipNetSales: 0
+            slipNetSales: 0,
+            totalSlipVariance: 0,
+            remittanceCount: 0
         };
         const totalRemitted = row.totalRemitted || 0;
-        const totalVariance = row.totalVariance || 0;
-        const unremittedCash = Math.max(0, netSalesAfterReturns - totalRemitted);
+        const expectedCash = netRemittance + (openingFloatTotal || 0);
+        const hasRemittance = (row.remittanceCount || 0) > 0;
+        const totalVariance = hasRemittance ? (row.totalSlipVariance || 0) : 0;
 
         res.json({
             success: true,
             data: {
-                posNetSales: netSalesAfterReturns,
+                posNetSales: salesAfterReturnDeductions,
                 grossSales,
-                returns,
+                returns: returnsProcessed,
+                netRemittance,
+                openingFloatTotal: openingFloatTotal || 0,
+                expectedCash,
                 totalRemitted,
                 totalVariance,
+                hasRemittance,
                 slipNetSalesSum: row.slipNetSales || 0,
-                unremittedCash
+                unremittedCash: expectedCash
             }
         });
     } catch (error) {

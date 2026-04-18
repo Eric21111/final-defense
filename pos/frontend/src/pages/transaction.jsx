@@ -1245,6 +1245,12 @@ const Transaction = () => {
     try {
       setLoading(true);
       console.log("Processing return for items:", itemsToReturn);
+      const returnProcessorId = String(currentUser?._id || currentUser?.id || "");
+      const returnProcessorName =
+        currentUser?.name ||
+        `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
+        transaction.performedByName ||
+        "System";
 
 
       const returnedIndices = itemsToReturn.map((item) => item.originalIndex);
@@ -1478,8 +1484,8 @@ const Transaction = () => {
               batchAllocations: orig?.batchAllocations
             };
           }),
-          performedByName: transaction.performedByName || "System",
-          performedById: transaction.performedById || "",
+          performedByName: returnProcessorName,
+          performedById: returnProcessorId,
           reason: "Returned Item",
           type: "Stock-In"
         };
@@ -1513,7 +1519,7 @@ const Transaction = () => {
 
       for (const item of itemsToReturn) {
         const returnTransaction = {
-          userId: transaction.userId,
+          userId: returnProcessorId || transaction.userId || "system",
           items: [
             {
               productId: item.productId,
@@ -1532,8 +1538,11 @@ const Transaction = () => {
           referenceNo: `RET-${transaction.referenceNo || transaction._id?.substring(0, 12)}-${Date.now()}-${itemsToReturn.indexOf(item)}`,
           receiptNo: null,
           totalAmount: item.quantity * item.price,
-          performedById: transaction.performedById,
-          performedByName: transaction.performedByName,
+          performedById: returnProcessorId || transaction.performedById || "",
+          performedByName: returnProcessorName,
+          returnedBy: returnProcessorId || undefined,
+          returnedById: returnProcessorId || undefined,
+          returnedByName: returnProcessorName,
           status: "Returned",
           originalTransactionId: transaction._id,
           checkedOutAt: new Date()

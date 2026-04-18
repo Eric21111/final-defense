@@ -58,7 +58,7 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
   const [transactionsExpanded, setTransactionsExpanded] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const itemRefs = useRef({});
-  const { logout, isOwner, hasPermission } = useAuth();
+  const { logout, isOwner, isManager, hasPermission } = useAuth();
 
 
   const allMenuItems = [
@@ -130,7 +130,7 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
 
   const menuItems = allMenuItems.filter((item) => {
 
-    if (isOwner()) {
+    if (isOwner() || isManager()) {
       return true;
     }
 
@@ -192,13 +192,15 @@ const Sidebar = ({ isExpanded, setIsExpanded }) => {
     { name: "Categories", path: "/categories" }];
 
 
-  const posSubItems = [
-    { name: "Terminal", path: "/terminal" },
-    { name: "Discount Management", path: "/discount-management" }];
+  const posSubItems = (isOwner() || isManager())
+    ? [{ name: "Terminal", path: "/terminal" },
+       { name: "Discount Management", path: "/discount-management" }]
+    : [{ name: "Terminal", path: "/terminal" }];
 
-  const transactionsSubItems = [
-    { name: "All Transactions", path: "/transactions" },
-    { name: "Cash Remittance", path: "/cash-remittance" }];
+  const transactionsSubItems = (isOwner() || isManager())
+    ? [{ name: "All Transactions", path: "/transactions" },
+       { name: "Cash Remittance", path: "/cash-remittance" }]
+    : [{ name: "All Transactions", path: "/transactions" }];
 
   useEffect(() => {
     const inventoryPaths = [

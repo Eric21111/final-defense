@@ -246,11 +246,11 @@ const ReceiptContent = ({ remit }) => {
                             <span className="font-bold text-gray-800">{formatCurrency(remit.totalCashOnHand)}</span>
                         </div>
                         <div className="flex justify-between text-[11px]">
-                            <span className="text-gray-600">Less: Opening Float</span>
+                            <span className="text-gray-600">Opening Float</span>
                             <span className="font-bold text-gray-800">({formatAbs(remit.openingFloat || 0)})</span>
                         </div>
                         <div className="border-t border-dashed border-gray-300 pt-1 flex justify-between items-center">
-                            <span className="text-xs font-extrabold text-gray-900 tracking-wide">CASH TO REMIT</span>
+                            <span className="text-xs font-extrabold text-gray-900 tracking-wide">Cash to Remit</span>
                             <span className="text-sm font-extrabold text-gray-900">{formatCurrency(remit.cashToRemit)}</span>
                         </div>
                     </div>
@@ -305,7 +305,7 @@ const CashRemittance = () => {
     const [staffList, setStaffList] = useState([]);
 
     // Opening Floats
-    const [globalFloat, setGlobalFloat] = useState(2000);
+    const [globalFloat, setGlobalFloat] = useState(0);
     const [openingFloatEntries, setOpeningFloatEntries] = useState([]);
     const [showFloatModal, setShowFloatModal] = useState(false);
     const [floatInput, setFloatInput] = useState("");
@@ -319,7 +319,7 @@ const CashRemittance = () => {
             const res = await fetch(API_ENDPOINTS.globalSettings);
             const data = await res.json();
             if (data.success && data.data) {
-                setGlobalFloat(data.data.openingFloat || 2000);
+                setGlobalFloat(data.data.openingFloat || 0);
                 setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
             }
         } catch (err) {
@@ -363,7 +363,7 @@ const CashRemittance = () => {
             });
             const data = await res.json();
             if (data.success) {
-                setGlobalFloat(data.data.openingFloat || 2000);
+                setGlobalFloat(data.data.openingFloat || 0);
                 setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
                 setFloatInput("");
                 setEditingFloatEntryId("");
@@ -390,7 +390,7 @@ const CashRemittance = () => {
             });
             const data = await res.json();
             if (data.success) {
-                setGlobalFloat(data.data.openingFloat || 2000);
+                setGlobalFloat(data.data.openingFloat || 0);
                 setOpeningFloatEntries(Array.isArray(data.data.openingFloats) ? data.data.openingFloats : []);
 
                 if (editingFloatEntryId === entryId) {
@@ -615,8 +615,11 @@ const CashRemittance = () => {
 
     const [kpiStats, setKpiStats] = useState({
         posNetSales: 0,
+        openingFloatTotal: 0,
+        expectedCash: 0,
         totalRemitted: 0,
         totalVariance: 0,
+        hasRemittance: false,
         unremittedCash: 0
     });
     const [kpiLoading, setKpiLoading] = useState(false);
@@ -641,15 +644,21 @@ const CashRemittance = () => {
                 if (data.success && data.data) {
                     setKpiStats({
                         posNetSales: data.data.posNetSales ?? 0,
+                        openingFloatTotal: data.data.openingFloatTotal ?? 0,
+                        expectedCash: data.data.expectedCash ?? data.data.unremittedCash ?? 0,
                         totalRemitted: data.data.totalRemitted ?? 0,
                         totalVariance: data.data.totalVariance ?? 0,
-                        unremittedCash: data.data.unremittedCash ?? 0
+                        hasRemittance: Boolean(data.data.hasRemittance),
+                        unremittedCash: data.data.unremittedCash ?? data.data.expectedCash ?? 0
                     });
                 } else {
                     setKpiStats({
                         posNetSales: 0,
+                        openingFloatTotal: 0,
+                        expectedCash: 0,
                         totalRemitted: 0,
                         totalVariance: 0,
+                        hasRemittance: false,
                         unremittedCash: 0
                     });
                 }
@@ -658,8 +667,11 @@ const CashRemittance = () => {
                 if (!cancelled) {
                     setKpiStats({
                         posNetSales: 0,
+                        openingFloatTotal: 0,
+                        expectedCash: 0,
                         totalRemitted: 0,
                         totalVariance: 0,
+                        hasRemittance: false,
                         unremittedCash: 0
                     });
                 }
@@ -762,7 +774,13 @@ const CashRemittance = () => {
                     <KpiCard
                         icon={FaBalanceScale}
                         label="Total Variance"
-                        value={kpiLoading ? "…" : `${kpiStats.totalVariance > 0 ? "+" : ""}${formatCurrency(kpiStats.totalVariance)}`}
+                        value={
+                            kpiLoading
+                                ? "…"
+                                : kpiStats.hasRemittance
+                                    ? `${kpiStats.totalVariance > 0 ? "+" : ""}${formatCurrency(kpiStats.totalVariance)}`
+                                    : "—"
+                        }
                         barGradient="linear-gradient(180deg, #D97706 0%, #F59E0B 100%)"
                         iconBg="bg-amber-50"
                         iconColor="text-amber-500"
@@ -771,8 +789,8 @@ const CashRemittance = () => {
                     />
                     <KpiCard
                         icon={FaClock}
-                        label="Outstanding (Unremitted)"
-                        value={kpiLoading ? "…" : formatCurrency(kpiStats.unremittedCash)}
+                        label="Expected Cash"
+                        value={kpiLoading ? "…" : formatCurrency(kpiStats.expectedCash)}
                         barGradient="linear-gradient(180deg, #B91C1C 0%, #EF4444 100%)"
                         iconBg="bg-red-50"
                         iconColor="text-red-500"
@@ -792,7 +810,7 @@ const CashRemittance = () => {
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 h-full">
                         <div className="flex items-center justify-between">
                             <div>
-                                <p className="text-3xl font-black text-gray-800">{formatCurrency(totalAssignedOpeningFloats || globalFloat)}</p>
+                                <p className="text-3xl font-black text-gray-800">{formatCurrency(totalAssignedOpeningFloats)}</p>
                                 <p className="text-sm font-semibold text-gray-400 mt-1">Today's Assigned Opening Floats</p>
                             </div>
                             {isOwner() && (
@@ -1063,9 +1081,9 @@ const CashRemittance = () => {
                                     <tr className="bg-gray-50 border-b border-gray-100">
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Date & Time</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Cashier</th>
-                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Net Sales</th>
+                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Net Remitted</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Opening Float</th>
-                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Cash to Remit</th>
+                                        <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Cash Remitted</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-right">Variance</th>
                                         <th className="py-3 px-4 text-xs font-bold text-gray-400 uppercase tracking-wider text-center">Status</th>
                                     </tr>
