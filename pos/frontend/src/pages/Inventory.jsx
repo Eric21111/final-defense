@@ -128,6 +128,16 @@ const Inventory = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const productsListFetchGenRef = useRef(0);
+  const productsListLoadingDepthRef = useRef(0);
+
+  const adjustInventoryProductsLoading = (delta) => {
+    productsListLoadingDepthRef.current += delta;
+    if (productsListLoadingDepthRef.current < 0) {
+      productsListLoadingDepthRef.current = 0;
+    }
+    setLoading(productsListLoadingDepthRef.current > 0);
+  };
   const [editingProduct, setEditingProduct] = useState(null);
   const [showStockModal, setShowStockModal] = useState(false);
   const [stockModalType, setStockModalType] = useState("in");
@@ -439,7 +449,10 @@ const Inventory = () => {
     }
     fetchCategories();
     fetchBrandPartners();
-  }, [getCachedData, isCacheValid]);
+    // Intentionally mount-only: `getCachedData` changes when any cache slice changes,
+    // which would retrigger this effect and duplicate product requests.
+     
+  }, []);
 
   const getSkuNumber = (sku = "") => {
     const matches = sku.match(/\d+/g);
@@ -610,24 +623,65 @@ const Inventory = () => {
 
   const fetchProducts = async (opts) => {
     const silent = typeof opts === "boolean" ? opts : opts?.silent;
+    const myGen = ++productsListFetchGenRef.current;
+    const controller = new AbortController();
+    const timeoutMs = 90000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let adjustedLoading = false;
     try {
-      if (!silent) setLoading(true);
+      if (!silent) {
+        adjustedLoading = true;
+        adjustInventoryProductsLoading(1);
+      }
       const response = await fetch(`${API_BASE_URL}/api/products`, {
-        cache: "no-store"
+        cache: "no-store",
+        signal: controller.signal
       });
+
+      if (myGen !== productsListFetchGenRef.current) {
+        return;
+      }
+
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => "");
+        throw new Error(errBody || `HTTP ${response.status}`);
+      }
+
       const data = await response.json();
+
+      if (myGen !== productsListFetchGenRef.current) {
+        return;
+      }
 
       if (data.success) {
         setProducts(data.data);
         setCachedData("products", data.data);
+      } else if (!silent) {
+        alert(data.message || "Could not load products.");
       }
     } catch (error) {
+      if (error?.name === "AbortError") {
+        if (myGen !== productsListFetchGenRef.current) {
+          return;
+        }
+        if (!silent) {
+          alert(
+            "Loading products timed out. If this keeps happening, check that the server is running and try again."
+          );
+        }
+        return;
+      }
       console.error("Error fetching products:", error);
-      alert(
-        "Failed to fetch products. Make sure the backend server is running."
-      );
+      if (!silent) {
+        alert(
+          "Failed to fetch products. Make sure the backend server is running."
+        );
+      }
     } finally {
-      if (!silent) setLoading(false);
+      clearTimeout(timeoutId);
+      if (adjustedLoading) {
+        adjustInventoryProductsLoading(-1);
+      }
     }
   };
 
@@ -1061,10 +1115,10 @@ const Inventory = () => {
             setCachedData("products", next);
             return next;
           });
-          fetchProducts({ silent: true });
+          await fetchProducts({ silent: true });
         } else {
           invalidateCache("products");
-          fetchProducts();
+          await fetchProducts({ silent: true });
         }
         setSuccessMessage("The item was added successfully!");
         setShowSuccessModal(true);
@@ -1295,7 +1349,7 @@ const Inventory = () => {
         setShowAddModal(false);
         resetProductForm();
         invalidateCache("products");
-        fetchProducts();
+        await fetchProducts({ silent: true });
         setSuccessMessage("The item was edited successfully!");
         setShowSuccessModal(true);
         setProductToEdit(null);
@@ -1375,7 +1429,7 @@ const Inventory = () => {
         setShowSuccessModal(true);
         setSuccessMessage("The item was archived successfully!");
         invalidateCache("products");
-        fetchProducts({ silent: true });
+        await fetchProducts({ silent: true });
       } else {
         alert(data.message || "Failed to archive product");
       }
@@ -1407,7 +1461,7 @@ const Inventory = () => {
         setShowSuccessModal(true);
         setSuccessMessage("The item was deleted successfully!");
         invalidateCache("products");
-        fetchProducts();
+        await fetchProducts({ silent: true });
       } else {
         alert(data.message || "Failed to delete product");
       }
@@ -1468,7 +1522,7 @@ const Inventory = () => {
         setEditingProduct(null);
         setStockAmount("");
         invalidateCache("products");
-        fetchProducts();
+        await fetchProducts({ silent: true });
       } else {
         alert(data.message || "Failed to update stock");
       }
@@ -1534,7 +1588,7 @@ const Inventory = () => {
       setSuccessMessage("Stock added successfully!");
       setShowSuccessModal(true);
       invalidateCache("products");
-      fetchProducts();
+      await fetchProducts({ silent: true });
     } catch (error) {
       console.error("Error updating stock:", error);
       alert("Failed to update stock. Please try again.");
@@ -1659,7 +1713,7 @@ const Inventory = () => {
       setSuccessMessage("Stock removed successfully!");
       setShowSuccessModal(true);
       invalidateCache("products");
-      fetchProducts();
+      await fetchProducts({ silent: true });
     } catch (error) {
       console.error("Error updating stock:", error);
       alert("Failed to update stock. Please try again.");
@@ -2047,7 +2101,7 @@ const Inventory = () => {
 
       if (successCount > 0) {
         invalidateCache("products");
-        fetchProducts();
+        await fetchProducts({ silent: true });
       }
 
 
