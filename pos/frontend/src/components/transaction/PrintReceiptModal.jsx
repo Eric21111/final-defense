@@ -5,6 +5,7 @@ import { getReceiptBranding } from '../../utils/receiptProfile';
 import {
   lineSubtotalFromItems,
   originalSubtotalFromItems,
+  totalReturnedFromTransaction,
   resolveTransactionDiscount,
   formatReceiptVariantSizeLine
 } from '../../utils/transactionDisplay';
@@ -55,9 +56,7 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
     ? (originalSubtotalFromItems(transaction) || transaction.originalTotalAmount || transaction.totalAmount || 0)
     : (lineSubtotalFromItems(transaction) || transaction.totalAmount || 0);
 
-  const totalReturned = transaction.returnTransactions?.reduce((sum, returnTrx) => {
-    return sum + (returnTrx.totalAmount || 0);
-  }, 0) || 0;
+  const totalReturned = totalReturnedFromTransaction(transaction);
 
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturnActivity

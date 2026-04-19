@@ -66,6 +66,23 @@ export function originalSubtotalFromItems(transaction) {
 }
 
 /**
+ * Total returned amount. Uses returnTransactions if available, otherwise computes from item statuses.
+ */
+export function totalReturnedFromTransaction(transaction) {
+  const fromRecords = transaction?.returnTransactions?.reduce((sum, r) => sum + (r.totalAmount || 0), 0) || 0;
+  if (fromRecords > 0) return fromRecords;
+
+  if (!transaction?.items?.length) return 0;
+  return transaction.items.reduce((sum, item) => {
+    const isFullyReturned = item.returnStatus === "Returned";
+    // For full returns, if returnedQuantity isn't set, it means the whole quantity was returned.
+    const returnedQty = item.returnedQuantity || (isFullyReturned ? (item.quantity || 1) : 0);
+    const unitPrice = item.price || item.itemPrice || 0;
+    return sum + (returnedQty * unitPrice);
+  }, 0);
+}
+
+/**
  * Discount to show: stored on txn, or inferred from subtotal − total for legacy rows.
  */
 export function resolveTransactionDiscount(transaction, lineSubtotal, { skipInference = false } = {}) {

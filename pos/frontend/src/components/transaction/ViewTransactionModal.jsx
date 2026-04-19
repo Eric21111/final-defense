@@ -3,6 +3,7 @@ import {
   cleanItemNameForDisplay,
   formatItemVariantSizeLabel,
   originalSubtotalFromItems,
+  totalReturnedFromTransaction,
   resolveTransactionDiscount
 } from '../../utils/transactionDisplay';
 // comment kahit saan
@@ -57,8 +58,12 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
 
 
   const canReturn = transaction.status === 'Completed' || transaction.status === 'Partially Returned';
-  const hasReturns = (transaction.returnTransactions?.length || 0) > 0;
-  const latestReturnTransaction = hasReturns
+  const hasReturns = 
+    transaction.status === 'Returned' || 
+    transaction.status === 'Partially Returned' || 
+    (transaction.returnTransactions?.length || 0) > 0;
+    
+  const latestReturnTransaction = (transaction.returnTransactions?.length || 0) > 0
     ? [...(transaction.returnTransactions || [])].sort((a, b) => {
         const aTime = new Date(a?.checkedOutAt || a?.createdAt || 0).getTime();
         const bTime = new Date(b?.checkedOutAt || b?.createdAt || 0).getTime();
@@ -74,9 +79,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
   // Subtotal: always the ORIGINAL purchase total (never changes after returns)
   const subtotal = originalSubtotalFromItems(transaction) || transaction.originalTotalAmount || transaction.totalAmount || 0;
 
-  const totalReturned = transaction.returnTransactions?.reduce((sum, returnTrx) => {
-    return sum + (returnTrx.totalAmount || 0);
-  }, 0) || 0;
+  const totalReturned = totalReturnedFromTransaction(transaction);
 
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturns
