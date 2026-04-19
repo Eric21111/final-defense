@@ -401,7 +401,7 @@ const DiscountManagement = () => {
                 <img
               src={discount.icon}
               alt={discount.title}
-              className="w-full h-full object-contain p-2" />
+              className="w-full h-full object-contain p-4" />
             
               </div>
 
