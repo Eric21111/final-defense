@@ -46,11 +46,14 @@ exports.getAllProducts = async (req, res) => {
     // ?fields=minimal drops base64 image blobs (often 50KB–2MB+ per product) — main cause of
     // timeouts when the DB is small by count but large by document size.
     const isMinimal = req.query.fields === "minimal";
+    // Minimal should stay lightweight, but still include small URL images (Cloudinary URLs).
+    // We exclude productImages (can be multiple) and stockHistory (large).
     const projection = isMinimal
-      ? "-stockHistory -itemImage -productImages"
+      ? "-stockHistory -productImages"
       : "-stockHistory";
 
-    let query = Product.find({ isArchived: { $ne: true } }, projection).sort({ dateAdded: -1 });
+    // Use index-friendly equality (isArchived defaults to false).
+    let query = Product.find({ isArchived: false }, projection).sort({ dateAdded: -1 });
 
     // Only apply pagination if limit is specified (Mobile uses limit=20, Web sends none)
     if (limit) {
@@ -61,7 +64,7 @@ exports.getAllProducts = async (req, res) => {
     // Run find and count in parallel instead of sequentially
     const [products, totalCount] = await Promise.all([
       query.lean(),
-      Product.countDocuments({ isArchived: { $ne: true } }),
+      Product.countDocuments({ isArchived: false }),
     ]);
 
     const formattedProducts = products.map((product) => {
@@ -2198,7 +2201,8 @@ exports.toggleDisplayInTerminal = async (req, res) => {
 // Search products
 exports.searchProducts = async (req, res) => {
   try {
-    const { query } = req.params;
+    const { query: rawQuery } = req.params;
+    const query = String(rawQuery || "").trim();
 
     if (!query) {
       return res.status(400).json({
@@ -2207,26 +2211,36 @@ exports.searchProducts = async (req, res) => {
       });
     }
 
+    const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const looksLikeCode = /^[a-zA-Z0-9_-]+$/.test(query);
+
     // Optimize: Use Text Search if available (requires index), fallback to regex for partial matches if needed
     // Assuming text index is set up as per model: { itemName: 'text', sku: 'text', brandName: 'text' }
 
     // First try text search for relevance
     let products = await Product.find(
-      { $text: { $search: query } },
+      { isArchived: false, $text: { $search: query } },
       { score: { $meta: "textScore" } },
     )
       .select("-sizes") // Include itemImage, exclude heavy sizes
       .sort({ score: { $meta: "textScore" } })
+      .limit(50)
       .lean();
 
     // Fallback: If text search returns nothing (e.g., partial words like "burg" for "burger"), try Regex
     if (products.length === 0) {
+      const safe = escapeRegex(query);
+      const skuRegex =
+        looksLikeCode && query.length >= 2
+          ? { sku: { $regex: `^${safe}`, $options: "i" } }
+          : null;
       products = await Product.find({
+        isArchived: false,
         $or: [
-          { itemName: { $regex: query, $options: "i" } },
-          { sku: { $regex: query, $options: "i" } },
-          { category: { $regex: query, $options: "i" } },
-          { brandName: { $regex: query, $options: "i" } },
+          { itemName: { $regex: safe, $options: "i" } },
+          ...(skuRegex ? [skuRegex] : [{ sku: { $regex: safe, $options: "i" } }]),
+          { category: { $regex: safe, $options: "i" } },
+          { brandName: { $regex: safe, $options: "i" } },
         ],
       })
         .select("-sizes") // Include itemImage, exclude heavy sizes

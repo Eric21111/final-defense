@@ -633,77 +633,119 @@ const Inventory = () => {
         adjustedLoading = true;
         adjustInventoryProductsLoading(1);
       }
-      // 1) List path without base64 images — fast even with many products (matches terminal page).
-      const response = await fetch(
-        `${API_BASE_URL}/api/products?fields=minimal`,
-        {
-          cache: "no-store",
-          signal: controller.signal
+      // 1) Paged list path — avoids a single huge response when catalog is large.
+      const PAGE_LIMIT = 500;
+      const mergeUniqueById = (prevList, nextList) => {
+        const prevArr = Array.isArray(prevList) ? prevList : [];
+        const nextArr = Array.isArray(nextList) ? nextList : [];
+        const map = new Map();
+        prevArr.forEach((p) => {
+          const id = String(p?._id || p?.id || "");
+          if (id) map.set(id, p);
+        });
+        nextArr.forEach((p) => {
+          const id = String(p?._id || p?.id || "");
+          if (id) map.set(id, p);
+        });
+        return Array.from(map.values());
+      };
+
+      let page = 1;
+      let combined = [];
+      let firstPageDone = false;
+      while (true) {
+        const response = await fetch(
+          `${API_BASE_URL}/api/products?fields=minimal&limit=${PAGE_LIMIT}&page=${page}`,
+          {
+            cache: "no-store",
+            signal: controller.signal
+          }
+        );
+
+        if (myGen !== productsListFetchGenRef.current) {
+          return;
         }
-      );
 
-      if (myGen !== productsListFetchGenRef.current) {
-        return;
-      }
-
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => "");
-        throw new Error(errBody || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (myGen !== productsListFetchGenRef.current) {
-        return;
-      }
-
-      if (data.success) {
-        setProducts(data.data);
-        setCachedData("products", data.data);
-        if (!silent && adjustedLoading) {
-          adjustInventoryProductsLoading(-1);
-          adjustedLoading = false;
+        if (!response.ok) {
+          const errBody = await response.text().catch(() => "");
+          throw new Error(errBody || `HTTP ${response.status}`);
         }
+
+        const data = await response.json();
+
+        if (myGen !== productsListFetchGenRef.current) {
+          return;
+        }
+
+        if (!data?.success) break;
+        const chunk = Array.isArray(data.data) ? data.data : [];
+        if (chunk.length === 0) break;
+
+        combined = mergeUniqueById(combined, chunk);
+
+        if (!firstPageDone) {
+          firstPageDone = true;
+          setProducts(combined);
+          if (!silent && adjustedLoading) {
+            adjustInventoryProductsLoading(-1);
+            adjustedLoading = false;
+          }
+        } else {
+          setProducts((prev) => mergeUniqueById(prev, chunk));
+        }
+
+        if (chunk.length < PAGE_LIMIT) break;
+        page += 1;
+        if (page > 200) break;
+      }
+
+      if (firstPageDone) {
+        setCachedData("products", combined);
       } else if (!silent) {
-        alert(data.message || "Could not load products.");
+        alert("Could not load products.");
       }
 
       clearTimeout(timeoutId);
 
       // 2) Background: full documents with images (can be MBs) — must not block UI (stock-in
       // "Adding..." awaited this entire chain before).
-      if (data?.success && myGen === productsListFetchGenRef.current) {
+      // Now that images are URLs, this is much cheaper; keep it as background hydration.
+      if (firstPageDone && myGen === productsListFetchGenRef.current) {
         const fullController = new AbortController();
         const fullTimeout = setTimeout(() => fullController.abort(), 120000);
-        fetch(`${API_BASE_URL}/api/products`, {
-          cache: "no-store",
-          signal: fullController.signal
-        })
-          .then((fullRes) => {
-            if (myGen !== productsListFetchGenRef.current) return null;
-            if (!fullRes.ok) return null;
-            return fullRes.json();
-          })
-          .then((fullData) => {
-            if (
-              fullData?.success &&
-              myGen === productsListFetchGenRef.current
-            ) {
-              setProducts(fullData.data);
-              setCachedData("products", fullData.data);
-            }
-          })
-          .catch((imgErr) => {
-            if (imgErr?.name !== "AbortError") {
-              console.warn(
-                "Background product fetch (full detail) failed:",
-                imgErr
+        const PAGE2_LIMIT = 500;
+        (async () => {
+          try {
+            let p = 1;
+            let all = [];
+            while (true) {
+              const fullRes = await fetch(
+                `${API_BASE_URL}/api/products?limit=${PAGE2_LIMIT}&page=${p}`,
+                { cache: "no-store", signal: fullController.signal }
               );
+              if (myGen !== productsListFetchGenRef.current) return;
+              if (!fullRes.ok) return;
+              const fullData = await fullRes.json().catch(() => ({}));
+              if (!fullData?.success) return;
+              const chunk = Array.isArray(fullData.data) ? fullData.data : [];
+              if (!chunk.length) break;
+              all = mergeUniqueById(all, chunk);
+              if (chunk.length < PAGE2_LIMIT) break;
+              p += 1;
+              if (p > 200) break;
             }
-          })
-          .finally(() => {
+            if (myGen === productsListFetchGenRef.current && all.length) {
+              setProducts(all);
+              setCachedData("products", all);
+            }
+          } catch (imgErr) {
+            if (imgErr?.name !== "AbortError") {
+              console.warn("Background product fetch (full detail) failed:", imgErr);
+            }
+          } finally {
             clearTimeout(fullTimeout);
-          });
+          }
+        })();
       }
     } catch (error) {
       if (error?.name === "AbortError") {

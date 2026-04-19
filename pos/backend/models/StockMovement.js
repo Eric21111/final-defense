@@ -78,6 +78,18 @@ stockMovementSchema.index({ handledById: 1 });
 stockMovementSchema.index({ reason: 1 });
 stockMovementSchema.index({ createdAt: -1, type: 1, category: 1, reason: 1 });
 stockMovementSchema.index({ productId: 1, createdAt: -1 });
+stockMovementSchema.index({ itemName: 1 });
+stockMovementSchema.index({ handledBy: 1 });
+// Fast search for movement logs (replaces slow unanchored regex scans at scale)
+stockMovementSchema.index({
+  itemName: "text",
+  sku: "text",
+  handledBy: "text",
+  brandName: "text",
+  category: "text",
+  reason: "text",
+  notes: "text",
+});
 
 // Export schema for dynamic connection
 module.exports.schema = stockMovementSchema;

@@ -324,16 +324,27 @@ const Transaction = () => {
       if (filters.user !== "All") params.append("userId", filters.user);
 
 
-      params.append("limit", "3000");
-      const qs = params.toString() ? `?${params.toString()}` : "";
+      // Paged load to avoid one huge response when history grows.
+      const PAGE_LIMIT = 300;
+      const MAX_TOTAL = 3000;
+      let page = 1;
+      let allTransactions = [];
+      while (allTransactions.length < MAX_TOTAL) {
+        params.set("limit", String(PAGE_LIMIT));
+        params.set("page", String(page));
+        const qs = params.toString() ? `?${params.toString()}` : "";
+        const response = await fetch(`${API_BASE_URL}/api/transactions${qs}`);
+        const data = await response.json().catch(() => ({}));
+        if (!data?.success || !Array.isArray(data.data)) break;
+        const chunk = data.data;
+        if (!chunk.length) break;
+        allTransactions = [...allTransactions, ...chunk];
+        if (chunk.length < PAGE_LIMIT) break;
+        page += 1;
+        if (page > 50) break;
+      }
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/transactions${qs}`
-      );
-      const data = await response.json();
-
-      if (data.success && Array.isArray(data.data)) {
-        const allTransactions = data.data;
+      if (Array.isArray(allTransactions)) {
 
 
         const returnTransactions = allTransactions.filter(

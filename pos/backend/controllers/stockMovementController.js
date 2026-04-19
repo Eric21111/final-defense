@@ -83,12 +83,26 @@ exports.getStockMovements = async (req, res) => {
 
     const query = {};
 
-    if (search) {
-      query.$or = [
-        { itemName: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } },
-        { handledBy: { $regex: search, $options: 'i' } }
-      ];
+    const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const searchTrimmed = String(search || "").trim();
+    if (searchTrimmed) {
+      // Avoid slow unanchored regex scans when logs get large.
+      // - If it looks like a SKU/code (no spaces), use prefix regex on sku (index-friendly).
+      // - Otherwise, use $text search (uses text index).
+      const looksLikeCode = /^[a-zA-Z0-9_-]+$/.test(searchTrimmed);
+      if (looksLikeCode && searchTrimmed.length >= 2) {
+        query.sku = { $regex: `^${escapeRegex(searchTrimmed)}`, $options: "i" };
+      } else if (searchTrimmed.length >= 3) {
+        query.$text = { $search: searchTrimmed };
+      } else {
+        // Keep old behavior for very short searches.
+        query.$or = [
+          { itemName: { $regex: escapeRegex(searchTrimmed), $options: "i" } },
+          { sku: { $regex: escapeRegex(searchTrimmed), $options: "i" } },
+          { handledBy: { $regex: escapeRegex(searchTrimmed), $options: "i" } }
+        ];
+      }
     }
 
     if (category && category !== 'All') {
@@ -366,29 +380,80 @@ exports.getStockStatsOverTime = async (req, res) => {
     const pullOut = new Array(periods.length).fill(0);
     const labels = periods.map(p => p.label);
 
-    // Fetch and aggregate data
-    // We could do one big query and aggregate in code, or per-period queries.
-    // One big query is better for DB.
-
+    // Aggregate in MongoDB (fast at scale), then map into the same UI periods.
     const globalStart = periods[0].start;
     const globalEnd = periods[periods.length - 1].end;
 
-    const movements = await StockMovement.find({
-      createdAt: { $gte: globalStart, $lte: globalEnd }
-    }).lean();
+    const unit =
+      timeframe.toLowerCase() === 'monthly' ? 'month' :
+        timeframe.toLowerCase() === 'yearly' ? 'year' :
+          'day';
 
-    movements.forEach(movement => {
-      const date = new Date(movement.createdAt);
+    const agg = await StockMovement.aggregate([
+      {
+        $addFields: {
+          effectiveType: { $ifNull: ['$type', '$movementType'] },
+        },
+      },
+      {
+        $match: {
+          createdAt: { $gte: globalStart, $lte: globalEnd },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateTrunc: { date: '$createdAt', unit } },
+          stockIn: {
+            $sum: {
+              $cond: [
+                { $in: ['$effectiveType', ['Stock-In', 'in', 'stock-in']] },
+                { $ifNull: ['$quantity', 0] },
+                0,
+              ],
+            },
+          },
+          pullOut: {
+            $sum: {
+              $cond: [
+                {
+                  $in: [
+                    '$effectiveType',
+                    ['Pull-Out', 'out', 'stock-out', 'pull-out'],
+                  ],
+                },
+                { $ifNull: ['$quantity', 0] },
+                0,
+              ],
+            },
+          },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
 
-      // Find which period this falls into
-      const index = periods.findIndex(p => date >= p.start && date <= p.end);
+    const byBucketIso = new Map(
+      agg.map((r) => [
+        new Date(r._id).toISOString(),
+        { stockIn: r.stockIn || 0, pullOut: r.pullOut || 0 },
+      ]),
+    );
 
-      if (index !== -1) {
-        if (movement.type === 'Stock-In' || movement.type === 'in' || movement.movementType === 'stock-in') {
-          stockIn[index] += movement.quantity || 0;
-        } else if (movement.type === 'Pull-Out' || movement.type === 'out' || movement.movementType === 'stock-out' || movement.movementType === 'pull-out') {
-          pullOut[index] += movement.quantity || 0;
-        }
+    periods.forEach((p, idx) => {
+      const bucket = new Date(p.start);
+      if (unit === 'day') {
+        bucket.setHours(0, 0, 0, 0);
+      } else if (unit === 'month') {
+        bucket.setDate(1);
+        bucket.setHours(0, 0, 0, 0);
+      } else {
+        bucket.setMonth(0, 1);
+        bucket.setHours(0, 0, 0, 0);
+      }
+      const key = bucket.toISOString();
+      const row = byBucketIso.get(key);
+      if (row) {
+        stockIn[idx] = row.stockIn;
+        pullOut[idx] = row.pullOut;
       }
     });
 

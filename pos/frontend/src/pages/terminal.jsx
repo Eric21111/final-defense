@@ -347,47 +347,59 @@ const Terminal = () => {
   };
 
   const fetchProducts = useCallback(async (background = false, opts = {}) => {
-    const { skipFullHydration = false, timeoutMs } = opts;
+    const { timeoutMs } = opts;
     let latestList = null;
     try {
       if (!background) setLoading(true);
 
-      // Step 1: Fast load — fetch without images for instant rendering
-      const minimalUrl = `${API_BASE_URL}/api/products?fields=minimal`;
-      const minimalRes = timeoutMs
-        ? await fetchWithTimeout(minimalUrl, {}, timeoutMs)
-        : await fetch(minimalUrl);
-      const minimalData = await minimalRes.json();
+      // Paged load: avoids one huge payload when catalog is large.
+      const PAGE_LIMIT = 500;
+      const mergeUniqueById = (prevList, nextList) => {
+        const prevArr = Array.isArray(prevList) ? prevList : [];
+        const nextArr = Array.isArray(nextList) ? nextList : [];
+        const map = new Map();
+        prevArr.forEach((p) => {
+          const id = String(p?._id || p?.id || "");
+          if (id) map.set(id, p);
+        });
+        nextArr.forEach((p) => {
+          const id = String(p?._id || p?.id || "");
+          if (id) map.set(id, p);
+        });
+        return Array.from(map.values());
+      };
 
-      if (minimalData.success) {
-        latestList = minimalData.data;
-        setProducts(minimalData.data);
-        if (!background) setLoading(false);
+      let page = 1;
+      let combined = [];
+      while (true) {
+        const minimalUrl = `${API_BASE_URL}/api/products?fields=minimal&limit=${PAGE_LIMIT}&page=${page}`;
+        const res = timeoutMs
+          ? await fetchWithTimeout(minimalUrl, {}, timeoutMs)
+          : await fetch(minimalUrl, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!data?.success) break;
+        const chunk = Array.isArray(data.data) ? data.data : [];
+        if (chunk.length === 0) break;
 
-        // Step 2: Full data with images — never block checkout on this (can be huge / slow on Render).
-        if (skipFullHydration) {
-          fetch(`${API_BASE_URL}/api/products`)
-            .then((r) => r.json())
-            .then((fullData) => {
-              if (fullData.success) {
-                setProducts(fullData.data);
-                setCachedData("products", fullData.data);
-              }
-            })
-            .catch((err) => console.warn("Background image fetch failed:", err));
+        combined = mergeUniqueById(combined, chunk);
+        latestList = combined;
+
+        // Render immediately after first chunk; append progressively.
+        if (page === 1) {
+          setProducts(combined);
+          if (!background) setLoading(false);
         } else {
-          try {
-            const fullRes = await fetch(`${API_BASE_URL}/api/products`);
-            const fullData = await fullRes.json();
-            if (fullData.success) {
-              setProducts(fullData.data);
-              setCachedData("products", fullData.data);
-              latestList = fullData.data;
-            }
-          } catch (imgErr) {
-            console.warn("Background image fetch failed:", imgErr);
-          }
+          setProducts((prev) => mergeUniqueById(prev, chunk));
         }
+
+        if (chunk.length < PAGE_LIMIT) break;
+        page += 1;
+        // Safety cap to prevent infinite loops if backend misbehaves.
+        if (page > 200) break;
+      }
+
+      if (Array.isArray(latestList)) {
+        setCachedData("products", latestList);
       }
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -565,14 +577,23 @@ const Terminal = () => {
       }
     };
 
-    saveCartToServer();
+    // Debounce to avoid spamming network on rapid +/- quantity taps.
+    const id = setTimeout(saveCartToServer, 600);
+    return () => clearTimeout(id);
   }, [cart, cartId, cartReadyForSync]);
 
 
   useEffect(() => {
     if (!cartReadyForSync) return;
     try {
-      localStorage.setItem(`pos_cart_${cartId}`, JSON.stringify(cart));
+      const id = setTimeout(() => {
+        try {
+          localStorage.setItem(`pos_cart_${cartId}`, JSON.stringify(cart));
+        } catch (e) {
+          console.warn("Unable to persist cart", e);
+        }
+      }, 600);
+      return () => clearTimeout(id);
     } catch (error) {
       console.warn("Unable to persist cart", error);
     }
@@ -2271,70 +2292,74 @@ const Terminal = () => {
       // NOTE: don't invalidate products here; we update them locally for instant UI
       invalidateCache("transactions");
 
-      try {
-        const newTxId =
-          transactionData.data?._id || transactionData.data?.id || null;
-        const stockItemsWithLine = stockItems.map((row, idx) => ({
-          ...row,
-          lineIndex: idx,
-        }));
-        const stockRes = await fetchWithTimeout(
-          `${API_BASE_URL}/api/products/update-stock`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              type: "Stock-Out",
-              reason: "Sold",
-              linkTransactionId: newTxId,
-              items: stockItemsWithLine,
-              performedByName:
-                currentUser?.name ||
-                `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
-                "System",
-              performedById: currentUser?._id || currentUser?.id || ""
-            })
-          },
-          CHECKOUT_NETWORK_TIMEOUT_MS
-        );
-        const stockData = await stockRes.json().catch(() => ({}));
-        if (!stockRes.ok || !stockData.success) {
-          console.error("Stock update failed:", stockData);
-          throw new Error(stockData.message || "Stock update failed");
-        }
-
-        // Fast UI update: merge updated products into local state + cache
-        if (Array.isArray(stockData.data) && stockData.data.length > 0) {
-          const updatedMap = new Map(
-            stockData.data
-              .filter((p) => p && (p._id || p.id))
-              .map((p) => [String(p._id || p.id), p])
+      // Run stock mutation in the background so checkout UI doesn't hang on slow APIs.
+      // We already applied an optimistic stock-out locally for instant UX.
+      (async () => {
+        try {
+          const newTxId =
+            transactionData.data?._id || transactionData.data?.id || null;
+          const stockItemsWithLine = stockItems.map((row, idx) => ({
+            ...row,
+            lineIndex: idx,
+          }));
+          const stockRes = await fetchWithTimeout(
+            `${API_BASE_URL}/api/products/update-stock`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                type: "Stock-Out",
+                reason: "Sold",
+                linkTransactionId: newTxId,
+                items: stockItemsWithLine,
+                performedByName:
+                  currentUser?.name ||
+                  `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
+                  "System",
+                performedById: currentUser?._id || currentUser?.id || ""
+              })
+            },
+            CHECKOUT_NETWORK_TIMEOUT_MS
           );
+          const stockData = await stockRes.json().catch(() => ({}));
+          if (!stockRes.ok || !stockData.success) {
+            console.error("Stock update failed:", stockData);
+            throw new Error(stockData.message || "Stock update failed");
+          }
 
-          setProducts((prev) => {
-            const prevList = Array.isArray(prev) ? prev : [];
-            const next = prevList.map((p) => {
-              const key = String(p?._id || p?.id || "");
-              const updated = updatedMap.get(key);
-              return updated ? { ...p, ...updated } : p;
+          // Fast UI update: merge updated products into local state + cache
+          if (Array.isArray(stockData.data) && stockData.data.length > 0) {
+            const updatedMap = new Map(
+              stockData.data
+                .filter((p) => p && (p._id || p.id))
+                .map((p) => [String(p._id || p.id), p])
+            );
+
+            setProducts((prev) => {
+              const prevList = Array.isArray(prev) ? prev : [];
+              const next = prevList.map((p) => {
+                const key = String(p?._id || p?.id || "");
+                const updated = updatedMap.get(key);
+                return updated ? { ...p, ...updated } : p;
+              });
+              setCachedData("products", next);
+              return next;
             });
-            setCachedData("products", next);
-            return next;
-          });
 
-          setSelectedProduct((prev) => {
-            if (!prev) return prev;
-            const key = String(prev._id || prev.id || "");
-            const updated = updatedMap.get(key);
-            return updated ? { ...prev, ...updated } : prev;
-          });
+            setSelectedProduct((prev) => {
+              if (!prev) return prev;
+              const key = String(prev._id || prev.id || "");
+              const updated = updatedMap.get(key);
+              return updated ? { ...prev, ...updated } : prev;
+            });
+          }
+        } catch (stockErr) {
+          console.error("Stock update error:", stockErr);
+          toastBr.error(
+            `Sale saved, but inventory update failed: ${stockErr.message || "Unknown error"}`
+          );
         }
-      } catch (stockErr) {
-        console.error("Stock update error:", stockErr);
-        toastBr.error(
-          `Sale saved, but inventory update failed: ${stockErr.message || "Unknown error"}`
-        );
-      }
+      })();
 
       productsBeforeTxnRef.current = null;
 

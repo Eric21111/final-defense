@@ -66,10 +66,34 @@ const generateVoidId = async () => {
 exports.getAllTransactions = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limitRaw = parseInt(req.query.limit);
+    const limit = Math.min(Math.max(limitRaw || 20, 1), 500);
     const skip = (page - 1) * limit;
 
-    const transactions = await SalesTransaction.find({})
+    const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const query = {};
+    const search = String(req.query.search || "").trim();
+    const paymentMethod = String(req.query.paymentMethod || "").trim();
+    const status = String(req.query.status || "").trim();
+    const userId = String(req.query.userId || "").trim();
+
+    if (paymentMethod) query.paymentMethod = paymentMethod;
+    if (status) query.status = status;
+    if (userId) query.userId = userId;
+
+    if (search) {
+      const safe = escapeRegex(search);
+      query.$or = [
+        { receiptNo: { $regex: safe, $options: "i" } },
+        { referenceNo: { $regex: safe, $options: "i" } },
+        { performedByName: { $regex: safe, $options: "i" } },
+        { performedById: { $regex: safe, $options: "i" } },
+        { "items.itemName": { $regex: safe, $options: "i" } },
+        { "items.sku": { $regex: safe, $options: "i" } },
+      ];
+    }
+
+    const transactions = await SalesTransaction.find(query)
       // Keep variant/selectedSize/sku on items — needed for returns and receipts (only strip heavy image)
       .select("-items.itemImage")
       .sort({ createdAt: -1 })
@@ -77,7 +101,7 @@ exports.getAllTransactions = async (req, res) => {
       .limit(limit)
       .lean();
 
-    const totalCount = await SalesTransaction.estimatedDocumentCount();
+    const totalCount = await SalesTransaction.countDocuments(query);
 
     res.json({
       success: true,
@@ -588,7 +612,11 @@ exports.getTransactionStats = async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
 
-    const query = { status: 'completed', paymentMethod: { $ne: 'return' } };
+    // Keep consistent with the rest of the app: ignore voided + returns/void rows.
+    const query = {
+      status: { $nin: ['Voided', 'voided'] },
+      paymentMethod: { $nin: ['return', 'void'] },
+    };
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
@@ -708,8 +736,8 @@ exports.getDashboardStats = async (req, res) => {
         { checkedOutAt: { $gte: start, $lte: end } },
         { checkedOutAt: { $exists: false }, createdAt: { $gte: start, $lte: end } }
       ],
-      status: { $not: { $regex: /^voided$/i } },
-      paymentMethod: { $ne: 'return' }
+      status: { $nin: ['Voided', 'voided'] },
+      paymentMethod: { $nin: ['return', 'void'] }
     });
 
     // Aggregation pipeline: compute totalSales, count, and profit in one query
@@ -742,133 +770,43 @@ exports.getDashboardStats = async (req, res) => {
               { $unwind: { path: '$productInfo', preserveNullAndEmptyArrays: true } },
               {
                 $addFields: {
+                  // Fast path: use O(1) field access instead of $objectToArray/$filter (very expensive at scale).
                   sizeData: {
-                    $let: {
-                      vars: {
-                        matchedSize: {
-                          $first: {
-                            $filter: {
-                              input: {
-                                $objectToArray: { $ifNull: ['$productInfo.sizes', {}] }
-                              },
-                              as: 'sz',
-                              cond: { $eq: ['$$sz.k', '$items.selectedSize'] }
-                            }
-                          }
-                        }
-                      },
-                      in: '$$matchedSize.v'
-                    }
-                  }
-                }
-              },
-              {
-                $addFields: {
-                  variantCostPrice: {
-                    $let: {
-                      vars: {
-                        matchedVariantCostFromVariants: {
-                          $first: {
-                            $filter: {
-                              input: {
-                                $objectToArray: { $ifNull: ['$sizeData.variants', {}] }
-                              },
-                              as: 'vn',
-                              cond: { $eq: ['$$vn.k', '$items.variant'] }
-                            }
-                          }
-                        },
-                        firstVariantCostFromVariants: {
-                          $arrayElemAt: [
-                            {
-                              $objectToArray: { $ifNull: ['$sizeData.variants', {}] }
-                            },
-                            0
-                          ]
-                        },
-                        matchedVariantCostFromLegacyMap: {
-                          $first: {
-                            $filter: {
-                              input: {
-                                $objectToArray: { $ifNull: ['$sizeData.variantCostPrices', {}] }
-                              },
-                              as: 'lvc',
-                              cond: { $eq: ['$$lvc.k', '$items.variant'] }
-                            }
-                          }
-                        }
-                      },
-                      in: {
-                        $ifNull: [
-                          '$$matchedVariantCostFromVariants.v.costPrice',
-                          {
-                            $ifNull: [
-                              '$$firstVariantCostFromVariants.v.costPrice',
-                              '$$matchedVariantCostFromLegacyMap.v'
-                            ]
-                          }
-                        ]
-                      }
-                    }
-                  },
-                  sizeCostPrice: {
                     $cond: [
-                      { $eq: [{ $type: '$sizeData' }, 'object'] },
-                      { $ifNull: ['$sizeData.costPrice', null] },
-                      null
-                    ]
+                      { $and: [{ $ne: ['$items.selectedSize', null] }, { $ne: ['$items.selectedSize', ''] }] },
+                      {
+                        $getField: {
+                          field: '$items.selectedSize',
+                          input: { $ifNull: ['$productInfo.sizes', {}] },
+                        },
+                      },
+                      null,
+                    ],
+                  },
+                  variantData: {
+                    $cond: [
+                      {
+                        $and: [
+                          { $ne: ['$items.variant', null] },
+                          { $ne: ['$items.variant', ''] },
+                          { $ne: ['$sizeData', null] },
+                        ],
+                      },
+                      {
+                        $getField: {
+                          field: '$items.variant',
+                          input: { $ifNull: ['$sizeData.variants', {}] },
+                        },
+                      },
+                      null,
+                    ],
                   },
                   itemCostPrice: {
-                    $let: {
-                      vars: {
-                        computedCost: {
-                          $ifNull: [
-                            '$variantCostPrice',
-                            { $ifNull: ['$sizeCostPrice', { $ifNull: ['$productInfo.costPrice', 0] }] }
-                          ]
-                        },
-                        firstSizeEntry: {
-                          $arrayElemAt: [
-                            { $objectToArray: { $ifNull: ['$productInfo.sizes', {}] } },
-                            0
-                          ]
-                        }
-                      },
-                      in: {
-                        $cond: [
-                          { $gt: ['$$computedCost', 0] },
-                          '$$computedCost',
-                          {
-                            $let: {
-                              vars: {
-                                firstVariantEntry: {
-                                  $arrayElemAt: [
-                                    {
-                                      $objectToArray: {
-                                        $ifNull: ['$$firstSizeEntry.v.variants', {}]
-                                      }
-                                    },
-                                    0
-                                  ]
-                                }
-                              },
-                              in: {
-                                $ifNull: [
-                                  '$$firstVariantEntry.v.costPrice',
-                                  {
-                                    $ifNull: [
-                                      '$$firstSizeEntry.v.costPrice',
-                                      { $ifNull: ['$productInfo.costPrice', 0] }
-                                    ]
-                                  }
-                                ]
-                              }
-                            }
-                          }
-                        ]
-                      }
-                    }
-                  }
+                    $ifNull: [
+                      { $ifNull: ['$variantData.costPrice', '$sizeData.costPrice'] },
+                      { $ifNull: ['$productInfo.costPrice', 0] },
+                    ],
+                  },
                 }
               },
               {
@@ -1278,30 +1216,61 @@ exports.getSalesOverTime = async (req, res) => {
       }
     }
 
-    // Fetch all sales in one query spanning the full range, then bucket in JS
+    // Aggregate revenue in MongoDB (fast at scale), then map into the same UI periods.
     const globalStart = periods[0].startDate;
     const globalEnd = periods[periods.length - 1].endDate;
 
-    const allTransactions = await SalesTransaction.find({
-      $or: [
-        { checkedOutAt: { $gte: globalStart, $lt: globalEnd } },
-        { checkedOutAt: null, createdAt: { $gte: globalStart, $lt: globalEnd } },
-        { checkedOutAt: { $exists: false }, createdAt: { $gte: globalStart, $lt: globalEnd } }
-      ],
-      status: { $not: { $regex: /^voided$/i } },
-      paymentMethod: { $ne: 'return' }
-    }).select('totalAmount checkedOutAt createdAt').lean();
+    const unit =
+      periodType.startsWith('daily') ? 'day' :
+        periodType.startsWith('weekly') ? 'week' :
+          periodType.startsWith('monthly') ? 'month' :
+            'year';
 
-    // Bucket transactions into periods
-    const rawSalesData = periods.map(({ startDate, endDate, label }) => {
-      let revenue = 0;
-      for (const t of allTransactions) {
-        const txDate = t.checkedOutAt || t.createdAt;
-        if (txDate >= startDate && txDate < endDate) {
-          revenue += t.totalAmount || 0;
-        }
+    const agg = await SalesTransaction.aggregate([
+      {
+        $addFields: {
+          txDate: { $ifNull: ['$checkedOutAt', '$createdAt'] },
+        },
+      },
+      {
+        $match: {
+          txDate: { $gte: globalStart, $lt: globalEnd },
+          status: { $nin: ['Voided', 'voided'] },
+          paymentMethod: { $nin: ['return', 'void'] },
+        },
+      },
+      {
+        $group: {
+          _id: { $dateTrunc: { date: '$txDate', unit } },
+          revenue: { $sum: { $ifNull: ['$totalAmount', 0] } },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    const revenueByBucketIso = new Map(
+      agg.map((r) => [new Date(r._id).toISOString(), r.revenue || 0]),
+    );
+
+    const rawSalesData = periods.map(({ startDate, label }) => {
+      const bucket = new Date(startDate);
+      // Ensure same truncation boundary as $dateTrunc.
+      if (unit === 'day') {
+        bucket.setHours(0, 0, 0, 0);
+      } else if (unit === 'month') {
+        bucket.setDate(1);
+        bucket.setHours(0, 0, 0, 0);
+      } else if (unit === 'year') {
+        bucket.setMonth(0, 1);
+        bucket.setHours(0, 0, 0, 0);
+      } else {
+        // week: align to Sunday (to match earlier UI logic)
+        const dow = bucket.getDay();
+        bucket.setDate(bucket.getDate() - dow);
+        bucket.setHours(0, 0, 0, 0);
       }
-      return { period: label, revenue };
+      const key = bucket.toISOString();
+      return { period: label, revenue: revenueByBucketIso.get(key) || 0 };
     });
 
     // Post-process to calculate growth and add target
