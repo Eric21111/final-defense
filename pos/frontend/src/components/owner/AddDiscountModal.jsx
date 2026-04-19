@@ -867,13 +867,10 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
               {currentStep === 3 && (
                 <div className="space-y-4">
-                  <h3 className={`text-[20px] font-semibold ${isDark ? 'text-white' : 'text-black'}`}>Review & Save</h3>
+                  <h3 className={`text-[16px] font-semibold ${isDark ? 'text-white' : 'text-gray-700'}`}>Review & Save</h3>
                   <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-[74px] h-[74px] rounded-2xl bg-[#2A94D8] flex items-center justify-center text-white">
-                          <FaTag className="w-8 h-8" />
-                        </div>
                         <h4 className="text-[32px] font-extrabold leading-none">
                           {formData.discountCategory === 'promo_voucher' ? 'PROMO/VOUCHER' : formData.discountCategory === 'senior_citizen' ? 'SENIOR CITIZEN' : 'PWD'}
                         </h4>
@@ -892,7 +889,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="space-y-1">
-                        <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Discount Value: <strong>{formData.discountValue || 0}{formData.discountType === 'percentage' ? '% OFF' : ' PHP OFF'}</strong></p>
+                        <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Discount Value: <strong>{formData.discountValue || '-'}{formData.discountValue !== '' ? (formData.discountType === 'percentage' ? '% OFF' : ' PHP OFF') : ''}</strong></p>
                         <p className="flex items-center gap-1 text-[12px]"><FaCalendarAlt className="text-gray-400" /> Valid only from: <strong>{formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} to ${formData.validUntil}` : '-')}</strong></p>
                       </div>
                       <div className="space-y-1">
@@ -901,7 +898,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         <p><span className="font-semibold">Usage Limit:</span> {formData.usageLimit || '-'}</p>
                         <p><span className="font-semibold">Validity:</span> {formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} - ${formData.validUntil}` : '-')}</p>
                         <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Applies to: <strong>{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</strong></p>
-                        <p className="flex items-center gap-1 text-[12px]"><FaUsers className="text-gray-400" /> Used: <strong>{formData.usageLimit ? `No limit set` : 'No limit'}</strong></p>
+                        <p className="flex items-center gap-1 text-[12px]"><FaUsers className="text-gray-400" /> Used: <strong>{formData.usageLimit ? `0 / ${formData.usageLimit}` : 'No limit'}</strong></p>
                       </div>
                     </div>
                   </div>
@@ -912,9 +909,18 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         <p><span className="text-gray-500">Discount Name:</span> <span className="font-semibold">{formData.discountName || '-'}</span></p>
                         <p><span className="text-gray-500">Discount Code:</span> <span className="font-semibold">{formData.discountCode || '-'}</span></p>
                         <p><span className="text-gray-500">Discount Category:</span> <span className="font-semibold">{formData.discountCategory === 'promo_voucher' ? 'Promo / Voucher' : formData.discountCategory === 'senior_citizen' ? 'Senior Citizen' : 'PWD'}</span></p>
-                        <p><span className="text-gray-500">Value:</span> <span className="font-semibold">{formData.discountValue || 0}{formData.discountType === 'percentage' ? '% Off' : ' PHP Off'}</span></p>
+                        <p><span className="text-gray-500">Value:</span> <span className="font-semibold">{formData.discountValue || '-'}{formData.discountValue !== '' ? (formData.discountType === 'percentage' ? '% Off' : ' PHP Off') : ''}</span></p>
                         <p><span className="text-gray-500">Scope:</span> <span className="font-semibold">{formData.scope === 'per_item' ? 'Per item' : 'Entire Order'}</span></p>
                         <p><span className="text-gray-500">Applies to:</span> <span className="font-semibold">{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</span></p>
+                        {formData.appliesTo === 'category' && (
+                          <p><span className="text-gray-500">Category:</span> <span className="font-semibold">{formData.category || '-'}</span></p>
+                        )}
+                        {formData.appliesTo === 'category' && (
+                          <p><span className="text-gray-500">Subcategory:</span> <span className="font-semibold">{formData.subCategory || '-'}</span></p>
+                        )}
+                        {formData.appliesTo === 'products' && (
+                          <p><span className="text-gray-500">Selected Products:</span> <span className="font-semibold">{formData.selectedProducts.length || 0}</span></p>
+                        )}
                       </div>
                       <div className="space-y-1">
                         <p><span className="text-gray-500">Minimum:</span> <span className="font-semibold">{formData.minPurchaseAmount || '-'}</span></p>
