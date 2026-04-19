@@ -25,7 +25,11 @@ const server = http.createServer(app);
 // ==========================================
 // WebSocket Server for Real-Time Payment Updates
 // ==========================================
-const wss = new WebSocketServer({ server, path: "/ws/payments" });
+// Two paths on one HTTP server: the `ws` library's default attach mode runs every
+// upgrade through each server's handleUpgrade(); the first server aborts non-matching
+// paths and kills the socket before /ws/inventory can run. Route upgrades manually
+// (see https://github.com/websockets/ws#multiple-servers-sharing-a-single-https-server).
+const wss = new WebSocketServer({ noServer: true });
 
 // Map: merchantOrderId → Set<WebSocket>
 const wsPaymentClients = new Map();
@@ -86,7 +90,7 @@ setExpiryCronWsClients(wsPaymentClients);
 const {
   registerInventoryClient,
 } = require("./services/inventoryBroadcast");
-const wssInventory = new WebSocketServer({ server, path: "/ws/inventory" });
+const wssInventory = new WebSocketServer({ noServer: true });
 wssInventory.on("connection", (ws) => {
   registerInventoryClient(ws);
   try {
@@ -100,6 +104,28 @@ wssInventory.on("connection", (ws) => {
     console.warn("[WS inventory] Failed to send hello:", e.message);
   }
   console.log("[WS inventory] Client connected");
+});
+
+server.on("upgrade", (request, socket, head) => {
+  let pathname;
+  try {
+    pathname = new URL(request.url, `http://${request.headers.host}`).pathname;
+  } catch {
+    socket.destroy();
+    return;
+  }
+
+  if (pathname === "/ws/payments") {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit("connection", ws, request);
+    });
+  } else if (pathname === "/ws/inventory") {
+    wssInventory.handleUpgrade(request, socket, head, (ws) => {
+      wssInventory.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
 });
 
 // Connect to database

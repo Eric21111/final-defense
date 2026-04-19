@@ -114,6 +114,23 @@ function validateCartAgainstProducts(cart, productsList) {
   });
 }
 
+/** Hosted APIs (e.g. Render cold start) can be slow; avoid infinite waits on checkout. */
+const CHECKOUT_NETWORK_TIMEOUT_MS = 90000;
+
+async function fetchWithTimeout(
+  input,
+  init = {},
+  timeoutMs = CHECKOUT_NETWORK_TIMEOUT_MS
+) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 const CART_ITEM_LIMIT = 100;
 const OVERRIDE_ROLES = ["Manager", "Owner"];
 const SENIOR_PWD_PIN_ROLES = ["Owner"];
@@ -324,13 +341,17 @@ const Terminal = () => {
     }
   };
 
-  const fetchProducts = useCallback(async (background = false) => {
+  const fetchProducts = useCallback(async (background = false, opts = {}) => {
+    const { skipFullHydration = false, timeoutMs } = opts;
     let latestList = null;
     try {
       if (!background) setLoading(true);
 
       // Step 1: Fast load — fetch without images for instant rendering
-      const minimalRes = await fetch(`${API_BASE_URL}/api/products?fields=minimal`);
+      const minimalUrl = `${API_BASE_URL}/api/products?fields=minimal`;
+      const minimalRes = timeoutMs
+        ? await fetchWithTimeout(minimalUrl, {}, timeoutMs)
+        : await fetch(minimalUrl);
       const minimalData = await minimalRes.json();
 
       if (minimalData.success) {
@@ -338,21 +359,41 @@ const Terminal = () => {
         setProducts(minimalData.data);
         if (!background) setLoading(false);
 
-        // Step 2: Background load — fetch full data with images
-        try {
-          const fullRes = await fetch(`${API_BASE_URL}/api/products`);
-          const fullData = await fullRes.json();
-          if (fullData.success) {
-            setProducts(fullData.data);
-            setCachedData("products", fullData.data);
-            latestList = fullData.data;
+        // Step 2: Full data with images — never block checkout on this (can be huge / slow on Render).
+        if (skipFullHydration) {
+          fetch(`${API_BASE_URL}/api/products`)
+            .then((r) => r.json())
+            .then((fullData) => {
+              if (fullData.success) {
+                setProducts(fullData.data);
+                setCachedData("products", fullData.data);
+              }
+            })
+            .catch((err) => console.warn("Background image fetch failed:", err));
+        } else {
+          try {
+            const fullRes = await fetch(`${API_BASE_URL}/api/products`);
+            const fullData = await fullRes.json();
+            if (fullData.success) {
+              setProducts(fullData.data);
+              setCachedData("products", fullData.data);
+              latestList = fullData.data;
+            }
+          } catch (imgErr) {
+            console.warn("Background image fetch failed:", imgErr);
           }
-        } catch (imgErr) {
-          console.warn("Background image fetch failed:", imgErr);
         }
       }
     } catch (error) {
       console.error("Error fetching products:", error);
+      if (
+        timeoutMs &&
+        (error?.name === "AbortError" || error?.name === "TimeoutError")
+      ) {
+        throw new Error(
+          "Refreshing inventory timed out. Check your network and try again."
+        );
+      }
     } finally {
       if (!background) setLoading(false);
     }
@@ -2046,7 +2087,12 @@ const Terminal = () => {
     const currentDiscountIds = selectedDiscounts.map((d) => d._id);
 
     try {
-      const freshProducts = await fetchProducts(true);
+      // Minimal product payload is enough for stock validation; awaiting the full
+      // /api/products (with images) made checkout hang on slow or cold APIs.
+      const freshProducts = await fetchProducts(true, {
+        skipFullHydration: true,
+        timeoutMs: CHECKOUT_NETWORK_TIMEOUT_MS,
+      });
       if (!validateCartAgainstProducts(cartSnapshot, freshProducts)) {
         toastBr.error(
           "One or more items are out of stock or the quantity exceeds available stock. Please update your cart."
@@ -2068,7 +2114,7 @@ const Terminal = () => {
         Math.round((lineSubtotal - currentTotal) * 100) / 100
       );
 
-      const transactionResponse = await fetch(
+      const transactionResponse = await fetchWithTimeout(
         `${API_BASE_URL}/api/transactions`,
         {
           method: "POST",
@@ -2092,7 +2138,8 @@ const Terminal = () => {
             appliedDiscountIds: currentDiscountIds,
             terminalId: getTerminalId() || undefined
           })
-        }
+        },
+        CHECKOUT_NETWORK_TIMEOUT_MS
       );
 
 
@@ -2132,21 +2179,25 @@ const Terminal = () => {
           ...row,
           lineIndex: idx,
         }));
-        const stockRes = await fetch(`${API_BASE_URL}/api/products/update-stock`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: "Stock-Out",
-            reason: "Sold",
-            linkTransactionId: newTxId,
-            items: stockItemsWithLine,
-            performedByName:
-              currentUser?.name ||
-              `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
-              "System",
-            performedById: currentUser?._id || currentUser?.id || ""
-          })
-        });
+        const stockRes = await fetchWithTimeout(
+          `${API_BASE_URL}/api/products/update-stock`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: "Stock-Out",
+              reason: "Sold",
+              linkTransactionId: newTxId,
+              items: stockItemsWithLine,
+              performedByName:
+                currentUser?.name ||
+                `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
+                "System",
+              performedById: currentUser?._id || currentUser?.id || ""
+            })
+          },
+          CHECKOUT_NETWORK_TIMEOUT_MS
+        );
         const stockData = await stockRes.json().catch(() => ({}));
         if (!stockRes.ok || !stockData.success) {
           console.error("Stock update failed:", stockData);
@@ -2201,7 +2252,12 @@ const Terminal = () => {
       productsBeforeTxnRef.current = null;
 
       setCart(cartSnapshot);
-      const errorMessage = error.message || "Unknown error occurred";
+      const aborted =
+        error?.name === "AbortError" ||
+        /aborted|timed out/i.test(String(error?.message || ""));
+      const errorMessage = aborted
+        ? "Request timed out. Check your connection, confirm the sale under Transactions if unsure, then try again."
+        : error.message || "Unknown error occurred";
       toastBr.error(
         `Transaction failed: ${errorMessage}. Your cart was restored.`
       );
