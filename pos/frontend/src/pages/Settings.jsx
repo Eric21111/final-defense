@@ -545,13 +545,23 @@ const Settings = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "receipt") {
+    if (activeTab === "receipt" && isOwner()) {
       fetchReceiptSettings();
     }
-  }, [activeTab, fetchReceiptSettings]);
+  }, [activeTab, fetchReceiptSettings, isOwner]);
+
+  useEffect(() => {
+    if (
+      !isOwner() &&
+      (activeTab === "receipt" || activeTab === "gcash" || activeTab === "archives")
+    ) {
+      setActiveTab("personal");
+    }
+  }, [isOwner, activeTab]);
 
   const handleReceiptSave = async (e) => {
     e.preventDefault();
+    if (!isOwner()) return;
     setReceiptSaving(true);
     setError("");
     try {
@@ -1341,7 +1351,7 @@ const Settings = () => {
             </div>
           </div>) :
 
-        activeTab === "receipt" ?
+        isOwner() && activeTab === "receipt" ?
           receiptLoading ?
             <div className="flex items-center justify-center min-h-[60vh]">
               <FaSpinner className="w-8 h-8 text-[#8B7355] animate-spin" />
