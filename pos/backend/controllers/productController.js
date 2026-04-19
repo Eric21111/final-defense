@@ -68,9 +68,11 @@ exports.getAllProducts = async (req, res) => {
     ]);
 
     const formattedProducts = products.map((product) => {
-      // Recalculate currentStock from sizes if sizes exist
+      // For large list loads (fields=minimal), trust persisted currentStock to keep reads fast.
+      // We still recalculate on full-detail loads to preserve historical behavior where needed.
       let currentStock = product.currentStock || 0;
       if (
+        !isMinimal &&
         product.sizes &&
         typeof product.sizes === "object" &&
         Object.keys(product.sizes).length > 0
@@ -2269,7 +2271,7 @@ exports.getInventoryStats = async (req, res) => {
     const stats = await Product.aggregate([
       {
         $match: {
-          isArchived: { $ne: true },
+          isArchived: false,
         },
       },
       {

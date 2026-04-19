@@ -110,7 +110,6 @@ const voidLogSchema = new mongoose.Schema({
 
 // Indexes for faster queries
 voidLogSchema.index({ voidedAt: -1 }); // Most common sort - newest first
-voidLogSchema.index({ voidId: 1 }); // Unique index already created above
 voidLogSchema.index({ voidedBy: 1 });
 voidLogSchema.index({ voidedById: 1 });
 voidLogSchema.index({ originalTransactionId: 1 });

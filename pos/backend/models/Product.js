@@ -146,7 +146,6 @@ productSchema.index({ isArchived: 1, dateAdded: -1 });
 productSchema.index({ isArchived: 1, category: 1, dateAdded: -1 });
 productSchema.index({ currentStock: 1 });
 productSchema.index({ lastUpdated: -1 });
-productSchema.index({ sku: 1 }); // Already unique, but explicit index helps
 
 // Export schema for dynamic connection
 module.exports.schema = productSchema;

@@ -99,7 +99,7 @@ exports.getInventoryAnalytics = async (req, res) => {
       Product.aggregate([
         {
           $match: {
-            isArchived: { $ne: true }
+            isArchived: false
           }
         },
         {
