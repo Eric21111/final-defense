@@ -409,7 +409,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
                 <FaTag className="text-white w-3.5 h-3.5" />
               </div>
-              <h2 className={`text-[38px] leading-none font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+              <h2 className={`text-[24px] leading-none font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                 {discountToEdit ? 'Edit Discount' : 'Create New Discount'}
               </h2>
             </div>
