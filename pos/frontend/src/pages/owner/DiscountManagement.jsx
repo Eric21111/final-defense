@@ -205,7 +205,8 @@ const DiscountManagement = () => {
         minPurchaseAmount: formData.minPurchaseAmount ? parseFloat(formData.minPurchaseAmount) : 0,
         maxPurchaseAmount: formData.maxPurchaseAmount ? parseFloat(formData.maxPurchaseAmount) : null,
         usageLimit: formData.usageLimit && formData.usageLimit !== '0' ? parseInt(formData.usageLimit) : null,
-        description: ''
+        description: '',
+        status: formData.status || 'active'
       };
 
       const response = await fetch(API_ENDPOINTS.discountById(id), {
@@ -249,7 +250,7 @@ const DiscountManagement = () => {
         maxPurchaseAmount: formData.maxPurchaseAmount ? parseFloat(formData.maxPurchaseAmount) : null,
         usageLimit: formData.usageLimit && formData.usageLimit !== '0' ? parseInt(formData.usageLimit) : null,
         description: '',
-        status: 'active'
+        status: formData.status || 'active'
       };
 
       const response = await fetch(API_ENDPOINTS.discounts, {

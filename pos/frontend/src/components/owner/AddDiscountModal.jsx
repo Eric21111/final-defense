@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaBox, FaCalendarAlt, FaCheck, FaEdit, FaSearch, FaTag, FaTimes, FaTrashAlt, FaUsers } from 'react-icons/fa';
+import { FaBox, FaCalendarAlt, FaCheck, FaSearch, FaTag, FaTimes, FaUsers } from 'react-icons/fa';
 import { API_ENDPOINTS } from '../../config/api';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -161,7 +161,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(1);
-      setIsActive(true);
+      setIsActive(discountToEdit?.status !== 'inactive');
       fetchProducts();
       fetchCategories();
       if (discountToEdit) {
@@ -238,7 +238,10 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const preparedForm = ensureCategoryRules(formData);
+    const preparedForm = {
+      ...ensureCategoryRules(formData),
+      status: isActive ? 'active' : 'inactive'
+    };
     if (preparedForm.appliesTo === 'category' && !preparedForm.category) {
       alert('Please select a category');
       return;
@@ -876,12 +879,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         </h4>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button type="button" className="w-5 h-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center">
-                          <FaEdit className="w-2.5 h-2.5" />
-                        </button>
-                        <button type="button" className="w-5 h-5 rounded bg-red-100 text-red-600 flex items-center justify-center">
-                          <FaTrashAlt className="w-2.5 h-2.5" />
-                        </button>
                         <span className={`px-4 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                           {isActive ? 'Active' : 'Inactive'}
                         </span>
@@ -895,12 +892,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="space-y-1">
-                        <p><span className="font-semibold">Discount Name:</span> {formData.discountName || '-'}</p>
-                        <p><span className="font-semibold">Discount Code:</span> {formData.discountCode || '-'}</p>
-                        <p><span className="font-semibold">Discount Category:</span> {formData.discountCategory === 'promo_voucher' ? 'Promo / Voucher' : formData.discountCategory === 'senior_citizen' ? 'Senior Citizen Discount' : 'PWD Discount'}</p>
-                        <p><span className="font-semibold">Value:</span> {formData.discountValue || 0}{formData.discountType === 'percentage' ? '% Off' : ' PHP Off'}</p>
-                        <p><span className="font-semibold">Scope:</span> {formData.scope === 'per_item' ? 'Per item' : 'Entire Order'}</p>
-                        <p><span className="font-semibold">Applies to:</span> {formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</p>
                         <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Discount Value: <strong>{formData.discountValue || 0}{formData.discountType === 'percentage' ? '% OFF' : ' PHP OFF'}</strong></p>
                         <p className="flex items-center gap-1 text-[12px]"><FaCalendarAlt className="text-gray-400" /> Valid only from: <strong>{formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} to ${formData.validUntil}` : '-')}</strong></p>
                       </div>
@@ -911,6 +902,25 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         <p><span className="font-semibold">Validity:</span> {formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} - ${formData.validUntil}` : '-')}</p>
                         <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Applies to: <strong>{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</strong></p>
                         <p className="flex items-center gap-1 text-[12px]"><FaUsers className="text-gray-400" /> Used: <strong>{formData.usageLimit ? `No limit set` : 'No limit'}</strong></p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-1">
+                        <p><span className="text-gray-500">Discount Name:</span> <span className="font-semibold">{formData.discountName || '-'}</span></p>
+                        <p><span className="text-gray-500">Discount Code:</span> <span className="font-semibold">{formData.discountCode || '-'}</span></p>
+                        <p><span className="text-gray-500">Discount Category:</span> <span className="font-semibold">{formData.discountCategory === 'promo_voucher' ? 'Promo / Voucher' : formData.discountCategory === 'senior_citizen' ? 'Senior Citizen' : 'PWD'}</span></p>
+                        <p><span className="text-gray-500">Value:</span> <span className="font-semibold">{formData.discountValue || 0}{formData.discountType === 'percentage' ? '% Off' : ' PHP Off'}</span></p>
+                        <p><span className="text-gray-500">Scope:</span> <span className="font-semibold">{formData.scope === 'per_item' ? 'Per item' : 'Entire Order'}</span></p>
+                        <p><span className="text-gray-500">Applies to:</span> <span className="font-semibold">{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</span></p>
+                      </div>
+                      <div className="space-y-1">
+                        <p><span className="text-gray-500">Minimum:</span> <span className="font-semibold">{formData.minPurchaseAmount || '-'}</span></p>
+                        <p><span className="text-gray-500">Maximum:</span> <span className="font-semibold">{formData.maxPurchaseAmount || '-'}</span></p>
+                        <p><span className="text-gray-500">Usage Limit:</span> <span className="font-semibold">{formData.usageLimit || '-'}</span></p>
+                        <p><span className="text-gray-500">Validity:</span> <span className="font-semibold">{formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} - ${formData.validUntil}` : '-')}</span></p>
                       </div>
                     </div>
                   </div>
