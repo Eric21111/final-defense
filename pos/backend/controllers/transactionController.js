@@ -144,6 +144,12 @@ exports.updateTransaction = async (req, res) => {
     if (updateData.totalAmount !== undefined) {
       transaction.totalAmount = updateData.totalAmount;
     }
+    if (updateData.originalTotalAmount !== undefined) {
+      transaction.originalTotalAmount = updateData.originalTotalAmount;
+    }
+    if (updateData.returnedByName !== undefined) {
+      transaction.returnedByName = updateData.returnedByName;
+    }
 
     await transaction.save();
 

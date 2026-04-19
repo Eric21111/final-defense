@@ -37,6 +37,8 @@ import ViewTransactionModal from "../components/transaction/ViewTransactionModal
 import { API_BASE_URL, API_ENDPOINTS } from "../config/api";
 import {
   lineSubtotalFromItems,
+  originalSubtotalFromItems,
+  totalReturnedFromTransaction,
   resolveTransactionDiscount
 } from "../utils/transactionDisplay";
 import { getReceiptBranding } from "../utils/receiptProfile";
@@ -98,12 +100,7 @@ const toNumber = (value, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-const originalLineSubtotalFromItems = (transaction) => {
-  if (!transaction?.items?.length) return 0;
-  return transaction.items.reduce((sum, item) => {
-    return sum + (item.price || item.itemPrice || 0) * (item.quantity || 1);
-  }, 0);
-};
+// Local originalLineSubtotalFromItems removed in favor of global originalSubtotalFromItems
 
 const sameTransactionId = (a, b) =>
   String(a?._id ?? a ?? "") === String(b?._id ?? b ?? "");
@@ -630,27 +627,12 @@ const Transaction = () => {
           });
         }
 
-        const returnedAmountRaw = returnEntries.reduce((sum, entry) => {
-          const explicitTotal = toNumber(entry.totalAmount, NaN);
-          if (Number.isFinite(explicitTotal) && explicitTotal !== 0) {
-            return sum + explicitTotal;
-          }
-          const itemTotal = (entry.items || []).reduce((acc, item) => {
-            const unit = toNumber(item.price || item.itemPrice);
-            const qty = toNumber(item.quantity, 1);
-            return acc + unit * qty;
-          }, 0);
-          return sum + itemTotal;
-        }, 0);
-        const returnedAmount = Math.abs(returnedAmountRaw);
-        const remainingAmount = Math.max(0, toNumber(trx.totalAmount));
-        const itemOriginalAmount = originalLineSubtotalFromItems(trx);
-        const inferredOriginalAmount = itemOriginalAmount || remainingAmount + returnedAmount;
-        const originalAmount = Math.max(inferredOriginalAmount, remainingAmount + returnedAmount);
-        const discountedAmount = Math.max(
-          0,
-          originalAmount - (remainingAmount + returnedAmount)
-        );
+        const originalAmount = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
+        const returnedAmount = totalReturnedFromTransaction(trx);
+        const discountedAmount = resolveTransactionDiscount(trx, originalAmount, { skipInference: true });
+        
+        // Final total is the original subtotal minus discounts and minus the returned values
+        const finalTotal = Math.max(0, originalAmount - discountedAmount - returnedAmount);
 
         return {
           _id: trx._id,
@@ -670,7 +652,7 @@ const Transaction = () => {
           reason: Array.from(reasons).join(", ") || "Returned item(s)",
           originalAmount,
           discountedAmount,
-          totalAmount: remainingAmount,
+          totalAmount: finalTotal, // Represents the final adjusted total after everything
           returnedAmount
         };
       })
@@ -815,7 +797,7 @@ const Transaction = () => {
   const sidebarReceiptTotals = useMemo(() => {
     const trx = selectedTransaction;
     if (!trx) return { lineSub: 0, discount: 0 };
-    const lineSub = originalLineSubtotalFromItems(trx) || trx.totalAmount || 0;
+    const lineSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
     const hasReturnActivity =
       (trx.returnTransactions?.length || 0) > 0 ||
       trx.status === "Returned" ||
@@ -1243,7 +1225,7 @@ const Transaction = () => {
     setShowReturnModal(true);
   };
 
-  const handleReturnConfirm = async (itemsToReturn, transaction) => {
+  const handleReturnConfirm = async (itemsToReturn, transaction, approverInfo = {}) => {
     try {
       setLoading(true);
       console.log("Processing return for items:", itemsToReturn);
@@ -1253,6 +1235,8 @@ const Transaction = () => {
         `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
         transaction.performedByName ||
         "System";
+      // Use the approver name from PIN verification (the owner/manager who approved)
+      const approverReturnName = approverInfo.returnedByName || returnProcessorName;
 
 
       const returnedIndices = itemsToReturn.map((item) => item.originalIndex);
@@ -1342,10 +1326,17 @@ const Transaction = () => {
         );
 
 
+      // Preserve the original total amount (before any returns) so the subtotal line
+      // on the receipt always reflects the original purchase value.
+      const originalTotalAmount = transaction.originalTotalAmount ||
+        originalSubtotalFromItems(transaction);
+
       const updatePayload = {
         status: newStatus,
         items: updatedItems,
-        totalAmount: newTotalAmount
+        totalAmount: newTotalAmount,
+        originalTotalAmount: originalTotalAmount,
+        returnedByName: approverReturnName
       };
       console.log("Updating original transaction FIRST:", updatePayload);
 
@@ -1544,7 +1535,7 @@ const Transaction = () => {
           performedByName: returnProcessorName,
           returnedBy: returnProcessorId || undefined,
           returnedById: returnProcessorId || undefined,
-          returnedByName: returnProcessorName,
+          returnedByName: approverReturnName,
           status: "Returned",
           originalTransactionId: transaction._id,
           checkedOutAt: new Date()
@@ -2093,9 +2084,9 @@ const Transaction = () => {
                         </tr>
                       );
                     }) :
-                    paginatedTransactions.map((trx) => {
+                     paginatedTransactions.map((trx) => {
                       const isActive = selectedTransaction?._id === trx._id;
-                      const lineSub = originalLineSubtotalFromItems(trx) || trx.totalAmount || 0;
+                      const lineSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
                       const hasReturnActivity =
                         (trx.returnTransactions?.length || 0) > 0 ||
                         trx.status === "Returned" ||

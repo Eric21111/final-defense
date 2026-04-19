@@ -4,6 +4,8 @@ import { sendReceiptToPrinter } from '../../utils/printBridge';
 import { getReceiptBranding } from '../../utils/receiptProfile';
 import {
   lineSubtotalFromItems,
+  originalSubtotalFromItems,
+  totalReturnedFromTransaction,
   resolveTransactionDiscount,
   formatReceiptVariantSizeLine
 } from '../../utils/transactionDisplay';
@@ -44,15 +46,22 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
 
   const branding = getReceiptBranding();
 
-  const lineSub = lineSubtotalFromItems(transaction) || transaction.totalAmount || 0;
   const hasReturnActivity =
     (transaction.returnTransactions?.length || 0) > 0 ||
     transaction.status === 'Returned' ||
     transaction.status === 'Partially Returned';
-  const discountAmount = resolveTransactionDiscount(transaction, lineSub, {
+
+  // Subtotal: always the ORIGINAL purchase total (never changes after returns)
+  const subtotal = hasReturnActivity
+    ? (originalSubtotalFromItems(transaction) || transaction.originalTotalAmount || transaction.totalAmount || 0)
+    : (lineSubtotalFromItems(transaction) || transaction.totalAmount || 0);
+
+  const totalReturned = totalReturnedFromTransaction(transaction);
+
+  const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturnActivity
   });
-  const subtotal = lineSub;
+  const adjustedTotal = subtotal - discountAmount - Math.abs(totalReturned);
 
   const handlePrint = async () => {
     setIsPrinting(true);
@@ -210,9 +219,15 @@ const PrintReceiptModal = ({ isOpen, onClose, transaction }) => {
                 <span className="text-gray-600">Discount:</span>
                 <span className="text-gray-800">{formatCurrency(discountAmount)}</span>
               </div>
+              {hasReturnActivity && Math.abs(totalReturned) > 0 && (
+                <div className="flex justify-between text-orange-600">
+                  <span>Returned Amount:</span>
+                  <span>-{formatCurrency(Math.abs(totalReturned))}</span>
+                </div>
+              )}
               <div className="flex justify-between font-bold text-sm pt-1 border-t border-gray-200">
-                <span>Total:</span>
-                <span>{formatCurrency(transaction.totalAmount)}</span>
+                <span>{hasReturnActivity && Math.abs(totalReturned) > 0 ? 'Adjusted Total:' : 'Total:'}</span>
+                <span>{formatCurrency(hasReturnActivity && Math.abs(totalReturned) > 0 ? adjustedTotal : transaction.totalAmount)}</span>
               </div>
               {transaction.amountReceived > 0 &&
               <>

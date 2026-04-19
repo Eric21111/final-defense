@@ -43,22 +43,74 @@ export function lineSubtotalFromItems(transaction) {
 }
 
 /**
+ * Original subtotal from ALL items at their original quantities (before any returns).
+ * For partially returned items the original qty = current qty + returnedQuantity.
+ * For fully returned items the original qty = returnedQuantity (or quantity as stored).
+ * This value should NEVER change after a return — it represents what was originally purchased.
+ */
+export function originalSubtotalFromItems(transaction) {
+  if (!transaction?.items?.length) return 0;
+  return transaction.items.reduce((sum, item) => {
+    const unitPrice = item.price || item.itemPrice || 0;
+    let originalQty = item.quantity || 1;
+    // For partial returns the DB reduces quantity, so add back returnedQuantity
+    if (item.returnStatus === "Partially Returned" && item.returnedQuantity) {
+      originalQty = (item.quantity || 0) + (item.returnedQuantity || 0);
+    }
+    // For full returns the quantity stays but is marked Returned
+    if (item.returnStatus === "Returned" && item.returnedQuantity) {
+      originalQty = item.returnedQuantity;
+    }
+    return sum + unitPrice * originalQty;
+  }, 0);
+}
+
+/**
+ * Total returned amount. Uses returnTransactions if available, otherwise computes from item statuses.
+ */
+export function totalReturnedFromTransaction(transaction) {
+  const fromRecords = transaction?.returnTransactions?.reduce((sum, r) => sum + (r.totalAmount || 0), 0) || 0;
+  if (fromRecords > 0) return fromRecords;
+
+  if (!transaction?.items?.length) return 0;
+  return transaction.items.reduce((sum, item) => {
+    const isFullyReturned = item.returnStatus === "Returned";
+    // For full returns, if returnedQuantity isn't set, it means the whole quantity was returned.
+    const returnedQty = item.returnedQuantity || (isFullyReturned ? (item.quantity || 1) : 0);
+    const unitPrice = item.price || item.itemPrice || 0;
+    return sum + (returnedQty * unitPrice);
+  }, 0);
+}
+
+/**
  * Discount to show: stored on txn, or inferred from subtotal − total for legacy rows.
  */
 export function resolveTransactionDiscount(transaction, lineSubtotal, { skipInference = false } = {}) {
-  const stored = Number(transaction?.discount ?? transaction?.discountAmount ?? 0) || 0;
-  if (stored > 0) return stored;
-  if (skipInference) return 0;
+  let discount = Number(transaction?.discount ?? transaction?.discountAmount ?? 0) || 0;
+  
+  if (discount === 0 && !skipInference) {
+    const status = transaction?.status || "";
+    if (status !== "Returned" && status !== "Partially Returned") {
+      const hasLinkedReturns =
+        (transaction?.returnTransactions?.length || 0) > 0 ||
+        (transaction?.returnTransactionIds?.length || 0) > 0;
+      if (!hasLinkedReturns) {
+        const total = Number(transaction?.totalAmount);
+        if (Number.isFinite(total) && lineSubtotal > total + 0.005) {
+          discount = Math.round((lineSubtotal - total) * 100) / 100;
+        }
+      }
+    }
+  }
 
-  const status = transaction?.status || "";
-  if (status === "Returned" || status === "Partially Returned") return 0;
-
-  const hasLinkedReturns =
-    (transaction?.returnTransactions?.length || 0) > 0 ||
-    (transaction?.returnTransactionIds?.length || 0) > 0;
-  if (hasLinkedReturns) return 0;
-
-  const total = Number(transaction?.totalAmount);
-  if (!Number.isFinite(total) || lineSubtotal <= total + 0.005) return 0;
-  return Math.round((lineSubtotal - total) * 100) / 100;
+  // Scale the discount proportionally:
+  // If an item is returned, the discount applied to that item is revoked,
+  // making the final returned total accurate without entering negatives.
+  if (discount > 0 && lineSubtotal > 0) {
+    const totalReturned = totalReturnedFromTransaction(transaction);
+    const proportionKept = Math.max(0, lineSubtotal - Math.abs(totalReturned)) / lineSubtotal;
+    discount = discount * proportionKept;
+  }
+  
+  return discount;
 }
