@@ -1585,6 +1585,23 @@ const Terminal = () => {
     });
   };
 
+  const removeUnavailableCartLines = useCallback(() => {
+    setCart((prev) => {
+      const pmap = new Map();
+      products.forEach((p) => {
+        const id = String(p._id || p.id);
+        if (id) pmap.set(id, p);
+      });
+      return prev.filter((item) => {
+        const pid = String(item.productId || item._id || "");
+        const product = pmap.get(pid);
+        const need = Number(item.quantity) || 1;
+        const avail = getAvailableStockForCartLine(product, item);
+        return avail >= need;
+      });
+    });
+  }, [products]);
+
   const subtotal = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.itemPrice * item.quantity, 0);
   }, [cart]);
@@ -2495,6 +2512,7 @@ const Terminal = () => {
               onSelectDiscount={handleSelectDiscount}
               stockAllowsCheckout={cartStockAllowsCheckout}
               stockUnavailableLines={cartStockUnavailableLines}
+              onRemoveStockConflictItems={removeUnavailableCartLines}
               seniorPwdInput={seniorPwdInput}
               onSeniorPwdInputChange={setSeniorPwdInput}
               seniorPwdAppliedAmount={seniorPwdDiscountAmount}

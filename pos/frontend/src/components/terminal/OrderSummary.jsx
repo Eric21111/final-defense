@@ -32,6 +32,7 @@ const OrderSummary = memo(({
   products = [],
   stockAllowsCheckout = true,
   stockUnavailableLines = [],
+  onRemoveStockConflictItems = () => {},
   seniorPwdInput = '',
   onSeniorPwdInputChange = () => {},
   seniorPwdAppliedAmount = 0,
@@ -49,6 +50,7 @@ const OrderSummary = memo(({
   const [isVoidModalOpen, setIsVoidModalOpen] = useState(false);
   const [itemsToVoid, setItemsToVoid] = useState([]);
   const [isBulkVoid, setIsBulkVoid] = useState(false);
+  const [isStockConflictModalOpen, setIsStockConflictModalOpen] = useState(false);
   const isProcessingVoidRef = useRef(false);
 
   const [pendingQuantities, setPendingQuantities] = useState({});
@@ -58,6 +60,12 @@ const OrderSummary = memo(({
     selectedDiscounts.length > 0 || seniorPwdAppliedAmount > 0;
   const seniorPwdInputsDisabled = selectedDiscounts.length > 0;
 
+
+  useEffect(() => {
+    if (stockAllowsCheckout && isStockConflictModalOpen) {
+      setIsStockConflictModalOpen(false);
+    }
+  }, [stockAllowsCheckout, isStockConflictModalOpen]);
 
   useEffect(() => {
     if (discountFetchedRef.current) return;
@@ -101,7 +109,10 @@ const OrderSummary = memo(({
   }, [promoInputsDisabled, discountCode, availableDiscounts, selectedDiscounts, applyingDiscount, onSelectDiscount]);
 
   const handleProceed = () => {
-    if (!stockAllowsCheckout) return;
+    if (!stockAllowsCheckout) {
+      setIsStockConflictModalOpen(true);
+      return;
+    }
     if (selectedPaymentMethod === 'cash' && onCashPayment) {
       onCashPayment();
     } else if (selectedPaymentMethod === 'qr' && onQRPayment) {
@@ -109,6 +120,12 @@ const OrderSummary = memo(({
     } else {
       handleCheckout();
     }
+  };
+
+  const handleConfirmStockConflict = () => {
+    onRemoveStockConflictItems();
+    setPendingQuantities({});
+    setIsStockConflictModalOpen(false);
   };
 
 
@@ -908,34 +925,6 @@ const OrderSummary = memo(({
           </div>
         </div>
 
-        {Array.isArray(stockUnavailableLines) && stockUnavailableLines.length > 0 &&
-          <div
-            className={`mb-4 rounded-lg border px-3 py-2.5 text-xs ${theme === 'dark' ?
-              'border-amber-700/60 bg-amber-950/40 text-amber-100' :
-              'border-amber-300 bg-amber-50 text-amber-950'}`
-            }>
-
-            <p className="font-semibold leading-snug">
-              Cannot proceed — stock no longer covers this cart
-            </p>
-            <p className={`mt-1 leading-relaxed ${theme === 'dark' ? 'text-amber-200/90' : 'text-amber-900/90'}`}>
-              Another register may have completed a sale. These line(s) are empty or already sold — remove them or reduce quantity.
-            </p>
-            <ul className={`mt-2 list-disc pl-4 space-y-1 ${theme === 'dark' ? 'text-amber-100/95' : 'text-amber-950/90'}`}>
-              {stockUnavailableLines.map((line) =>
-                <li key={line.key}>
-                  <span className="font-medium">{line.name}</span>
-                  {' — '}
-                  {line.avail <= 0 ?
-                    'out of stock' :
-                    `only ${line.avail} left (you have ${line.need} in cart)`}
-
-                </li>
-              )}
-            </ul>
-          </div>
-        }
-
         <div className="mb-6">
           <div className="flex gap-2 justify-center">
             <button
@@ -964,14 +953,91 @@ const OrderSummary = memo(({
         <button
           type="button"
           onClick={handleProceed}
-          disabled={cart.length === 0 || !selectedPaymentMethod || !stockAllowsCheckout}
-          title={!stockAllowsCheckout ? 'One or more items are sold out or exceed live stock — adjust the cart' : undefined}
+          disabled={cart.length === 0 || (stockAllowsCheckout && !selectedPaymentMethod)}
+          title={
+            stockAllowsCheckout ?
+              undefined :
+              'Review stock conflict — click to see details and remove unavailable lines'
+          }
           className="w-full py-3 text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
           style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
 
           Proceed
         </button>
       </div>
+
+      {isStockConflictModalOpen &&
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 font-poppins"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="stock-conflict-title">
+
+          <div
+            className={`relative w-full max-w-md rounded-2xl shadow-2xl ${theme === 'dark' ? 'bg-[#1E1B18]' : 'bg-white'}`}
+            style={{ boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)' }}>
+
+            <button
+              type="button"
+              onClick={() => setIsStockConflictModalOpen(false)}
+              className={`absolute top-4 right-4 z-10 transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}
+              aria-label="Close">
+
+              <FaTimes className="w-5 h-5" />
+            </button>
+
+            <div className="p-8 pt-10">
+              <h3
+                id="stock-conflict-title"
+                className={`text-lg font-bold text-center mb-3 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+
+                Cannot complete sale — inventory changed
+              </h3>
+              <p className={`text-sm text-center mb-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                Another register may have sold these items. They are empty or no longer have enough stock. Confirm to remove the affected line(s) from your cart.
+              </p>
+              {Array.isArray(stockUnavailableLines) && stockUnavailableLines.length > 0 &&
+                <ul
+                  className={`mb-6 max-h-40 list-disc overflow-y-auto rounded-lg border px-4 py-3 text-sm ${theme === 'dark' ? 'border-amber-800/50 bg-amber-950/30 text-amber-100' : 'border-amber-200 bg-amber-50 text-amber-950'}`
+                  }>
+
+                  {stockUnavailableLines.map((line) =>
+                    <li key={line.key} className="ml-1 py-0.5">
+                      <span className="font-medium">{line.name}</span>
+                      {' — '}
+                      {line.avail <= 0 ?
+                        'out of stock / sold' :
+                        `only ${line.avail} left (you have ${line.need} in cart)`}
+
+                    </li>
+                  )}
+                </ul>
+              }
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsStockConflictModalOpen(false)}
+                  className={`flex-1 rounded-lg py-3 font-semibold transition-all ${theme === 'dark' ?
+                    'border border-gray-600 bg-[#2A2724] text-gray-200 hover:bg-[#333]' :
+                    'border border-gray-300 bg-white text-gray-800 hover:bg-gray-50'}`
+                  }>
+
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmStockConflict}
+                  className="flex-1 rounded-lg py-3 font-bold text-white shadow-md transition-all hover:opacity-95"
+                  style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
+
+                  Confirm & remove
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      }
 
       <VoidTransactionModal
         isOpen={isVoidModalOpen}
