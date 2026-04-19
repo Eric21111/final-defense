@@ -324,6 +324,40 @@ const Terminal = () => {
     }
   };
 
+  const fetchProducts = useCallback(async (background = false) => {
+    let latestList = null;
+    try {
+      if (!background) setLoading(true);
+
+      // Step 1: Fast load — fetch without images for instant rendering
+      const minimalRes = await fetch(`${API_BASE_URL}/api/products?fields=minimal`);
+      const minimalData = await minimalRes.json();
+
+      if (minimalData.success) {
+        latestList = minimalData.data;
+        setProducts(minimalData.data);
+        if (!background) setLoading(false);
+
+        // Step 2: Background load — fetch full data with images
+        try {
+          const fullRes = await fetch(`${API_BASE_URL}/api/products`);
+          const fullData = await fullRes.json();
+          if (fullData.success) {
+            setProducts(fullData.data);
+            setCachedData("products", fullData.data);
+            latestList = fullData.data;
+          }
+        } catch (imgErr) {
+          console.warn("Background image fetch failed:", imgErr);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    } finally {
+      if (!background) setLoading(false);
+    }
+    return latestList;
+  }, [setCachedData]);
 
   useEffect(() => {
     const cachedProducts = getCachedData("products");
@@ -555,42 +589,6 @@ const Terminal = () => {
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedMainCategory, selectedSubCategory, searchQuery]);
-
-  const fetchProducts = useCallback(async (background = false) => {
-    let latestList = null;
-    try {
-      if (!background) setLoading(true);
-
-      // Step 1: Fast load — fetch without images for instant rendering
-      const minimalRes = await fetch(`${API_BASE_URL}/api/products?fields=minimal`);
-      const minimalData = await minimalRes.json();
-
-      if (minimalData.success) {
-        latestList = minimalData.data;
-        setProducts(minimalData.data);
-        if (!background) setLoading(false);
-
-        // Step 2: Background load — fetch full data with images
-        try {
-          const fullRes = await fetch(`${API_BASE_URL}/api/products`);
-          const fullData = await fullRes.json();
-          if (fullData.success) {
-            setProducts(fullData.data);
-            setCachedData("products", fullData.data);
-            latestList = fullData.data;
-          }
-        } catch (imgErr) {
-          console.warn("Background image fetch failed:", imgErr);
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching products:", error);
-    } finally {
-      if (!background) setLoading(false);
-    }
-    return latestList;
-  }, [setCachedData]);
-
 
   const productMap = useMemo(() => {
     const map = new Map();
