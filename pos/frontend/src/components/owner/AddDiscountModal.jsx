@@ -444,7 +444,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
               {currentStep === 1 && (
                 <div>
-                  <h3 className={`text-[20px] font-semibold mb-3 ${isDark ? 'text-white' : 'text-black'}`}>Basic Info</h3>
+                  <h3 className={`text-[16px] font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-700'}`}>Basic Info</h3>
 
                   <div className="space-y-4 max-w-[860px]">
                     <div>
@@ -507,7 +507,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     </div>
 
                     <div>
-                      <p className={`text-[16px] font-semibold mb-1 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Discount Value</p>
+                      <p className={`text-[16px] font-semibold mb-1 ${isDark ? 'text-white' : 'text-gray-700'}`}>Discount Value</p>
                       <label className={labelClass}>
                         Discount Type <span className="text-red-500">*</span>
                       </label>
@@ -593,7 +593,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               {currentStep === 2 && (
                 <div className="space-y-5">
                   <div>
-                    <h3 className={`text-[20px] font-semibold mb-2 ${isDark ? 'text-white' : 'text-black'}`}>Scope</h3>
+                    <h3 className={`text-[16px] font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-700'}`}>Scope</h3>
                     <div className="space-y-4">
                       <div>
                         <label className={labelClass}>
@@ -799,7 +799,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                 </div>
 
                   <div>
-                  <h3 className={`text-[20px] font-semibold mb-2 ${isDark ? 'text-white' : 'text-black'}`}>Purchase Conditions</h3>
+                  <h3 className={`text-[16px] font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-700'}`}>Purchase Conditions</h3>
 
                   <div className="space-y-4">
                     <div>
@@ -833,7 +833,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           onChange={handleChange}
                           min="0"
                           step="0.01"
-                          placeholder="No upper limit"
                           className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${isDark ? 'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' : 'border-gray-300 bg-white placeholder-gray-400'}`} />
                       </div>
                       <p className="text-[11px] text-gray-400 mt-1">
