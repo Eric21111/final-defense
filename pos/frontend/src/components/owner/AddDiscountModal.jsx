@@ -27,6 +27,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [isActive, setIsActive] = useState(true);
+  const [errors, setErrors] = useState({});
   const [allProducts, setAllProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -236,6 +237,34 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     return data;
   };
 
+  const getStepErrors = (step, rawData) => {
+    const data = ensureCategoryRules(rawData);
+    const nextErrors = {};
+
+    if (step === 1) {
+      if (!String(data.discountName || '').trim()) nextErrors.discountName = 'Discount name is required.';
+      if (!String(data.discountCategory || '').trim()) nextErrors.discountCategory = 'Discount category is required.';
+      if (!String(data.discountType || '').trim()) nextErrors.discountType = 'Discount type is required.';
+      const numVal = parseFloat(String(data.discountValue).replace(/,/g, ''));
+      if (String(data.discountValue || '').trim() === '' || Number.isNaN(numVal) || numVal < 0) {
+        nextErrors.discountValue = 'Discount value is required.';
+      } else if (data.discountType === 'percentage' && numVal > 100) {
+        nextErrors.discountValue = 'Percentage discount cannot exceed 100%.';
+      }
+    }
+
+    if (step === 2) {
+      if (!String(data.scope || '').trim()) nextErrors.scope = 'Apply Discount to is required.';
+      if (!String(data.appliesTo || '').trim()) nextErrors.appliesTo = 'Applies to is required.';
+      if (data.appliesTo === 'category' && !String(data.category || '').trim()) nextErrors.category = 'Please select a category.';
+      if (data.appliesTo === 'products' && (!Array.isArray(data.selectedProducts) || data.selectedProducts.length === 0)) {
+        nextErrors.selectedProducts = 'Please select at least one product.';
+      }
+    }
+
+    return nextErrors;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const preparedForm = {
@@ -293,48 +322,16 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   };
 
   const handleNextFromStep1 = () => {
-    const preparedForm = ensureCategoryRules(formData);
-    if (!String(preparedForm.discountName || '').trim()) {
-      alert('Discount Name is required.');
-      return;
-    }
-    if (!String(preparedForm.discountCategory || '').trim()) {
-      alert('Discount Category is required.');
-      return;
-    }
-    if (!String(preparedForm.discountType || '').trim()) {
-      alert('Discount Type is required.');
-      return;
-    }
-    const numVal = parseFloat(String(preparedForm.discountValue).replace(/,/g, ''));
-    if (Number.isNaN(numVal) || numVal < 0) {
-      alert('Discount Value is required.');
-      return;
-    }
-    if (preparedForm.discountType === 'percentage' && numVal > 100) {
-      alert('Percentage discount cannot exceed 100%.');
-      return;
-    }
+    const stepErrors = getStepErrors(1, formData);
+    setErrors(stepErrors);
+    if (Object.keys(stepErrors).length > 0) return;
     setCurrentStep(2);
   };
 
   const handleNextFromStep2 = () => {
-    if (!String(formData.scope || '').trim()) {
-      alert('Apply Discount to is required.');
-      return;
-    }
-    if (!String(formData.appliesTo || '').trim()) {
-      alert('Applies to is required.');
-      return;
-    }
-    if (formData.appliesTo === 'category' && !String(formData.category || '').trim()) {
-      alert('Please select a category.');
-      return;
-    }
-    if (formData.appliesTo === 'products' && formData.selectedProducts.length === 0) {
-      alert('Please select at least one product.');
-      return;
-    }
+    const stepErrors = getStepErrors(2, formData);
+    setErrors(stepErrors);
+    if (Object.keys(stepErrors).length > 0) return;
     setCurrentStep(3);
   };
 
@@ -448,6 +445,11 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   'bg-white border-gray-300 text-gray-900'}`;
   const labelClass = `text-xs font-bold uppercase tracking-wide mb-1 block ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
 
+  useEffect(() => {
+    if (!isOpen) return;
+    setErrors(getStepErrors(currentStep, formData));
+  }, [formData, currentStep, isOpen]);
+
 
   return (
     <>
@@ -470,8 +472,8 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 overflow-hidden">
-            <div className="p-6 pt-5">
+          <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col">
+            <div className="px-6 pt-5 pb-3">
               <div className="mb-4">
                 <div className="flex items-center justify-center gap-4">
                   <div className="flex items-center gap-2">
@@ -490,6 +492,9 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div className="px-6 pb-4 flex-1 overflow-y-auto">
 
               {currentStep === 1 && (
                 <div>
@@ -508,6 +513,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         placeholder="e.g ANNIVERSARY SALE"
                         className={inputClass}
                         required />
+                      {errors.discountName && <p className="text-[11px] text-red-500 mt-1">{errors.discountName}</p>}
                       
                     </div>
 
@@ -543,6 +549,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>PWD Discount</span>
                         </label>
                       </div>
+                      {errors.discountCategory && <p className="text-[11px] text-red-500 mt-1">{errors.discountCategory}</p>}
                       {isSeniorOrPwd && (
                         <div className={`mt-3 rounded-lg border p-3 text-sm ${isDark ? 'bg-blue-900/20 border-blue-700 text-blue-200' : 'bg-blue-100 border-blue-400 text-[#0F3E68]'}`}>
                           <p className="font-semibold mb-1">
@@ -586,6 +593,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Fixed Amount</span>
                         </label>
                       </div>
+                      {errors.discountType && <p className="text-[11px] text-red-500 mt-1">{errors.discountType}</p>}
                     </div>
 
                     <div>
@@ -618,6 +626,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           Maximum 100%.
                         </p>
                       }
+                      {errors.discountValue && <p className="text-[11px] text-red-500 mt-1">{errors.discountValue}</p>}
                     </div>
 
                   </div>
@@ -643,6 +652,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                             <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Per Item</span>
                           </label>
                         </div>
+                        {errors.scope && <p className="text-[11px] text-red-500 mt-1">{errors.scope}</p>}
                         {isSeniorOrPwd && (
                           <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${isDark ? 'bg-blue-900/20 border-blue-700 text-blue-200' : 'bg-blue-100 border-blue-400 text-[#0F3E68]'}`}>
                             Senior/PWD is automatically set to Per Item.
@@ -689,6 +699,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Specific Products</span>
                         </label>
                       </div>
+                      {errors.appliesTo && <p className="text-[11px] text-red-500 mt-1">{errors.appliesTo}</p>}
                       {formData.appliesTo === 'category' &&
                       <div className="mt-3">
                           <label className={labelClass}>
@@ -723,6 +734,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                               </select>
                             </div>
                           )}
+                          {errors.category && <p className="text-[11px] text-red-500 mt-1">{errors.category}</p>}
                         </div>
                       }
                       {formData.appliesTo === 'products' &&
@@ -778,6 +790,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           )}
                             </div>
                         }
+                        {errors.selectedProducts && <p className="text-[11px] text-red-500 mt-1">{errors.selectedProducts}</p>}
                         </div>
                       }
                     </div>
@@ -914,29 +927,28 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               {currentStep === 3 && (
                 <div className="space-y-4">
                   <h3 className={`text-[16px] font-semibold ${isDark ? 'text-white' : 'text-gray-700'}`}>Review & Save</h3>
-                  <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
+                  <div className={`rounded-xl border p-5 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <h4 className="text-[32px] font-extrabold leading-none">
-                          {formData.discountCategory === 'promo_voucher' ? 'PROMO/VOUCHER' : formData.discountCategory === 'senior_citizen' ? 'SENIOR CITIZEN' : 'PWD'}
+                          {formData.discountName || '-'}
                         </h4>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className={`px-4 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                           {isActive ? 'Active' : 'Inactive'}
                         </span>
-                        <span className="relative inline-flex items-center">
-                          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="sr-only peer" />
-                          <span className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
-                            isActive ? 'bg-[#AD7F65] after:border-[#AD7F65]' : 'bg-gray-200 after:border-gray-300'
-                          }`} />
-                        </span>
                       </div>
                     </div>
-                    <div className="min-h-[4px]" />
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <p><span className="text-gray-500">Discount Value:</span> <span className="font-semibold">{formData.discountValue || '-'}{formData.discountValue !== '' ? (formData.discountType === 'percentage' ? '% Off' : ' PHP Off') : ''}</span></p>
+                      <p><span className="text-gray-500">Valid only from:</span> <span className="font-semibold">{formData.validFrom || '-'}</span></p>
+                      <p><span className="text-gray-500">Applies to:</span> <span className="font-semibold">{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</span></p>
+                      <p><span className="text-gray-500">Used:</span> <span className="font-semibold">{formData.usageLimit ? `0 / ${formData.usageLimit}` : '0 / Unlimited'}</span></p>
+                    </div>
                   </div>
 
-                  <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
+                  <div className={`rounded-xl border p-5 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="space-y-1">
                         <p><span className="text-gray-500">Discount Name:</span> <span className="font-semibold">{formData.discountName || '-'}</span></p>
