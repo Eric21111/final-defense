@@ -76,6 +76,8 @@ stockMovementSchema.index({ category: 1 });
 stockMovementSchema.index({ sku: 1 });
 stockMovementSchema.index({ handledById: 1 });
 stockMovementSchema.index({ reason: 1 });
+stockMovementSchema.index({ createdAt: -1, type: 1, category: 1, reason: 1 });
+stockMovementSchema.index({ productId: 1, createdAt: -1 });
 
 // Export schema for dynamic connection
 module.exports.schema = stockMovementSchema;

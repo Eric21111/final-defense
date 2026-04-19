@@ -407,6 +407,38 @@ const Terminal = () => {
 
   const fetchProductsRef = useRef(fetchProducts);
   fetchProductsRef.current = fetchProducts;
+  const refreshDebounceTimerRef = useRef(null);
+  const refreshInFlightRef = useRef(false);
+  const lastRefreshAtRef = useRef(0);
+
+  const scheduleInventoryRefresh = useCallback(() => {
+    const MIN_REFRESH_GAP_MS = 1500;
+
+    const run = () => {
+      if (refreshInFlightRef.current) return;
+      refreshInFlightRef.current = true;
+      Promise.resolve(fetchProductsRef.current(true))
+        .catch((err) => console.warn("[Inventory refresh] failed:", err))
+        .finally(() => {
+          refreshInFlightRef.current = false;
+          lastRefreshAtRef.current = Date.now();
+        });
+    };
+
+    const now = Date.now();
+    const elapsed = now - lastRefreshAtRef.current;
+    if (elapsed >= MIN_REFRESH_GAP_MS && !refreshDebounceTimerRef.current) {
+      run();
+      return;
+    }
+
+    if (refreshDebounceTimerRef.current) return;
+    const waitMs = Math.max(0, MIN_REFRESH_GAP_MS - elapsed);
+    refreshDebounceTimerRef.current = setTimeout(() => {
+      refreshDebounceTimerRef.current = null;
+      run();
+    }, waitMs);
+  }, []);
 
   useEffect(() => {
     const cachedProducts = getCachedData("products");
@@ -693,7 +725,7 @@ const Terminal = () => {
     let consecutiveFailures = 0;
 
     const refresh = () => {
-      fetchProductsRef.current(true);
+      scheduleInventoryRefresh();
     };
 
     const nextBackoffMs = () => {
@@ -784,20 +816,24 @@ const Terminal = () => {
     return () => {
       cancelled = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (refreshDebounceTimerRef.current) {
+        clearTimeout(refreshDebounceTimerRef.current);
+        refreshDebounceTimerRef.current = null;
+      }
       try {
         ws?.close();
       } catch {
         /* ignore */
       }
     };
-  }, []);
+  }, [scheduleInventoryRefresh]);
 
   // Hosted APIs often drop WebSocket upgrades (e.g. Render, multi-instance). Poll + tab focus as fallback.
   useEffect(() => {
     const POLL_MS = 8000;
     const tick = () => {
       if (document.visibilityState !== "visible") return;
-      fetchProductsRef.current(true);
+      scheduleInventoryRefresh();
     };
     const id = setInterval(tick, POLL_MS);
     const onVisibility = () => {
@@ -808,10 +844,14 @@ const Terminal = () => {
     window.addEventListener("focus", onFocus);
     return () => {
       clearInterval(id);
+      if (refreshDebounceTimerRef.current) {
+        clearTimeout(refreshDebounceTimerRef.current);
+        refreshDebounceTimerRef.current = null;
+      }
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("focus", onFocus);
     };
-  }, []);
+  }, [scheduleInventoryRefresh]);
 
   const handleProductClick = useCallback(async (product) => {
 

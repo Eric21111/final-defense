@@ -142,6 +142,8 @@ productSchema.set('toObject', { virtuals: true });
 productSchema.index({ category: 1 });
 productSchema.index({ itemName: 'text', sku: 'text', brandName: 'text' }); // Text search index
 productSchema.index({ dateAdded: -1 });
+productSchema.index({ isArchived: 1, dateAdded: -1 });
+productSchema.index({ isArchived: 1, category: 1, dateAdded: -1 });
 productSchema.index({ currentStock: 1 });
 productSchema.index({ lastUpdated: -1 });
 productSchema.index({ sku: 1 }); // Already unique, but explicit index helps

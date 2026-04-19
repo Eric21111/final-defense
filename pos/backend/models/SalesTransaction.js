@@ -235,9 +235,14 @@ salesTransactionSchema.index({ "items.productId": 1 }); // For product transacti
 // Compound indexes for dashboard/report queries (status + paymentMethod + date range)
 salesTransactionSchema.index({ status: 1, paymentMethod: 1, checkedOutAt: -1 });
 salesTransactionSchema.index({ status: 1, paymentMethod: 1, createdAt: -1 });
+salesTransactionSchema.index({ performedById: 1, checkedOutAt: -1, paymentMethod: 1, status: 1 });
 
 // GCash-specific indexes
 salesTransactionSchema.index({ gcashSourceId: 1 }, { sparse: true });
+salesTransactionSchema.index(
+  { merchantOrderId: 1, gcashSourceId: 1, gcashStatus: 1 },
+  { sparse: true },
+);
 salesTransactionSchema.index(
   { gcashStatus: 1, gcashExpiresAt: 1 },
   { sparse: true },

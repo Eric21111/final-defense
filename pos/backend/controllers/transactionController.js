@@ -1111,35 +1111,42 @@ exports.getTopSellingProducts = async (req, res) => {
           totalRevenue: { $sum: { $multiply: ['$items.price', '$items.quantity'] } }
         }
       },
+      {
+        $lookup: {
+          from: 'products',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'product'
+        }
+      },
+      {
+        $unwind: {
+          path: '$product',
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          productId: '$_id',
+          itemName: { $ifNull: ['$itemName', { $ifNull: ['$product.itemName', 'Unknown Product'] }] },
+          sku: { $ifNull: ['$sku', { $ifNull: ['$product.sku', '-'] }] },
+          itemImage: { $ifNull: ['$itemImage', { $ifNull: ['$product.itemImage', ''] }] },
+          category: { $ifNull: ['$product.category', '-'] },
+          totalQuantitySold: 1,
+          totalRevenue: 1,
+          currentStock: { $ifNull: ['$product.currentStock', 0] }
+        }
+      },
       // Sort by quantity sold
       { $sort: { totalQuantitySold: sort === 'most' ? -1 : 1 } },
       // Limit results
       { $limit: parseInt(limit) }
     ]);
 
-    // Enrich with product details
-    const enrichedData = await Promise.all(
-      salesData.map(async (item) => {
-        let product = null;
-        if (item._id) {
-          product = await Product.findById(item._id).lean();
-        }
-        return {
-          productId: item._id,
-          itemName: item.itemName || product?.itemName || 'Unknown Product',
-          sku: item.sku || product?.sku || '-',
-          itemImage: item.itemImage || product?.itemImage || '',
-          category: product?.category || '-',
-          totalQuantitySold: item.totalQuantitySold,
-          totalRevenue: item.totalRevenue,
-          currentStock: product?.currentStock || 0
-        };
-      })
-    );
-
     res.json({
       success: true,
-      data: enrichedData
+      data: salesData
     });
   } catch (error) {
     console.error('Error fetching top selling products:', error);
