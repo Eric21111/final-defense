@@ -808,4 +808,15 @@ async function updateStockAfterPayment(transaction) {
   }
 
   console.log("[GCash] Stock updated for", transaction.items.length, "items");
+  try {
+    const {
+      broadcastInventoryChanged,
+    } = require("../services/inventoryBroadcast");
+    broadcastInventoryChanged({ source: "gcash_sale" });
+  } catch (broadcastErr) {
+    console.warn(
+      "[GCash][inventoryBroadcast]",
+      broadcastErr?.message || broadcastErr,
+    );
+  }
 }

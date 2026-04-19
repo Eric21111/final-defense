@@ -11,7 +11,7 @@ import ProductCard from "../components/terminal/ProductCard";
 import ProductDetailsModal from "../components/terminal/ProductDetailsModal";
 import QRCodePaymentModal from "../components/terminal/QRCodePaymentModal";
 import RemoveItemPinModal from "../components/terminal/RemoveItemPinModal";
-import { API_BASE_URL } from "../config/api";
+import { API_BASE_URL, WS_BASE_URL } from "../config/api";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
@@ -333,7 +333,7 @@ const Terminal = () => {
       setProducts(cachedProducts);
     }
     fetchCategories();
-  }, []);
+  }, [fetchProducts]);
 
   useEffect(() => {
     if (Array.isArray(cache?.products) && cache.products.length) {
@@ -556,7 +556,7 @@ const Terminal = () => {
     setCurrentPage(1);
   }, [selectedMainCategory, selectedSubCategory, searchQuery]);
 
-  const fetchProducts = async (background = false) => {
+  const fetchProducts = useCallback(async (background = false) => {
     let latestList = null;
     try {
       if (!background) setLoading(true);
@@ -589,7 +589,7 @@ const Terminal = () => {
       if (!background) setLoading(false);
     }
     return latestList;
-  };
+  }, [setCachedData]);
 
 
   const productMap = useMemo(() => {
@@ -612,6 +612,85 @@ const Terminal = () => {
       return getAvailableStockForCartLine(product, item) >= need;
     });
   }, [cart, productMap]);
+
+  const cartStockUnavailableLines = useMemo(() => {
+    if (!cart.length) return [];
+    const lines = [];
+    cart.forEach((item, index) => {
+      const pid = String(item.productId || item._id || "");
+      const product = productMap.get(pid);
+      const need = Number(item.quantity) || 1;
+      const avail = getAvailableStockForCartLine(product, item);
+      if (avail < need) {
+        const name = item.itemName || product?.itemName || "Item";
+        const key = `${pid}-${resolveItemSizeForStock(item)}-${item.selectedVariation || item.variant || ""}-${index}`;
+        lines.push({
+          key,
+          name,
+          need,
+          avail,
+        });
+      }
+    });
+    return lines;
+  }, [cart, productMap]);
+
+  useEffect(() => {
+    const base = String(WS_BASE_URL || "").replace(/\/$/, "");
+    const url = `${base}/ws/inventory`;
+    let ws;
+    let reconnectTimer;
+    let cancelled = false;
+
+    const connect = () => {
+      if (cancelled) return;
+      try {
+        ws = new WebSocket(url);
+      } catch (e) {
+        console.warn("[WS inventory] Failed to open:", e?.message || e);
+        reconnectTimer = setTimeout(connect, 4000);
+        return;
+      }
+
+      ws.onmessage = (ev) => {
+        try {
+          const data = JSON.parse(ev.data);
+          if (data.type === "CONNECTED") return;
+          if (data.type === "INVENTORY_CHANGED") {
+            fetchProducts(true);
+          }
+        } catch {
+          fetchProducts(true);
+        }
+      };
+
+      ws.onclose = () => {
+        if (!cancelled) {
+          reconnectTimer = setTimeout(connect, 4000);
+        }
+      };
+
+      ws.onerror = () => {
+        try {
+          ws?.close();
+        } catch {
+          /* ignore */
+        }
+      };
+    };
+
+    connect();
+
+    return () => {
+      cancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      try {
+        ws?.close();
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [fetchProducts]);
 
   const handleProductClick = useCallback(async (product) => {
 
@@ -2389,6 +2468,7 @@ const Terminal = () => {
               onOpenDiscountModal={handleOpenDiscountModal}
               onSelectDiscount={handleSelectDiscount}
               stockAllowsCheckout={cartStockAllowsCheckout}
+              stockUnavailableLines={cartStockUnavailableLines}
               seniorPwdInput={seniorPwdInput}
               onSeniorPwdInputChange={setSeniorPwdInput}
               seniorPwdAppliedAmount={seniorPwdDiscountAmount}

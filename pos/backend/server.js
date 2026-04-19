@@ -80,6 +80,28 @@ wss.on("connection", (ws, req) => {
 setPaymentControllerWsClients(wsPaymentClients);
 setExpiryCronWsClients(wsPaymentClients);
 
+// ==========================================
+// WebSocket: live inventory updates for terminals
+// ==========================================
+const {
+  registerInventoryClient,
+} = require("./services/inventoryBroadcast");
+const wssInventory = new WebSocketServer({ server, path: "/ws/inventory" });
+wssInventory.on("connection", (ws) => {
+  registerInventoryClient(ws);
+  try {
+    ws.send(
+      JSON.stringify({
+        type: "CONNECTED",
+        message: "Subscribed to inventory updates",
+      }),
+    );
+  } catch (e) {
+    console.warn("[WS inventory] Failed to send hello:", e.message);
+  }
+  console.log("[WS inventory] Client connected");
+});
+
 // Connect to database
 connectDB();
 

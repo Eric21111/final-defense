@@ -2054,6 +2054,23 @@ exports.updateStockAfterTransaction = async (req, res) => {
       updatedProducts.push(product);
     }
 
+    try {
+      const {
+        broadcastInventoryChanged,
+      } = require("../services/inventoryBroadcast");
+      broadcastInventoryChanged({
+        source: "stock_update",
+        productIds: updatedProducts.map((p) =>
+          p?._id != null ? String(p._id) : "",
+        ).filter(Boolean),
+      });
+    } catch (broadcastErr) {
+      console.warn(
+        "[inventoryBroadcast] Skipped:",
+        broadcastErr?.message || broadcastErr,
+      );
+    }
+
     res.json({
       success: true,
       message: "Stock updated successfully",

@@ -31,6 +31,7 @@ const OrderSummary = memo(({
   onSelectDiscount,
   products = [],
   stockAllowsCheckout = true,
+  stockUnavailableLines = [],
   seniorPwdInput = '',
   onSeniorPwdInputChange = () => {},
   seniorPwdAppliedAmount = 0,
@@ -907,6 +908,34 @@ const OrderSummary = memo(({
           </div>
         </div>
 
+        {Array.isArray(stockUnavailableLines) && stockUnavailableLines.length > 0 &&
+          <div
+            className={`mb-4 rounded-lg border px-3 py-2.5 text-xs ${theme === 'dark' ?
+              'border-amber-700/60 bg-amber-950/40 text-amber-100' :
+              'border-amber-300 bg-amber-50 text-amber-950'}`
+            }>
+
+            <p className="font-semibold leading-snug">
+              Cannot proceed — stock no longer covers this cart
+            </p>
+            <p className={`mt-1 leading-relaxed ${theme === 'dark' ? 'text-amber-200/90' : 'text-amber-900/90'}`}>
+              Another register may have completed a sale. These line(s) are empty or already sold — remove them or reduce quantity.
+            </p>
+            <ul className={`mt-2 list-disc pl-4 space-y-1 ${theme === 'dark' ? 'text-amber-100/95' : 'text-amber-950/90'}`}>
+              {stockUnavailableLines.map((line) =>
+                <li key={line.key}>
+                  <span className="font-medium">{line.name}</span>
+                  {' — '}
+                  {line.avail <= 0 ?
+                    'out of stock' :
+                    `only ${line.avail} left (you have ${line.need} in cart)`}
+
+                </li>
+              )}
+            </ul>
+          </div>
+        }
+
         <div className="mb-6">
           <div className="flex gap-2 justify-center">
             <button
@@ -936,7 +965,7 @@ const OrderSummary = memo(({
           type="button"
           onClick={handleProceed}
           disabled={cart.length === 0 || !selectedPaymentMethod || !stockAllowsCheckout}
-          title={!stockAllowsCheckout ? 'One or more items are out of stock or exceed available quantity' : undefined}
+          title={!stockAllowsCheckout ? 'One or more items are sold out or exceed live stock — adjust the cart' : undefined}
           className="w-full py-3 text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg"
           style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
 
