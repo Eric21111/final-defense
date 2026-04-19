@@ -37,7 +37,10 @@ const OrderSummary = memo(({
   onSeniorPwdInputChange = () => {},
   seniorPwdAppliedAmount = 0,
   onRequestSeniorPwdApply = () => {},
-  onRemoveSeniorPwdDiscount = () => {}
+  onRemoveSeniorPwdDiscount = () => {},
+  showSeniorPwdVatSummary = false,
+  seniorPwdVatExemptSales = 0,
+  seniorPwdVatDiscount = 0
 }) => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
@@ -937,19 +940,39 @@ const OrderSummary = memo(({
         </div>
 
         <div className="space-y-2 mb-6 text-xs">
-          <div className="flex justify-between">
-            <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Subtotal</span>
-            <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Discount</span>
-            <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {discount.toFixed(2)}</span>
-          </div>
-          <div className={`border-t my-3 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}></div>
-          <div className="flex justify-between">
-            <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Total</span>
-            <span className="text-sm font-bold" style={{ color: 'rgba(255, 133, 88, 1)' }}>PHP {total.toFixed(2)}</span>
-          </div>
+          {showSeniorPwdVatSummary ? (
+            <>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>VAT EXEMPT SALES</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {Number(seniorPwdVatExemptSales || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>LESS: SC/PWD DISCOUNT</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {Number(seniorPwdVatDiscount || 0).toFixed(2)}</span>
+              </div>
+              <div className={`border-t my-3 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}></div>
+              <div className="flex justify-between">
+                <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>TOTAL</span>
+                <span className="text-sm font-bold" style={{ color: 'rgba(255, 133, 88, 1)' }}>PHP {total.toFixed(2)}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Subtotal</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Discount</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {discount.toFixed(2)}</span>
+              </div>
+              <div className={`border-t my-3 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}></div>
+              <div className="flex justify-between">
+                <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Total</span>
+                <span className="text-sm font-bold" style={{ color: 'rgba(255, 133, 88, 1)' }}>PHP {total.toFixed(2)}</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mb-6">

@@ -11,7 +11,7 @@ import ProductCard from "../components/terminal/ProductCard";
 import ProductDetailsModal from "../components/terminal/ProductDetailsModal";
 import QRCodePaymentModal from "../components/terminal/QRCodePaymentModal";
 import RemoveItemPinModal from "../components/terminal/RemoveItemPinModal";
-import { API_BASE_URL, WS_BASE_URL } from "../config/api";
+import { API_BASE_URL, API_ENDPOINTS, WS_BASE_URL } from "../config/api";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
@@ -181,6 +181,7 @@ const Terminal = () => {
   const [seniorPwdDiscountAmount, setSeniorPwdDiscountAmount] = useState(0);
   const [seniorPwdInput, setSeniorPwdInput] = useState("");
   const [showSeniorPwdPinModal, setShowSeniorPwdPinModal] = useState(false);
+  const [vatConfig, setVatConfig] = useState({ enabled: false, rate: 12 });
   const pendingSeniorPwdRef = useRef(null);
   const [sortOption, setSortOption] = useState("newest");
   const [isProcessingTransaction, setIsProcessingTransaction] = useState(false);
@@ -194,6 +195,35 @@ const Terminal = () => {
     }),
     []
   );
+
+  const isSeniorPwdDiscountItem = useCallback((discountItem) => {
+    const category = String(discountItem?.discountCategory || "").toLowerCase();
+    return category === "senior_citizen" || category === "pwd";
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadVatConfig = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.globalSettings, { cache: "no-store" });
+        const data = await response.json();
+        if (!active || !data?.success || !data?.data) return;
+        const rateRaw = Number(data.data.vatRatePercent);
+        const safeRate =
+          Number.isFinite(rateRaw) && rateRaw >= 0 && rateRaw <= 100 ? rateRaw : 12;
+        setVatConfig({
+          enabled: Boolean(data.data.birCompliantEnabled),
+          rate: safeRate
+        });
+      } catch (error) {
+        console.warn("Unable to load VAT settings, using defaults.", error);
+      }
+    };
+    loadVatConfig();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const getCartItemCount = useCallback(
     (items = cart) =>
@@ -1940,6 +1970,7 @@ const Terminal = () => {
 
 
       const discountValueStr = selectedDiscount.discountValue || "";
+      const isSeniorPwdDiscount = isSeniorPwdDiscountItem(selectedDiscount);
 
       try {
         let totalEligibleAmount = 0;
@@ -2008,6 +2039,16 @@ const Terminal = () => {
             discountValueStr.replace("% OFF", "").replace(/\s/g, "")
           );
           if (!isNaN(percentage)) {
+            if (isSeniorPwdDiscount && vatConfig.enabled) {
+              const vatMultiplier = 1 + (Number(vatConfig.rate) || 12) / 100;
+              const vatExclusiveEligible = vatMultiplier > 0
+                ? totalEligibleAmount / vatMultiplier
+                : totalEligibleAmount;
+              const lessVatAmount = Math.max(0, totalEligibleAmount - vatExclusiveEligible);
+              const seniorPwdDiscount = vatExclusiveEligible * (percentage / 100);
+              totalDiscount += lessVatAmount + seniorPwdDiscount;
+              continue;
+            }
             if (scope === "per_item") {
               const perItemDiscount = eligibleItems.reduce((sum, item) => {
                 const lineTotal = (item.itemPrice || 0) * (item.quantity || 1);
@@ -2040,11 +2081,28 @@ const Terminal = () => {
     }
 
     return totalDiscount || parseFloat(discountAmount) || 0;
-  }, [seniorPwdDiscountAmount, discountAmount, selectedDiscounts, subtotal, cart, products]);
+  }, [seniorPwdDiscountAmount, discountAmount, selectedDiscounts, subtotal, cart, products, isSeniorPwdDiscountItem, vatConfig.enabled, vatConfig.rate]);
 
   const total = useMemo(() => {
     return subtotal - discount;
   }, [subtotal, discount]);
+
+  const hasSeniorPwdSelectedDiscount = useMemo(
+    () => selectedDiscounts.some((d) => isSeniorPwdDiscountItem(d)),
+    [selectedDiscounts, isSeniorPwdDiscountItem]
+  );
+
+  const seniorPwdSummaryBreakdown = useMemo(() => {
+    if (!hasSeniorPwdSelectedDiscount || !vatConfig.enabled) return null;
+    const vatMultiplier = 1 + (Number(vatConfig.rate) || 12) / 100;
+    const vatExemptSales =
+      vatMultiplier > 0 ? subtotal / vatMultiplier : subtotal;
+    const scPwdDiscount = vatExemptSales * 0.2;
+    return {
+      vatExemptSales: Math.max(0, vatExemptSales),
+      scPwdDiscount: Math.max(0, scPwdDiscount)
+    };
+  }, [hasSeniorPwdSelectedDiscount, vatConfig.enabled, vatConfig.rate, subtotal]);
 
   useEffect(() => {
     if (cart.length === 0) {
@@ -2517,7 +2575,14 @@ const Terminal = () => {
         return;
       }
 
-      if (selectedDiscounts.length > 0) {
+      const selectingSeniorPwd = isSeniorPwdDiscountItem(discountItem);
+
+      if (selectingSeniorPwd && seniorPwdDiscountAmount > 0) {
+        setSeniorPwdDiscountAmount(0);
+        setSeniorPwdInput("");
+      }
+
+      if (!selectingSeniorPwd && selectedDiscounts.length > 0) {
         alert(
           "Only one discount can be applied per transaction. Remove the current discount first."
         );
@@ -2539,7 +2604,11 @@ const Terminal = () => {
       }
 
 
-      setSelectedDiscounts((prev) => [...prev, discountItem]);
+      if (selectingSeniorPwd) {
+        setSelectedDiscounts([discountItem]);
+      } else {
+        setSelectedDiscounts((prev) => [...prev, discountItem]);
+      }
 
 
       setDiscountAmount("");
@@ -2547,7 +2616,7 @@ const Terminal = () => {
       console.error("Error selecting discount:", error);
       alert("An error occurred while applying the discount. Please try again.");
     }
-  }, [selectedDiscounts, cart, validateDiscountForCart, seniorPwdDiscountAmount]);
+  }, [selectedDiscounts, cart, validateDiscountForCart, seniorPwdDiscountAmount, isSeniorPwdDiscountItem]);
 
   const handleRemoveSeniorPwdDiscount = useCallback(() => {
     setSeniorPwdDiscountAmount(0);
@@ -2751,7 +2820,10 @@ const Terminal = () => {
               onSeniorPwdInputChange={setSeniorPwdInput}
               seniorPwdAppliedAmount={seniorPwdDiscountAmount}
               onRequestSeniorPwdApply={handleRequestSeniorPwdDiscount}
-              onRemoveSeniorPwdDiscount={handleRemoveSeniorPwdDiscount} />
+              onRemoveSeniorPwdDiscount={handleRemoveSeniorPwdDiscount}
+              showSeniorPwdVatSummary={Boolean(seniorPwdSummaryBreakdown)}
+              seniorPwdVatExemptSales={seniorPwdSummaryBreakdown?.vatExemptSales || 0}
+              seniorPwdVatDiscount={seniorPwdSummaryBreakdown?.scPwdDiscount || 0} />
 
           </div>
         </div>
