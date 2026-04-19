@@ -634,7 +634,7 @@ const Inventory = () => {
         adjustInventoryProductsLoading(1);
       }
       // 1) Paged list path — avoids a single huge response when catalog is large.
-      const PAGE_LIMIT = 500;
+      const PAGE_LIMIT = 250;
       const mergeUniqueById = (prevList, nextList) => {
         const prevArr = Array.isArray(prevList) ? prevList : [];
         const nextArr = Array.isArray(nextList) ? nextList : [];
@@ -706,47 +706,6 @@ const Inventory = () => {
       }
 
       clearTimeout(timeoutId);
-
-      // 2) Background: full documents with images (can be MBs) — must not block UI (stock-in
-      // "Adding..." awaited this entire chain before).
-      // Now that images are URLs, this is much cheaper; keep it as background hydration.
-      if (firstPageDone && myGen === productsListFetchGenRef.current) {
-        const fullController = new AbortController();
-        const fullTimeout = setTimeout(() => fullController.abort(), 120000);
-        const PAGE2_LIMIT = 500;
-        (async () => {
-          try {
-            let p = 1;
-            let all = [];
-            while (true) {
-              const fullRes = await fetch(
-                `${API_BASE_URL}/api/products?limit=${PAGE2_LIMIT}&page=${p}`,
-                { cache: "no-store", signal: fullController.signal }
-              );
-              if (myGen !== productsListFetchGenRef.current) return;
-              if (!fullRes.ok) return;
-              const fullData = await fullRes.json().catch(() => ({}));
-              if (!fullData?.success) return;
-              const chunk = Array.isArray(fullData.data) ? fullData.data : [];
-              if (!chunk.length) break;
-              all = mergeUniqueById(all, chunk);
-              if (chunk.length < PAGE2_LIMIT) break;
-              p += 1;
-              if (p > 200) break;
-            }
-            if (myGen === productsListFetchGenRef.current && all.length) {
-              setProducts(all);
-              setCachedData("products", all);
-            }
-          } catch (imgErr) {
-            if (imgErr?.name !== "AbortError") {
-              console.warn("Background product fetch (full detail) failed:", imgErr);
-            }
-          } finally {
-            clearTimeout(fullTimeout);
-          }
-        })();
-      }
     } catch (error) {
       if (error?.name === "AbortError") {
         if (myGen !== productsListFetchGenRef.current) {

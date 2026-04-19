@@ -353,7 +353,7 @@ const Terminal = () => {
       if (!background) setLoading(true);
 
       // Paged load: avoids one huge payload when catalog is large.
-      const PAGE_LIMIT = 500;
+      const PAGE_LIMIT = 250;
       const mergeUniqueById = (prevList, nextList) => {
         const prevArr = Array.isArray(prevList) ? prevList : [];
         const nextArr = Array.isArray(nextList) ? nextList : [];
@@ -422,6 +422,7 @@ const Terminal = () => {
   const refreshDebounceTimerRef = useRef(null);
   const refreshInFlightRef = useRef(false);
   const lastRefreshAtRef = useRef(0);
+  const wsPausedUntilRef = useRef(0);
 
   const scheduleInventoryRefresh = useCallback(() => {
     const MIN_REFRESH_GAP_MS = 1500;
@@ -744,6 +745,7 @@ const Terminal = () => {
     let attempt = 0;
     let inCooldownUntil = 0;
     let consecutiveFailures = 0;
+    let openedOnce = false;
 
     const refresh = () => {
       scheduleInventoryRefresh();
@@ -764,6 +766,10 @@ const Terminal = () => {
 
     const connect = async () => {
       if (cancelled) return;
+      if (Date.now() < wsPausedUntilRef.current) {
+        scheduleReconnect(wsPausedUntilRef.current - Date.now() + 500);
+        return;
+      }
       if (Date.now() < inCooldownUntil) {
         scheduleReconnect(inCooldownUntil - Date.now() + 500);
         return;
@@ -796,8 +802,10 @@ const Terminal = () => {
       }
 
       ws.onopen = () => {
+        openedOnce = true;
         consecutiveFailures = 0;
         attempt = 0;
+        wsPausedUntilRef.current = 0;
       };
 
       ws.onmessage = (ev) => {
@@ -814,6 +822,13 @@ const Terminal = () => {
 
       ws.onclose = () => {
         if (cancelled) return;
+        // If socket closes before ever opening (common on sleeping/proxy deployments),
+        // pause WS attempts and rely on polling for a while to avoid console spam + retry churn.
+        if (!openedOnce) {
+          wsPausedUntilRef.current = Date.now() + 5 * 60_000;
+          scheduleReconnect(30_000);
+          return;
+        }
         consecutiveFailures += 1;
         if (consecutiveFailures >= 6) {
           inCooldownUntil = Date.now() + 120_000;

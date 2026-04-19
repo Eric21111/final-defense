@@ -22,6 +22,4 @@ const receiptCounterSchema = new mongoose.Schema(
     { timestamps: true },
 );
 
-receiptCounterSchema.index({ terminalId: 1 }, { unique: true });
-
 module.exports = mongoose.model("ReceiptCounter", receiptCounterSchema);
