@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaBox, FaCheck, FaSearch, FaTag, FaTimes } from 'react-icons/fa';
+import { FaBox, FaCalendarAlt, FaCheck, FaEdit, FaSearch, FaTag, FaTimes, FaTrashAlt, FaUsers } from 'react-icons/fa';
 import { API_ENDPOINTS } from '../../config/api';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -409,7 +409,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
                 <FaTag className="text-white w-3.5 h-3.5" />
               </div>
-              <h2 className={`text-4xl leading-none font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+              <h2 className={`text-[38px] leading-none font-bold ${isDark ? 'text-white' : 'text-black'}`}>
                 {discountToEdit ? 'Edit Discount' : 'Create New Discount'}
               </h2>
             </div>
@@ -421,9 +421,9 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-            <div className="p-6">
-              <div className="mb-6">
+          <form onSubmit={handleSubmit} className="flex-1 overflow-hidden">
+            <div className="p-6 pt-5">
+              <div className="mb-4">
                 <div className="flex items-center justify-center gap-4">
                   <div className="flex items-center gap-2">
                     <div className={stepTitleClass(1)}>1</div>
@@ -444,7 +444,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
               {currentStep === 1 && (
                 <div>
-                  <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Basic Info</h3>
+                  <h3 className={`text-[20px] font-semibold mb-3 ${isDark ? 'text-white' : 'text-black'}`}>Basic Info</h3>
 
                   <div className="space-y-4 max-w-[860px]">
                     <div>
@@ -465,7 +465,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     <div>
                       <label className={labelClass}>
                         <span>Discount Code</span>
-                        <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
                       </label>
                       <input
                         type="text"
@@ -508,7 +507,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     </div>
 
                     <div>
-                      <p className={`text-xl font-medium mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Discount Value</p>
+                      <p className={`text-[16px] font-semibold mb-1 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Discount Value</p>
                       <label className={labelClass}>
                         Discount Type <span className="text-red-500">*</span>
                       </label>
@@ -594,7 +593,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               {currentStep === 2 && (
                 <div className="space-y-5">
                   <div>
-                    <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Scope</h3>
+                    <h3 className={`text-[20px] font-semibold mb-2 ${isDark ? 'text-white' : 'text-black'}`}>Scope</h3>
                     <div className="space-y-4">
                       <div>
                         <label className={labelClass}>
@@ -676,7 +675,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           {subCategoryOptions.length > 0 && (
                             <div className="mt-3">
                               <label className={labelClass}>
-                                Select Subcategory <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
+                                Select Subcategory
                               </label>
                               <select
                                 name="subCategory"
@@ -800,13 +799,12 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                 </div>
 
                   <div>
-                  <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Purchase Conditions</h3>
+                  <h3 className={`text-[20px] font-semibold mb-2 ${isDark ? 'text-white' : 'text-black'}`}>Purchase Conditions</h3>
 
                   <div className="space-y-4">
                     <div>
                       <label className={labelClass}>
                         <span>Minimum Purchase Amount</span>
-                        <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600">₱</span>
@@ -819,13 +817,12 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${isDark ? 'bg-[#1E1B18] border-gray-600 text-white' : 'border-gray-300 bg-white'}`} />
                         
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">Customer must spend at least this amount</p>
+                      <p className="text-[11px] text-gray-400 mt-1">Customer must spend at least this amount</p>
                     </div>
 
                     <div>
                       <label className={labelClass}>
                         <span>Maximum Purchase Amount</span>
-                        <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
                       </label>
                       <div className="relative">
                         <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600">₱</span>
@@ -839,7 +836,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           placeholder="No upper limit"
                           className={`w-full pl-8 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${isDark ? 'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' : 'border-gray-300 bg-white placeholder-gray-400'}`} />
                       </div>
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-[11px] text-gray-400 mt-1">
                         Discount applies only when eligible cart total is at or below this amount (leave empty for no limit)
                       </p>
                     </div>
@@ -847,7 +844,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     <div>
                       <label className={labelClass}>
                         <span>Usage Limit</span>
-                        <span className="ml-2 text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
                       </label>
                       <input
                         type="number"
@@ -857,18 +853,23 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         min="0"
                         className={inputClass} />
                       
-                      <p className="text-xs text-gray-400 mt-1 italic">Total number of times this discount can be used</p>
+                      <p className="text-[11px] text-gray-400 mt-1">Total number of times this discount can be used</p>
                     </div>
 
                     <div>
                       <label className="flex items-center gap-3 cursor-pointer">
                         <span className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Make this discount active?</span>
-                        <button
-                          type="button"
-                          onClick={() => setIsActive((v) => !v)}
-                          className={`w-10 h-6 rounded-full transition-colors relative ${isActive ? 'bg-[#8E5C3B]' : 'bg-gray-300'}`}>
-                          <span className={`absolute top-[2px] w-5 h-5 rounded-full bg-white transition-transform ${isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
-                        </button>
+                        <span className="relative inline-flex items-center">
+                          <input
+                            type="checkbox"
+                            checked={isActive}
+                            onChange={(e) => setIsActive(e.target.checked)}
+                            className="sr-only peer"
+                          />
+                          <span className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+                            isActive ? 'bg-[#AD7F65] after:border-[#AD7F65]' : 'bg-gray-200 after:border-gray-300'
+                          }`} />
+                        </span>
                       </label>
                     </div>
 
@@ -894,15 +895,34 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
               {currentStep === 3 && (
                 <div className="space-y-4">
-                  <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>Review & Save</h3>
+                  <h3 className={`text-[20px] font-semibold ${isDark ? 'text-white' : 'text-black'}`}>Review & Save</h3>
                   <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
                     <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-4xl font-extrabold">
-                        {formData.discountCategory === 'promo_voucher' ? 'PROMO/VOUCHER' : formData.discountCategory === 'senior_citizen' ? 'SENIOR CITIZEN' : 'PWD'}
-                      </h4>
-                      <span className={`px-4 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                        {isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-[74px] h-[74px] rounded-2xl bg-[#2A94D8] flex items-center justify-center text-white">
+                          <FaTag className="w-8 h-8" />
+                        </div>
+                        <h4 className="text-[32px] font-extrabold leading-none">
+                          {formData.discountCategory === 'promo_voucher' ? 'PROMO/VOUCHER' : formData.discountCategory === 'senior_citizen' ? 'SENIOR CITIZEN' : 'PWD'}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button type="button" className="w-5 h-5 rounded bg-blue-100 text-blue-600 flex items-center justify-center">
+                          <FaEdit className="w-2.5 h-2.5" />
+                        </button>
+                        <button type="button" className="w-5 h-5 rounded bg-red-100 text-red-600 flex items-center justify-center">
+                          <FaTrashAlt className="w-2.5 h-2.5" />
+                        </button>
+                        <span className={`px-4 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                          {isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        <span className="relative inline-flex items-center">
+                          <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="sr-only peer" />
+                          <span className={`w-11 h-6 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${
+                            isActive ? 'bg-[#AD7F65] after:border-[#AD7F65]' : 'bg-gray-200 after:border-gray-300'
+                          }`} />
+                        </span>
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="space-y-1">
@@ -912,12 +932,16 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         <p><span className="font-semibold">Value:</span> {formData.discountValue || 0}{formData.discountType === 'percentage' ? '% Off' : ' PHP Off'}</p>
                         <p><span className="font-semibold">Scope:</span> {formData.scope === 'per_item' ? 'Per item' : 'Entire Order'}</p>
                         <p><span className="font-semibold">Applies to:</span> {formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</p>
+                        <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Discount Value: <strong>{formData.discountValue || 0}{formData.discountType === 'percentage' ? '% OFF' : ' PHP OFF'}</strong></p>
+                        <p className="flex items-center gap-1 text-[12px]"><FaCalendarAlt className="text-gray-400" /> Valid only from: <strong>{formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} to ${formData.validUntil}` : '-')}</strong></p>
                       </div>
                       <div className="space-y-1">
                         <p><span className="font-semibold">Minimum:</span> {formData.minPurchaseAmount || '-'}</p>
                         <p><span className="font-semibold">Maximum:</span> {formData.maxPurchaseAmount || '-'}</p>
                         <p><span className="font-semibold">Usage Limit:</span> {formData.usageLimit || '-'}</p>
                         <p><span className="font-semibold">Validity:</span> {formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} - ${formData.validUntil}` : '-')}</p>
+                        <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Applies to: <strong>{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</strong></p>
+                        <p className="flex items-center gap-1 text-[12px]"><FaUsers className="text-gray-400" /> Used: <strong>{formData.usageLimit ? `No limit set` : 'No limit'}</strong></p>
                       </div>
                     </div>
                   </div>
@@ -937,7 +961,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               {currentStep === 3 && (
                 <button
                   type="submit"
-                  className="px-10 py-3 text-white rounded-xl font-bold text-2xl shadow-md hover:shadow-lg transition-all"
+                  className="px-10 py-3 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all"
                   style={{
                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
                   }}>
