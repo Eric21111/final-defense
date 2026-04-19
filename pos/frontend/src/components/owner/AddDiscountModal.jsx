@@ -571,21 +571,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                       }
                     </div>
 
-                    <div className="pt-3 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={onClose}
-                        className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(2)}
-                        className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
-                        style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
-                        Continue
-                      </button>
-                    </div>
                   </div>
                 </div>
               )}
@@ -874,21 +859,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
                   </div>
                 </div>
-                <div className="pt-3 flex justify-between">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(1)}
-                    className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(3)}
-                    className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
-                    style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
-                    Continue
-                  </button>
-                </div>
               </div>
               )}
 
@@ -944,28 +914,64 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                       </div>
                     </div>
                   </div>
-                  <div className="flex justify-between">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentStep(2)}
-                      className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
-                      Back
-                    </button>
-                  </div>
                 </div>
               )}
             </div>
 
-            <div className={`px-6 py-4 border-t flex justify-end ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className={`px-6 py-4 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
+              {currentStep === 1 && (
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(2)}
+                    className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
+                    style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
+                    Continue
+                  </button>
+                </div>
+              )}
+
+              {currentStep === 2 && (
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(3)}
+                    className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
+                    style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
+                    Continue
+                  </button>
+                </div>
+              )}
+
               {currentStep === 3 && (
-                <button
-                  type="submit"
-                  className="px-10 py-3 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all"
-                  style={{
-                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                  }}>
-                  {discountToEdit ? 'Update Discount' : 'Add New Discount'}
-                </button>
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(2)}
+                    className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-10 py-3 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all"
+                    style={{
+                      background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                    }}>
+                    {discountToEdit ? 'Update Discount' : 'Add New Discount'}
+                  </button>
+                </div>
               )}
             </div>
           </form>
