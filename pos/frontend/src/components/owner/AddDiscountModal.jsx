@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaBox, FaCheck, FaSearch, FaTimes } from 'react-icons/fa';
+import { FaBox, FaCheck, FaSearch, FaTag, FaTimes } from 'react-icons/fa';
 import { API_ENDPOINTS } from '../../config/api';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -26,6 +26,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
   const [showProductPicker, setShowProductPicker] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [isActive, setIsActive] = useState(true);
   const [allProducts, setAllProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -160,6 +161,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(1);
+      setIsActive(true);
       fetchProducts();
       fetchCategories();
       if (discountToEdit) {
@@ -401,11 +403,16 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   return (
     <>
       <div className="fixed inset-0 flex items-center justify-center z-[10002] p-4 backdrop-blur-sm">
-        <div className={`rounded-2xl w-full max-w-[920px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col ${isDark ? 'bg-[#2A2724]' : 'bg-white'}`}>
+        <div className={`rounded-2xl w-full max-w-[760px] max-h-[92vh] overflow-hidden shadow-2xl flex flex-col ${isDark ? 'bg-[#2A2724]' : 'bg-white'}`}>
           <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-            <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
-              {discountToEdit ? 'Edit Discount' : 'Create New Discount'}
-            </h2>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
+                <FaTag className="text-white w-3.5 h-3.5" />
+              </div>
+              <h2 className={`text-4xl leading-none font-bold ${isDark ? 'text-white' : 'text-black'}`}>
+                {discountToEdit ? 'Edit Discount' : 'Create New Discount'}
+              </h2>
+            </div>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors">
@@ -422,12 +429,12 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     <div className={stepTitleClass(1)}>1</div>
                     <span className={`text-xs ${currentStep >= 1 ? 'text-[#16A34A] font-semibold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>Discount Info</span>
                   </div>
-                  <div className={`w-12 h-[2px] ${currentStep >= 2 ? 'bg-[#16A34A]' : isDark ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                  <div className={`w-12 h-[2px] border-t border-dashed ${currentStep >= 2 ? 'border-[#16A34A]' : isDark ? 'border-gray-600' : 'border-gray-300'}`} />
                   <div className="flex items-center gap-2">
                     <div className={stepTitleClass(2)}>2</div>
                     <span className={`text-xs ${currentStep >= 2 ? 'text-[#16A34A] font-semibold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>Rules & Limits</span>
                   </div>
-                  <div className={`w-12 h-[2px] ${currentStep >= 3 ? 'bg-[#16A34A]' : isDark ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                  <div className={`w-12 h-[2px] border-t border-dashed ${currentStep >= 3 ? 'border-[#16A34A]' : isDark ? 'border-gray-600' : 'border-gray-300'}`} />
                   <div className="flex items-center gap-2">
                     <div className={stepTitleClass(3)}>3</div>
                     <span className={`text-xs ${currentStep >= 3 ? 'text-[#16A34A] font-semibold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>Review & Save</span>
@@ -437,7 +444,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
               {currentStep === 1 && (
                 <div>
-                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Basic Info</h3>
+                  <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Basic Info</h3>
 
                   <div className="space-y-4 max-w-[860px]">
                     <div>
@@ -501,6 +508,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     </div>
 
                     <div>
+                      <p className={`text-xl font-medium mb-2 ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Discount Value</p>
                       <label className={labelClass}>
                         Discount Type <span className="text-red-500">*</span>
                       </label>
@@ -564,11 +572,17 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                       }
                     </div>
 
-                    <div className="pt-3 flex justify-end">
+                    <div className="pt-3 flex items-center justify-between">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}>
+                        Cancel
+                      </button>
                       <button
                         type="button"
                         onClick={() => setCurrentStep(2)}
-                        className="px-8 py-3 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition-all"
+                        className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
                         style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
                         Continue
                       </button>
@@ -578,9 +592,9 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               )}
 
               {currentStep === 2 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-5">
+                <div className="space-y-5">
                   <div>
-                    <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Rules & Scope</h3>
+                    <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Scope</h3>
                     <div className="space-y-4">
                       <div>
                         <label className={labelClass}>
@@ -607,7 +621,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                       <label className={labelClass}>
                         Applies to <span className="text-red-500">*</span>
                       </label>
-                      <div className="space-y-2">
+                      <div className="flex flex-wrap gap-6">
                         <label className="flex items-center gap-2 cursor-pointer">
                           <input
                             type="radio"
@@ -786,7 +800,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                 </div>
 
                   <div>
-                  <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Advanced Option</h3>
+                  <h3 className={`text-2xl font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Purchase Conditions</h3>
 
                   <div className="space-y-4">
                     <div>
@@ -843,22 +857,34 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         min="0"
                         className={inputClass} />
                       
-                      <p className="text-xs text-gray-400 mt-1">Total number of times this discount can be used</p>
+                      <p className="text-xs text-gray-400 mt-1 italic">Total number of times this discount can be used</p>
+                    </div>
+
+                    <div>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <span className={`text-sm font-medium ${isDark ? 'text-gray-200' : 'text-gray-700'}`}>Make this discount active?</span>
+                        <button
+                          type="button"
+                          onClick={() => setIsActive((v) => !v)}
+                          className={`w-10 h-6 rounded-full transition-colors relative ${isActive ? 'bg-[#8E5C3B]' : 'bg-gray-300'}`}>
+                          <span className={`absolute top-[2px] w-5 h-5 rounded-full bg-white transition-transform ${isActive ? 'translate-x-[18px]' : 'translate-x-[2px]'}`} />
+                        </button>
+                      </label>
                     </div>
 
                   </div>
                 </div>
-                <div className="pt-3 flex justify-between md:col-span-2">
+                <div className="pt-3 flex justify-between">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(1)}
-                    className={`px-8 py-3 rounded-lg font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                    className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                     Back
                   </button>
                   <button
                     type="button"
                     onClick={() => setCurrentStep(3)}
-                    className="px-8 py-3 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition-all"
+                    className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
                     style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
                     Continue
                   </button>
@@ -868,20 +894,38 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
               {currentStep === 3 && (
                 <div className="space-y-4">
-                  <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>Review & Save</h3>
-                  <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-gray-50 border-gray-200 text-gray-800'}`}>
-                    <p><span className="font-semibold">Name:</span> {formData.discountName || '-'}</p>
-                    <p><span className="font-semibold">Code:</span> {formData.discountCode || '-'}</p>
-                    <p><span className="font-semibold">Category:</span> {formData.discountCategory === 'promo_voucher' ? 'Promo / Voucher' : formData.discountCategory === 'senior_citizen' ? 'Senior Citizen' : 'PWD'}</p>
-                    <p><span className="font-semibold">Scope:</span> {formData.scope === 'per_item' ? 'Per Item' : 'Entire Order/Cart'}</p>
-                    <p><span className="font-semibold">Value:</span> {formData.discountValue || 0}{formData.discountType === 'percentage' ? '% OFF' : ' PHP OFF'}</p>
-                    <p><span className="font-semibold">Applies to:</span> {formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? `Category: ${formData.category || '-'}` : `${formData.selectedProducts.length} selected product(s)`}</p>
+                  <h3 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>Review & Save</h3>
+                  <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-4xl font-extrabold">
+                        {formData.discountCategory === 'promo_voucher' ? 'PROMO/VOUCHER' : formData.discountCategory === 'senior_citizen' ? 'SENIOR CITIZEN' : 'PWD'}
+                      </h4>
+                      <span className={`px-4 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                        {isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-1">
+                        <p><span className="font-semibold">Discount Name:</span> {formData.discountName || '-'}</p>
+                        <p><span className="font-semibold">Discount Code:</span> {formData.discountCode || '-'}</p>
+                        <p><span className="font-semibold">Discount Category:</span> {formData.discountCategory === 'promo_voucher' ? 'Promo / Voucher' : formData.discountCategory === 'senior_citizen' ? 'Senior Citizen Discount' : 'PWD Discount'}</p>
+                        <p><span className="font-semibold">Value:</span> {formData.discountValue || 0}{formData.discountType === 'percentage' ? '% Off' : ' PHP Off'}</p>
+                        <p><span className="font-semibold">Scope:</span> {formData.scope === 'per_item' ? 'Per item' : 'Entire Order'}</p>
+                        <p><span className="font-semibold">Applies to:</span> {formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p><span className="font-semibold">Minimum:</span> {formData.minPurchaseAmount || '-'}</p>
+                        <p><span className="font-semibold">Maximum:</span> {formData.maxPurchaseAmount || '-'}</p>
+                        <p><span className="font-semibold">Usage Limit:</span> {formData.usageLimit || '-'}</p>
+                        <p><span className="font-semibold">Validity:</span> {formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} - ${formData.validUntil}` : '-')}</p>
+                      </div>
+                    </div>
                   </div>
                   <div className="flex justify-between">
                     <button
                       type="button"
                       onClick={() => setCurrentStep(2)}
-                      className={`px-8 py-3 rounded-lg font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                      className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                       Back
                     </button>
                   </div>
@@ -893,7 +937,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               {currentStep === 3 && (
                 <button
                   type="submit"
-                  className="px-8 py-3 text-white rounded-lg font-bold text-lg shadow-md hover:shadow-lg transition-all"
+                  className="px-10 py-3 text-white rounded-xl font-bold text-2xl shadow-md hover:shadow-lg transition-all"
                   style={{
                     background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
                   }}>
