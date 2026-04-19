@@ -359,6 +359,9 @@ const Terminal = () => {
     return latestList;
   }, [setCachedData]);
 
+  const fetchProductsRef = useRef(fetchProducts);
+  fetchProductsRef.current = fetchProducts;
+
   useEffect(() => {
     const cachedProducts = getCachedData("products");
     if (!cachedProducts || !isCacheValid("products")) {
@@ -640,6 +643,10 @@ const Terminal = () => {
     let reconnectTimer;
     let cancelled = false;
 
+    const refresh = () => {
+      fetchProductsRef.current(true);
+    };
+
     const connect = () => {
       if (cancelled) return;
       try {
@@ -655,10 +662,10 @@ const Terminal = () => {
           const data = JSON.parse(ev.data);
           if (data.type === "CONNECTED") return;
           if (data.type === "INVENTORY_CHANGED") {
-            fetchProducts(true);
+            refresh();
           }
         } catch {
-          fetchProducts(true);
+          refresh();
         }
       };
 
@@ -688,7 +695,28 @@ const Terminal = () => {
         /* ignore */
       }
     };
-  }, [fetchProducts]);
+  }, []);
+
+  // Hosted APIs often drop WebSocket upgrades (e.g. Render, multi-instance). Poll + tab focus as fallback.
+  useEffect(() => {
+    const POLL_MS = 8000;
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      fetchProductsRef.current(true);
+    };
+    const id = setInterval(tick, POLL_MS);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    const onFocus = () => tick();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
 
   const handleProductClick = useCallback(async (product) => {
 
