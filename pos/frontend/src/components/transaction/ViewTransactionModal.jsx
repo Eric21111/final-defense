@@ -74,6 +74,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
     latestReturnTransaction?.performedByName ||
     latestReturnTransaction?.returnedByName ||
     latestReturnTransaction?.cashierName ||
+    transaction.returnedByName ||
     '';
 
   // Subtotal: always the ORIGINAL purchase total (never changes after returns)

@@ -1353,7 +1353,8 @@ const Transaction = () => {
         status: newStatus,
         items: updatedItems,
         totalAmount: newTotalAmount,
-        originalTotalAmount: originalTotalAmount
+        originalTotalAmount: originalTotalAmount,
+        returnedByName: approverReturnName
       };
       console.log("Updating original transaction FIRST:", updatePayload);
 
