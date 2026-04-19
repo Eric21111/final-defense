@@ -403,7 +403,10 @@ exports.getRemittanceKpiStats = async (req, res) => {
             remittanceCount: 0
         };
         const totalRemitted = row.totalRemitted || 0;
-        const expectedCash = netRemittance + (openingFloatTotal || 0);
+        // KPI "Expected Cash" should reflect cash generated from sales/remittance,
+        // not include assigned opening float (which is tracked separately).
+        const expectedCash = netRemittance;
+        const unremittedCash = expectedCash - totalRemitted;
         const hasRemittance = (row.remittanceCount || 0) > 0;
         const totalVariance = hasRemittance ? (row.totalSlipVariance || 0) : 0;
 
@@ -420,7 +423,7 @@ exports.getRemittanceKpiStats = async (req, res) => {
                 totalVariance,
                 hasRemittance,
                 slipNetSalesSum: row.slipNetSales || 0,
-                unremittedCash: expectedCash
+                unremittedCash
             }
         });
     } catch (error) {
