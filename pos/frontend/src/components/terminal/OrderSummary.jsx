@@ -819,21 +819,6 @@ const OrderSummary = memo(({
             </div>
           }
 
-          <label className="mt-1 mb-3 inline-flex items-center gap-2 cursor-pointer select-none">
-            <span className="relative inline-flex items-center">
-              <input
-                type="checkbox"
-                checked={seniorPwdModeEnabled}
-                onChange={(e) => setSeniorPwdModeEnabled(e.target.checked)}
-                className="sr-only peer"
-              />
-              <span className="w-11 h-6 rounded-full bg-gray-300 peer-checked:bg-[linear-gradient(135deg,_#AD7F65_0%,_#76462B_100%)] transition-all after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-all peer-checked:after:translate-x-5" />
-            </span>
-            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-[#8B7355]'}`}>
-              Senior Citizen / PWD Discount
-            </span>
-          </label>
-
           {!seniorPwdModeEnabled ? (
             <div className="flex items-center gap-2">
               <input
@@ -935,6 +920,20 @@ const OrderSummary = memo(({
           </p>
             </>
           )}
+          <label className="mt-3 inline-flex items-center gap-2 cursor-pointer select-none">
+            <span className="relative inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={seniorPwdModeEnabled}
+                onChange={(e) => setSeniorPwdModeEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <span className="w-11 h-6 rounded-full bg-gray-300 peer-checked:bg-[linear-gradient(135deg,_#AD7F65_0%,_#76462B_100%)] transition-all after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-all peer-checked:after:translate-x-5" />
+            </span>
+            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-[#8B7355]'}`}>
+              Senior Citizen / PWD Discount
+            </span>
+          </label>
         </div>
 
         <div className="space-y-2 mb-6 text-xs">
