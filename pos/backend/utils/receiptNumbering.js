@@ -9,7 +9,23 @@ const DEFAULT_RECEIPT_COUNTER_KEY = "__DEFAULT__";
 async function generateRandomReceiptNumber() {
     const doc = await ReceiptCounter.findOneAndUpdate(
         { terminalId: DEFAULT_RECEIPT_COUNTER_KEY },
-        { $inc: { lastSeq: 1 }, $setOnInsert: { terminalId: DEFAULT_RECEIPT_COUNTER_KEY } },
+        [
+            {
+                $set: {
+                    terminalId: DEFAULT_RECEIPT_COUNTER_KEY,
+                    lastSeq: {
+                        $let: {
+                            vars: {
+                                nextSeq: { $add: [{ $ifNull: ["$lastSeq", 0] }, 1] },
+                            },
+                            in: {
+                                $cond: [{ $gt: ["$$nextSeq", 999999] }, 1, "$$nextSeq"],
+                            },
+                        },
+                    },
+                },
+            },
+        ],
         { new: true, upsert: true },
     );
 

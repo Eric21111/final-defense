@@ -45,7 +45,23 @@ async function getNextSequentialReceiptNo(terminalIdRaw) {
     }
     const doc = await ReceiptCounter.findOneAndUpdate(
         { terminalId: safe },
-        { $inc: { lastSeq: 1 }, $setOnInsert: { terminalId: safe } },
+        [
+            {
+                $set: {
+                    terminalId: safe,
+                    lastSeq: {
+                        $let: {
+                            vars: {
+                                nextSeq: { $add: [{ $ifNull: ["$lastSeq", 0] }, 1] },
+                            },
+                            in: {
+                                $cond: [{ $gt: ["$$nextSeq", 999999] }, 1, "$$nextSeq"],
+                            },
+                        },
+                    },
+                },
+            },
+        ],
         { new: true, upsert: true },
     );
     const n = doc.lastSeq;
