@@ -107,11 +107,49 @@ const AddProductModal = ({
         if (!res.ok || !data?.success || !data?.url) {
           throw new Error(data?.message || `Upload failed (${res.status})`);
         }
-        uploaded.push(String(data.url));
+        uploaded.push({
+          url: String(data.url),
+          publicId: String(data.publicId || ""),
+        });
       }
       return uploaded;
     } finally {
       setIsUploadingImages(false);
+    }
+  };
+
+  const deleteCloudinaryImageByPublicId = async (publicId) => {
+    const id = String(publicId || "").trim();
+    if (!id) return;
+    try {
+      await fetch(`${API_BASE_URL}/api/uploads/image`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ publicId: id }),
+      });
+    } catch (err) {
+      console.warn("Cloudinary delete failed:", err);
+    }
+  };
+
+  const removeImageAtIndex = async (index) => {
+    const url = String(productImages?.[index] || "");
+    if (!url) return;
+    const publicId = sessionUploadedPublicIdsByUrl[url];
+
+    setProductImages((prev) => {
+      const updated = (prev || []).filter((_, i) => i !== index);
+      setNewProduct((p) => ({ ...p, itemImage: updated[0] || "" }));
+      return updated;
+    });
+
+    if (publicId) {
+      setSessionUploadedPublicIdsByUrl((prev) => {
+        const next = { ...prev };
+        delete next[url];
+        return next;
+      });
+      await deleteCloudinaryImageByPublicId(publicId);
     }
   };
 
@@ -167,6 +205,7 @@ const AddProductModal = ({
   const [customSizeValue, setCustomSizeValue] = useState("");
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
   const [productImages, setProductImages] = useState([]);
+  const [sessionUploadedPublicIdsByUrl, setSessionUploadedPublicIdsByUrl] = useState({});
   const [imageUrlInput, setImageUrlInput] = useState("");
   const [customSizes, setCustomSizes] = useState([]);
   const [multipleVariantsPerSize, setMultipleVariantsPerSize] = useState({});
@@ -598,6 +637,7 @@ const AddProductModal = ({
       setCustomSizes([]);
       setCurrentStep(1);
       setProductImages([]);
+      setSessionUploadedPublicIdsByUrl({});
       setImageUrlInput("");
       return;
     }
@@ -608,6 +648,7 @@ const AddProductModal = ({
         ? editingProduct.productImages.filter(Boolean)
         : (editingProduct.itemImage && String(editingProduct.itemImage).trim() ? [editingProduct.itemImage] : []);
       setProductImages(imgs);
+      setSessionUploadedPublicIdsByUrl({});
       return;
     }
 
@@ -626,6 +667,7 @@ const AddProductModal = ({
       setSelectedVariants([]);
     }
     setProductImages([]);
+    setSessionUploadedPublicIdsByUrl({});
   }, [showAddModal, editingProduct]);
 
   // `hasVariants` is derived from current selections now (no toggle).
@@ -952,7 +994,10 @@ const AddProductModal = ({
                               <img src={img} alt={`Product ${index + 1}`} className="w-full h-full object-cover" />
                         {index === 0 && <span className="absolute top-1 left-1 bg-[#BAE4CB] text-white text-[10px] px-1.5 py-0.5 rounded-full font-medium">Main</span>}
                               <button type="button"
-                          onClick={(e) => { e.stopPropagation(); setProductImages(prev => { const updated = prev.filter((_, i) => i !== index); setNewProduct(p => ({ ...p, itemImage: updated[0] || '' })); return updated; }); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void removeImageAtIndex(index);
+                          }}
                                 className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold hover:bg-red-600"
                               >×</button>
                             </div>
@@ -974,12 +1019,20 @@ const AddProductModal = ({
                             e.target.value = "";
                             if (!files.length) return;
                             try {
-                              const urls = await uploadImages(files);
-                              if (!urls.length) return;
+                              const uploaded = await uploadImages(files);
+                              if (!uploaded.length) return;
                               setProductImages((prev) => {
-                                const updated = [...(prev || []), ...urls];
+                                const nextUrls = uploaded.map((x) => x.url).filter(Boolean);
+                                const updated = [...(prev || []), ...nextUrls];
                                 setNewProduct((p) => ({ ...p, itemImage: updated[0] || "" }));
                                 return updated;
+                              });
+                              setSessionUploadedPublicIdsByUrl((prev) => {
+                                const next = { ...prev };
+                                uploaded.forEach(({ url, publicId }) => {
+                                  if (url && publicId) next[url] = publicId;
+                                });
+                                return next;
                               });
                             } catch (err) {
                               alert(err?.message || "Image upload failed");
@@ -1122,11 +1175,7 @@ const AddProductModal = ({
                               <button type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setProductImages(prev => {
-                                    const updated = prev.filter((_, i) => i !== index);
-                                    setNewProduct(p => ({ ...p, itemImage: updated[0] || '' }));
-                                    return updated;
-                                  });
+                                  void removeImageAtIndex(index);
                                 }}
                                 className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs font-bold hover:bg-red-600"
                               >×</button>
@@ -1151,12 +1200,20 @@ const AddProductModal = ({
                             e.target.value = "";
                             if (!files.length) return;
                             try {
-                              const urls = await uploadImages(files);
-                              if (!urls.length) return;
+                              const uploaded = await uploadImages(files);
+                              if (!uploaded.length) return;
                               setProductImages((prev) => {
-                                const updated = [...(prev || []), ...urls];
+                                const nextUrls = uploaded.map((x) => x.url).filter(Boolean);
+                                const updated = [...(prev || []), ...nextUrls];
                                 setNewProduct((p) => ({ ...p, itemImage: updated[0] || "" }));
                                 return updated;
+                              });
+                              setSessionUploadedPublicIdsByUrl((prev) => {
+                                const next = { ...prev };
+                                uploaded.forEach(({ url, publicId }) => {
+                                  if (url && publicId) next[url] = publicId;
+                                });
+                                return next;
                               });
                             } catch (err) {
                               alert(err?.message || "Image upload failed");

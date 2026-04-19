@@ -745,7 +745,11 @@ exports.stockInProduct = async (req, res) => {
         updatePayload.$set.displayInTerminal = true;
       }
 
-      const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
+      const updatedProduct = await Product.findByIdAndUpdate(
+        productId,
+        updatePayload,
+        { new: true, runValidators: true },
+      ).select("-itemImage -productImages -stockHistory");
 
       await logStockMovement(updatedProduct, stockBefore, updatedProduct.currentStock, "Stock-In", reason, handledBy, handledById, null);
 
@@ -980,7 +984,11 @@ exports.stockInProduct = async (req, res) => {
       updatePayload.$set.displayInTerminal = true;
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      updatePayload,
+      { new: true, runValidators: true },
+    ).select("-itemImage -productImages -stockHistory");
 
     await logStockMovement(
       updatedProduct,
@@ -1048,7 +1056,11 @@ exports.stockOutProduct = async (req, res) => {
         updatePayload.$set.displayInTerminal = true;
       }
 
-      const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
+      const updatedProduct = await Product.findByIdAndUpdate(
+        productId,
+        updatePayload,
+        { new: true, runValidators: true },
+      ).select("-itemImage -productImages -stockHistory");
 
       await logStockMovement(updatedProduct, stockBefore, updatedProduct.currentStock, movementType, reason, handledBy, handledById, null);
       return res.json({
@@ -1159,7 +1171,11 @@ exports.stockOutProduct = async (req, res) => {
       updatePayload.$set.displayInTerminal = true;
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
+    const updatedProduct = await Product.findByIdAndUpdate(
+      productId,
+      updatePayload,
+      { new: true, runValidators: true },
+    ).select("-itemImage -productImages -stockHistory");
 
     await logStockMovement(
       updatedProduct,

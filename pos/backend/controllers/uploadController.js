@@ -56,3 +56,36 @@ exports.uploadImage = async (req, res) => {
   }
 };
 
+exports.deleteImage = async (req, res) => {
+  try {
+    ensureCloudinaryConfigured();
+
+    const publicId = String(req.body?.publicId || "").trim();
+    if (!publicId) return badRequest(res, "publicId is required");
+
+    const result = await cloudinary.uploader.destroy(publicId, {
+      resource_type: "image",
+      invalidate: true,
+    });
+
+    return res.json({
+      success: true,
+      result: result?.result || "ok",
+      publicId,
+    });
+  } catch (error) {
+    const code = error?.code;
+    if (code === "CLOUDINARY_NOT_CONFIGURED") {
+      return res.status(503).json({
+        success: false,
+        message: error.message,
+      });
+    }
+    console.error("[deleteImage] Failed:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Delete failed",
+    });
+  }
+};
+

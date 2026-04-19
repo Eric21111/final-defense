@@ -1,5 +1,5 @@
 const express = require("express");
-const { uploadImage } = require("../controllers/uploadController");
+const { uploadImage, deleteImage } = require("../controllers/uploadController");
 
 const router = express.Router();
 
@@ -12,6 +12,7 @@ router.post(
   }),
   uploadImage,
 );
+router.delete("/image", deleteImage);
 
 module.exports = router;
 

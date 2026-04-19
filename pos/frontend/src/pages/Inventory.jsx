@@ -1634,7 +1634,9 @@ const Inventory = () => {
       setSuccessMessage("Stock added successfully!");
       setShowSuccessModal(true);
       invalidateCache("products");
-      await fetchProducts({ silent: true });
+      fetchProducts({ silent: true }).catch((err) =>
+        console.warn("Background product refresh failed after stock-in:", err)
+      );
     } catch (error) {
       console.error("Error updating stock:", error);
       alert("Failed to update stock. Please try again.");
@@ -1759,7 +1761,9 @@ const Inventory = () => {
       setSuccessMessage("Stock removed successfully!");
       setShowSuccessModal(true);
       invalidateCache("products");
-      await fetchProducts({ silent: true });
+      fetchProducts({ silent: true }).catch((err) =>
+        console.warn("Background product refresh failed after stock-out:", err)
+      );
     } catch (error) {
       console.error("Error updating stock:", error);
       alert("Failed to update stock. Please try again.");
