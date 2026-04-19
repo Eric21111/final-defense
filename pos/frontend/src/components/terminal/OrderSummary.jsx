@@ -44,6 +44,7 @@ const OrderSummary = memo(({
   const userId = currentUser?._id || currentUser?.id || currentUser?.email || 'guest';
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [discountCode, setDiscountCode] = useState('');
+  const [seniorPwdModeEnabled, setSeniorPwdModeEnabled] = useState(false);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
@@ -59,6 +60,17 @@ const OrderSummary = memo(({
   const promoInputsDisabled =
     selectedDiscounts.length > 0 || seniorPwdAppliedAmount > 0;
   const seniorPwdInputsDisabled = selectedDiscounts.length > 0;
+
+  useEffect(() => {
+    if (!seniorPwdModeEnabled) {
+      if (seniorPwdAppliedAmount > 0) {
+        onRemoveSeniorPwdDiscount();
+      }
+      if (seniorPwdInput) {
+        onSeniorPwdInputChange('');
+      }
+    }
+  }, [seniorPwdModeEnabled, seniorPwdAppliedAmount, seniorPwdInput, onRemoveSeniorPwdDiscount, onSeniorPwdInputChange]);
 
 
   useEffect(() => {
@@ -811,15 +823,15 @@ const OrderSummary = memo(({
           <div className="flex items-center gap-2">
             <input
               type="text"
-              placeholder={promoInputsDisabled ? 'One discount per order' : 'Enter discount code'}
+              placeholder={seniorPwdModeEnabled ? 'Disabled while Senior / PWD is enabled' : promoInputsDisabled ? 'One discount per order' : 'Enter discount code'}
               value={discountCode}
               onChange={(e) => setDiscountCode(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && !applyingDiscount && !promoInputsDisabled) {
+                if (e.key === 'Enter' && !applyingDiscount && !promoInputsDisabled && !seniorPwdModeEnabled) {
                   applyDiscountCode();
                 }
               }}
-              disabled={promoInputsDisabled}
+              disabled={promoInputsDisabled || seniorPwdModeEnabled}
               className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ?
                 'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
                 'bg-white border-[#d6c1b5] text-gray-900'}`
@@ -828,7 +840,7 @@ const OrderSummary = memo(({
             <button
               type="button"
               onClick={onOpenDiscountModal}
-              disabled={promoInputsDisabled}
+              disabled={promoInputsDisabled || seniorPwdModeEnabled}
               className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
               title={promoInputsDisabled ? 'Remove the current discount to choose another' : 'Browse discounts'}>
 
@@ -837,7 +849,7 @@ const OrderSummary = memo(({
             <button
               type="button"
               onClick={applyDiscountCode}
-              disabled={promoInputsDisabled || applyingDiscount || !discountCode || !discountCode.trim()}
+              disabled={promoInputsDisabled || seniorPwdModeEnabled || applyingDiscount || !discountCode || !discountCode.trim()}
               className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
               title={promoInputsDisabled ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
@@ -845,9 +857,21 @@ const OrderSummary = memo(({
               {applyingDiscount ? 'Applying...' : 'Apply'}
             </button>
           </div>
+          <label className="mt-3 inline-flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={seniorPwdModeEnabled}
+              onChange={(e) => setSeniorPwdModeEnabled(e.target.checked)}
+              className="w-4 h-4 rounded border-[#d6c1b5] text-[#AD7F65] focus:ring-[#AD7F65]"
+            />
+            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-[#8B7355]'}`}>
+              Senior Citizen / PWD Discount
+            </span>
+          </label>
         </div>
 
-        <div className="mb-6">
+        {seniorPwdModeEnabled && (
+          <div className="mb-6">
           <label className="block text-xs font-semibold text-[#8B7355] mb-2">
             Discount for Senior Citizen / PWD
           </label>
@@ -907,7 +931,8 @@ const OrderSummary = memo(({
           <p className={`text-[11px] mt-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
             Owner PIN is required to apply this discount.
           </p>
-        </div>
+          </div>
+        )}
 
         <div className="space-y-2 mb-6 text-xs">
           <div className="flex justify-between">
