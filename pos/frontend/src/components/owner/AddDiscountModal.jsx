@@ -215,8 +215,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     }
   }, [isOpen, discountToEdit, fetchProducts, fetchCategories]);
 
-  if (!isOpen) return null;
-
   const isSeniorOrPwd =
     formData.discountCategory === 'senior_citizen' ||
     formData.discountCategory === 'pwd';
@@ -449,6 +447,8 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     if (!isOpen) return;
     setErrors(getStepErrors(currentStep, formData));
   }, [formData, currentStep, isOpen]);
+
+  if (!isOpen) return null;
 
 
   return (
