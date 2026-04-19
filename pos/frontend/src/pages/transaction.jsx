@@ -797,7 +797,7 @@ const Transaction = () => {
   const sidebarReceiptTotals = useMemo(() => {
     const trx = selectedTransaction;
     if (!trx) return { lineSub: 0, discount: 0 };
-    const lineSub = originalLineSubtotalFromItems(trx) || trx.totalAmount || 0;
+    const lineSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
     const hasReturnActivity =
       (trx.returnTransactions?.length || 0) > 0 ||
       trx.status === "Returned" ||
