@@ -955,7 +955,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-2 gap-1 text-sm">
                       <p><span className="text-gray-500">Discount Value:</span> <span className="font-semibold">{formData.discountValue || '-'}{formData.discountValue !== '' ? (formData.discountType === 'percentage' ? '% Off' : ' PHP Off') : ''}</span></p>
                       <p><span className="text-gray-500">Valid only from:</span> <span className="font-semibold">{formData.validFrom || '-'}</span></p>
                       <p><span className="text-gray-500">Applies to:</span> <span className="font-semibold">{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</span></p>
