@@ -130,7 +130,8 @@ router.get('/low-stock', async (req, res) => {
           parseInt(product.expirationThresholdDays, 10) || 30,
         );
 
-        if (daysUntilExpiration < 0 || daysUntilExpiration <= expirationThresholdDays) {
+        const notificationThresholdDays = Math.max(expirationThresholdDays, 7);
+        if (daysUntilExpiration < 0 || daysUntilExpiration <= notificationThresholdDays) {
           alertItems.push({
             ...baseData,
             alertKey: `${String(product._id)}:expiry`,

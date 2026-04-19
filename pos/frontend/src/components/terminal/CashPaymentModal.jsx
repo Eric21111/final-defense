@@ -64,10 +64,6 @@ const CashPaymentModal = ({
 
   if (!isOpen) return null;
 
-  const generateReceiptNumber = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-
   const handleProceed = () => {
     const received = parseFloat(amountReceived);
     if (!amountReceived || isNaN(received) || received < totalAmount) {
@@ -99,17 +95,14 @@ const CashPaymentModal = ({
     setShowSuccess(true);
 
     try {
-      const useServerReceipt =
-        profile.birCompliantEnabled && !!getTerminalId();
-      const generatedReceiptNo = useServerReceipt ? undefined : generateReceiptNumber();
       const savedTransaction = await onProceed(
         received,
         changeAmount,
-        generatedReceiptNo
+        undefined
       );
 
 
-      const actualReceiptNo = savedTransaction?.receiptNo || generatedReceiptNo;
+      const actualReceiptNo = savedTransaction?.receiptNo || "000000";
 
 
       const receipt = {

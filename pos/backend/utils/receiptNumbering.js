@@ -1,19 +1,19 @@
-const SalesTransaction = require("../models/SalesTransaction");
+const ReceiptCounter = require("../models/ReceiptCounter");
 
-/** Legacy POS numbering — random 6-digit, collision-checked (non-BIR mode). */
+const DEFAULT_RECEIPT_COUNTER_KEY = "__DEFAULT__";
+
+/**
+ * Global POS numbering — sequential 6-digit (non-BIR mode).
+ * Example: 000001, 000002, ...
+ */
 async function generateRandomReceiptNumber() {
-    let attempts = 0;
-    while (attempts < 10) {
-        const receiptNo = Math.floor(100000 + Math.random() * 900000).toString();
-        const existing = await SalesTransaction.findOne({ receiptNo });
-        if (!existing) {
-            return receiptNo;
-        }
-        attempts++;
-    }
-    const timestamp = Date.now().toString().slice(-4);
-    const random = Math.floor(10 + Math.random() * 90).toString();
-    return `${timestamp}${random}`;
+    const doc = await ReceiptCounter.findOneAndUpdate(
+        { terminalId: DEFAULT_RECEIPT_COUNTER_KEY },
+        { $inc: { lastSeq: 1 }, $setOnInsert: { terminalId: DEFAULT_RECEIPT_COUNTER_KEY } },
+        { new: true, upsert: true },
+    );
+
+    return String(doc.lastSeq).padStart(6, "0");
 }
 
 module.exports = { generateRandomReceiptNumber };
