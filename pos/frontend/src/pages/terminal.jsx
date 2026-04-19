@@ -1950,16 +1950,61 @@ const Terminal = () => {
 
 
   const discount = useMemo(() => {
+    const minLineRemaining = 0.01;
+    const lineTotals = cart.map(
+      (item) => Math.max(0, (Number(item.itemPrice) || 0) * (Number(item.quantity) || 1))
+    );
+    const maxCartDiscount = lineTotals.reduce((sum, lineTotal) => {
+      if (lineTotal <= 0) return sum;
+      return sum + Math.max(0, lineTotal - minLineRemaining);
+    }, 0);
+
     const senior = Math.max(0, Number(seniorPwdDiscountAmount) || 0);
     if (senior > 0) {
-      return Math.min(senior, subtotal);
+      return Math.min(senior, maxCartDiscount);
     }
 
     if (selectedDiscounts.length === 0) {
-      return parseFloat(discountAmount) || 0;
+      const manualDiscount = Math.max(0, parseFloat(discountAmount) || 0);
+      return Math.min(manualDiscount, maxCartDiscount);
     }
 
-    let totalDiscount = 0;
+    const cumulativeLineDiscount = new Map();
+    const getLineTotal = (idx) => lineTotals[idx] || 0;
+    const maxLineDiscount = (idx) => {
+      const lineTotal = getLineTotal(idx);
+      if (lineTotal <= 0) return 0;
+      return Math.max(0, lineTotal - minLineRemaining);
+    };
+    const applyLineDiscount = (idx, requestedAmount) => {
+      const requested = Math.max(0, Number(requestedAmount) || 0);
+      const used = cumulativeLineDiscount.get(idx) || 0;
+      const remaining = Math.max(0, maxLineDiscount(idx) - used);
+      const applied = Math.min(requested, remaining);
+      if (applied > 0) {
+        cumulativeLineDiscount.set(idx, used + applied);
+      }
+      return applied;
+    };
+    const applyProportionalDiscount = (eligibleIndexes, totalRequested) => {
+      const requested = Math.max(0, Number(totalRequested) || 0);
+      if (requested <= 0 || eligibleIndexes.length === 0) return 0;
+      const weightedTotal = eligibleIndexes.reduce((sum, idx) => sum + getLineTotal(idx), 0);
+      if (weightedTotal <= 0) return 0;
+
+      let appliedTotal = 0;
+      for (let i = 0; i < eligibleIndexes.length; i++) {
+        const idx = eligibleIndexes[i];
+        const lineTotal = getLineTotal(idx);
+        if (lineTotal <= 0) continue;
+        const isLast = i === eligibleIndexes.length - 1;
+        const planned = isLast
+          ? Math.max(0, requested - appliedTotal)
+          : (requested * lineTotal) / weightedTotal;
+        appliedTotal += applyLineDiscount(idx, planned);
+      }
+      return appliedTotal;
+    };
 
     for (const selectedDiscount of selectedDiscounts) {
 
@@ -1973,64 +2018,40 @@ const Terminal = () => {
       const isSeniorPwdDiscount = isSeniorPwdDiscountItem(selectedDiscount);
 
       try {
-        let totalEligibleAmount = 0;
         const appliesToType =
           selectedDiscount.appliesToType || selectedDiscount.appliesTo;
-
-
-        if (appliesToType === "all") {
-          totalEligibleAmount = subtotal;
-        } else if (appliesToType === "category" && selectedDiscount.category) {
-          totalEligibleAmount = cart.reduce((sum, item) => {
-            if (itemMatchesDiscountCategory(item, selectedDiscount.category, selectedDiscount.subCategory)) {
-              return sum + item.itemPrice * item.quantity;
+        const eligibleIndexes = cart
+          .map((item, idx) => ({ item, idx }))
+          .filter(({ item }) => {
+            if (appliesToType === "all") return true;
+            if (appliesToType === "category" && selectedDiscount.category) {
+              return itemMatchesDiscountCategory(
+                item,
+                selectedDiscount.category,
+                selectedDiscount.subCategory
+              );
             }
-            return sum;
-          }, 0);
-        } else if (
-          appliesToType === "products" &&
-          selectedDiscount.productIds &&
-          selectedDiscount.productIds.length > 0) {
-          totalEligibleAmount = cart.reduce((sum, item) => {
-            const itemId = item._id || item.productId || item.id;
-            const isEligible = selectedDiscount.productIds.some((pid) => {
-              const pidStr = pid.toString ? pid.toString() : pid;
-              const itemIdStr = itemId.toString ? itemId.toString() : itemId;
-              return pidStr === itemIdStr;
-            });
-
-            if (isEligible) {
-              return sum + item.itemPrice * item.quantity;
+            if (
+              appliesToType === "products" &&
+              selectedDiscount.productIds &&
+              selectedDiscount.productIds.length > 0
+            ) {
+              const itemId = item._id || item.productId || item.id;
+              return selectedDiscount.productIds.some((pid) => {
+                const pidStr = pid.toString ? pid.toString() : pid;
+                const itemIdStr = itemId.toString ? itemId.toString() : itemId;
+                return pidStr === itemIdStr;
+              });
             }
-            return sum;
-          }, 0);
-        }
-
+            return false;
+          })
+          .map(({ idx }) => idx);
+        const totalEligibleAmount = eligibleIndexes.reduce(
+          (sum, idx) => sum + getLineTotal(idx),
+          0
+        );
 
         const scope = selectedDiscount.scope || "entire_order";
-        const eligibleItems = cart.filter((item) => {
-          if (appliesToType === "all") return true;
-          if (appliesToType === "category" && selectedDiscount.category) {
-            return itemMatchesDiscountCategory(
-              item,
-              selectedDiscount.category,
-              selectedDiscount.subCategory
-            );
-          }
-          if (
-            appliesToType === "products" &&
-            selectedDiscount.productIds &&
-            selectedDiscount.productIds.length > 0
-          ) {
-            const itemId = item._id || item.productId || item.id;
-            return selectedDiscount.productIds.some((pid) => {
-              const pidStr = pid.toString ? pid.toString() : pid;
-              const itemIdStr = itemId.toString ? itemId.toString() : itemId;
-              return pidStr === itemIdStr;
-            });
-          }
-          return false;
-        });
 
         if (
           typeof discountValueStr === "string" &&
@@ -2046,17 +2067,22 @@ const Terminal = () => {
                 : totalEligibleAmount;
               const lessVatAmount = Math.max(0, totalEligibleAmount - vatExclusiveEligible);
               const seniorPwdDiscount = vatExclusiveEligible * (percentage / 100);
-              totalDiscount += lessVatAmount + seniorPwdDiscount;
+              applyProportionalDiscount(
+                eligibleIndexes,
+                lessVatAmount + seniorPwdDiscount
+              );
               continue;
             }
             if (scope === "per_item") {
-              const perItemDiscount = eligibleItems.reduce((sum, item) => {
-                const lineTotal = (item.itemPrice || 0) * (item.quantity || 1);
-                return sum + lineTotal * percentage / 100;
-              }, 0);
-              totalDiscount += perItemDiscount;
+              eligibleIndexes.forEach((idx) => {
+                const lineTotal = getLineTotal(idx);
+                applyLineDiscount(idx, lineTotal * percentage / 100);
+              });
             } else {
-              totalDiscount += totalEligibleAmount * percentage / 100;
+              applyProportionalDiscount(
+                eligibleIndexes,
+                totalEligibleAmount * percentage / 100
+              );
             }
           }
         } else if (
@@ -2065,13 +2091,12 @@ const Terminal = () => {
           const amount = parseFloat(discountValueStr.replace(/[P₱\sOFF]/g, ""));
           if (!isNaN(amount)) {
             if (scope === "per_item") {
-              const eligibleQty = eligibleItems.reduce(
-                (sum, item) => sum + (Number(item.quantity) || 1),
-                0
-              );
-              totalDiscount += amount * eligibleQty;
+              eligibleIndexes.forEach((idx) => {
+                const qty = Number(cart[idx]?.quantity) || 1;
+                applyLineDiscount(idx, amount * qty);
+              });
             } else {
-              totalDiscount += amount;
+              applyProportionalDiscount(eligibleIndexes, amount);
             }
           }
         }
@@ -2080,7 +2105,11 @@ const Terminal = () => {
       }
     }
 
-    return totalDiscount || parseFloat(discountAmount) || 0;
+    const totalDiscount = Array.from(cumulativeLineDiscount.values()).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    return Math.min(totalDiscount || 0, maxCartDiscount);
   }, [seniorPwdDiscountAmount, discountAmount, selectedDiscounts, subtotal, cart, products, isSeniorPwdDiscountItem, vatConfig.enabled, vatConfig.rate]);
 
   const total = useMemo(() => {
