@@ -304,6 +304,7 @@ const Transaction = () => {
   const isInitialMount = useRef(true);
   const hasLoaded = useRef(false);
   const isInitialLoading = useRef(true);
+  const isFetchInFlightRef = useRef(false);
   const setCachedDataRef = useRef(setCachedData);
   const selectAllTransactionsRef = useRef(null);
   const selectAllReturnedLogsRef = useRef(null);
@@ -314,6 +315,8 @@ const Transaction = () => {
   }, [setCachedData]);
 
   const fetchTransactions = useCallback(async () => {
+    if (isFetchInFlightRef.current) return;
+    isFetchInFlightRef.current = true;
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -411,6 +414,7 @@ const Transaction = () => {
       setTransactions([]);
       setCachedDataRef.current("transactions", []);
     } finally {
+      isFetchInFlightRef.current = false;
       setLoading(false);
     }
   }, [debouncedSearch, filters.method, filters.status, filters.user]);
@@ -474,13 +478,14 @@ const Transaction = () => {
   useEffect(() => {
     if (isInitialMount.current) return;
 
+    const LIVE_REFRESH_MS = 3000;
     const refresh = () => {
       if (document.visibilityState === "visible") {
         fetchTransactions();
       }
     };
 
-    const intervalId = window.setInterval(refresh, 10000);
+    const intervalId = window.setInterval(refresh, LIVE_REFRESH_MS);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
 
