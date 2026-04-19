@@ -45,7 +45,7 @@ const DiscountManagement = () => {
       if (value >= 50) {
         return {
           icon: icon50Percent,
-          iconColor: 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)',
+          iconColor: 'linear-gradient(135deg, #1B89CD 0%, #FFACC3 100%)',
           titleColor: '#6B7280'
         };
       }
@@ -395,13 +395,13 @@ const DiscountManagement = () => {
           }>
           
               <div
-            className="w-15 flex items-center justify-center shrink-0"
+            className="w-25 flex items-center justify-center shrink-0"
             style={{ background: discount.iconColor }}>
             
                 <img
               src={discount.icon}
               alt={discount.title}
-              className="w-full h-full object-contain p-5" />
+              className="w-full h-full object-contain p-1" />
             
               </div>
 
