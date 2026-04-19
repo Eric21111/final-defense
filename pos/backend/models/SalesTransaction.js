@@ -92,6 +92,10 @@ const salesTransactionSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    originalTotalAmount: {
+      type: Number,
+      default: null,
+    },
     subtotal: {
       type: Number,
       default: null,
@@ -139,6 +143,10 @@ const salesTransactionSchema = new mongoose.Schema(
       default: null,
     },
     voidReason: {
+      type: String,
+      default: null,
+    },
+    returnedByName: {
       type: String,
       default: null,
     },
