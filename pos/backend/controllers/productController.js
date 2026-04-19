@@ -2,6 +2,20 @@ const Product = require("../models/Product");
 const StockMovement = require("../models/StockMovement");
 const Archive = require("../models/Archive");
 const SalesTransaction = require("../models/SalesTransaction");
+const { sanitizeItemImageForStorage } = require("../utils/itemImagePayload");
+
+/** JSON responses must not ship base64 blobs (slow + huge). Stock-in/out only changes sizes/qty. */
+const productPayloadForApiResponse = (doc) => {
+  if (!doc) return doc;
+  const o =
+    typeof doc.toObject === "function"
+      ? doc.toObject({ virtuals: false })
+      : { ...doc };
+  delete o.itemImage;
+  delete o.productImages;
+  delete o.stockHistory;
+  return o;
+};
 
 const ARCHIVE_CATEGORY_ENUM = new Set([
   "Tops",
@@ -527,7 +541,7 @@ const logStockMovement = async (
       productId: product._id,
       sku: product.sku,
       itemName: product.itemName,
-      itemImage: product.itemImage || "",
+      itemImage: sanitizeItemImageForStorage(product.itemImage),
       category: product.category,
       brandName: product.brandName || "",
       type: type || (stockAfter > stockBefore ? "Stock-In" : "Stock-Out"),
@@ -684,7 +698,9 @@ exports.stockInProduct = async (req, res) => {
     const productId = req.params.id;
     const stockData = req.body || {};
 
-    const product = await Product.findById(productId);
+    const product = await Product.findById(productId).select(
+      "-itemImage -productImages -stockHistory",
+    );
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
@@ -733,7 +749,11 @@ exports.stockInProduct = async (req, res) => {
 
       await logStockMovement(updatedProduct, stockBefore, updatedProduct.currentStock, "Stock-In", reason, handledBy, handledById, null);
 
-      return res.json({ success: true, message: "Stock added successfully", data: updatedProduct.toObject() });
+      return res.json({
+        success: true,
+        message: "Stock added successfully",
+        data: productPayloadForApiResponse(updatedProduct),
+      });
     }
 
     const updatedSizes = { ...(product.sizes || {}) };
@@ -973,7 +993,11 @@ exports.stockInProduct = async (req, res) => {
       Object.keys(sizeQuantitiesAdded).length > 0 ? sizeQuantitiesAdded : null,
     );
 
-    res.json({ success: true, message: "Stock added successfully", data: updatedProduct.toObject() });
+    res.json({
+      success: true,
+      message: "Stock added successfully",
+      data: productPayloadForApiResponse(updatedProduct),
+    });
   } catch (error) {
     console.error("Error stock-in:", error);
     if (error.errors) {
@@ -988,7 +1012,9 @@ exports.stockOutProduct = async (req, res) => {
     const productId = req.params.id;
     const stockData = req.body || {};
 
-    const product = await Product.findById(productId);
+    const product = await Product.findById(productId).select(
+      "-itemImage -productImages -stockHistory",
+    );
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" });
     }
@@ -1025,7 +1051,11 @@ exports.stockOutProduct = async (req, res) => {
       const updatedProduct = await Product.findByIdAndUpdate(productId, updatePayload, { new: true, runValidators: true });
 
       await logStockMovement(updatedProduct, stockBefore, updatedProduct.currentStock, movementType, reason, handledBy, handledById, null);
-      return res.json({ success: true, message: "Stock removed successfully", data: updatedProduct.toObject() });
+      return res.json({
+        success: true,
+        message: "Stock removed successfully",
+        data: productPayloadForApiResponse(updatedProduct),
+      });
     }
 
     const updatedSizes = { ...(product.sizes || {}) };
@@ -1142,7 +1172,11 @@ exports.stockOutProduct = async (req, res) => {
       Object.keys(sizeQuantitiesRemoved).length > 0 ? sizeQuantitiesRemoved : null,
     );
 
-    res.json({ success: true, message: "Stock removed successfully", data: updatedProduct.toObject() });
+    res.json({
+      success: true,
+      message: "Stock removed successfully",
+      data: productPayloadForApiResponse(updatedProduct),
+    });
   } catch (error) {
     console.error("Error stock-out:", error);
     res.status(400).json({ success: false, message: "Error stocking out", error: error.message, stack: error.stack });
