@@ -161,6 +161,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
   useEffect(() => {
     if (isOpen) {
+      setErrors({});
       setCurrentStep(1);
       setIsActive(discountToEdit?.status !== 'inactive');
       fetchProducts();
@@ -338,6 +339,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     const stepErrors = getStepErrors(1, formData);
     setErrors(stepErrors);
     if (Object.keys(stepErrors).length > 0) return;
+    setErrors({});
     setCurrentStep(2);
   };
 
@@ -345,6 +347,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     const stepErrors = getStepErrors(2, formData);
     setErrors(stepErrors);
     if (Object.keys(stepErrors).length > 0) return;
+    setErrors({});
     setCurrentStep(3);
   };
 
@@ -457,11 +460,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
   'bg-white border-gray-300 text-gray-900'}`;
   const labelClass = `text-xs font-bold uppercase tracking-wide mb-1 block ${isDark ? 'text-gray-400' : 'text-gray-500'}`;
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setErrors(getStepErrors(currentStep, formData));
-  }, [formData, currentStep, isOpen]);
 
   if (!isOpen) return null;
 
@@ -1024,7 +1022,10 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(1)}
+                    onClick={() => {
+                      setErrors({});
+                      setCurrentStep(1);
+                    }}
                     className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                     Back
                   </button>
@@ -1042,7 +1043,10 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(2)}
+                    onClick={() => {
+                      setErrors({});
+                      setCurrentStep(2);
+                    }}
                     className={`px-10 py-2.5 rounded-xl font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
                     Back
                   </button>
