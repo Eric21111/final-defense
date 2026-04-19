@@ -389,9 +389,9 @@ const DiscountManagement = () => {
           {filteredDiscounts.map((discount) =>
         <div
           key={discount._id}
-          className={`rounded-xl overflow-hidden border shadow-lg flex ${theme === 'dark' ?
+          className={`rounded-xl overflow-hidden border flex ${theme === 'dark' ?
           'bg-[#2A2724] border-[#4A4037]' :
-          'bg-white border-blue-200'}`
+          'bg-white border-gray-200'}`
           }>
           
               <div
