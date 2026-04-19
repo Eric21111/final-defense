@@ -1961,6 +1961,31 @@ const Terminal = () => {
         }
 
 
+        const scope = selectedDiscount.scope || "entire_order";
+        const eligibleItems = cart.filter((item) => {
+          if (appliesToType === "all") return true;
+          if (appliesToType === "category" && selectedDiscount.category) {
+            return itemMatchesDiscountCategory(
+              item,
+              selectedDiscount.category,
+              selectedDiscount.subCategory
+            );
+          }
+          if (
+            appliesToType === "products" &&
+            selectedDiscount.productIds &&
+            selectedDiscount.productIds.length > 0
+          ) {
+            const itemId = item._id || item.productId || item.id;
+            return selectedDiscount.productIds.some((pid) => {
+              const pidStr = pid.toString ? pid.toString() : pid;
+              const itemIdStr = itemId.toString ? itemId.toString() : itemId;
+              return pidStr === itemIdStr;
+            });
+          }
+          return false;
+        });
+
         if (
           typeof discountValueStr === "string" &&
           discountValueStr.includes("%")) {
@@ -1968,16 +1993,30 @@ const Terminal = () => {
             discountValueStr.replace("% OFF", "").replace(/\s/g, "")
           );
           if (!isNaN(percentage)) {
-            totalDiscount += totalEligibleAmount * percentage / 100;
+            if (scope === "per_item") {
+              const perItemDiscount = eligibleItems.reduce((sum, item) => {
+                const lineTotal = (item.itemPrice || 0) * (item.quantity || 1);
+                return sum + lineTotal * percentage / 100;
+              }, 0);
+              totalDiscount += perItemDiscount;
+            } else {
+              totalDiscount += totalEligibleAmount * percentage / 100;
+            }
           }
         } else if (
           typeof discountValueStr === "string" && (
             discountValueStr.includes("P") || discountValueStr.includes("₱"))) {
           const amount = parseFloat(discountValueStr.replace(/[P₱\sOFF]/g, ""));
           if (!isNaN(amount)) {
-
-
-            totalDiscount += amount;
+            if (scope === "per_item") {
+              const eligibleQty = eligibleItems.reduce(
+                (sum, item) => sum + (Number(item.quantity) || 1),
+                0
+              );
+              totalDiscount += amount * eligibleQty;
+            } else {
+              totalDiscount += amount;
+            }
           }
         }
       } catch (error) {

@@ -8,6 +8,8 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   const [formData, setFormData] = useState({
     discountName: '',
     discountCode: '',
+    discountCategory: 'promo_voucher',
+    scope: 'entire_order',
     discountType: 'percentage',
     discountValue: '',
     appliesTo: 'all',
@@ -24,6 +26,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   });
 
   const [showProductPicker, setShowProductPicker] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   const [allProducts, setAllProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
@@ -157,12 +160,15 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
   useEffect(() => {
     if (isOpen) {
+      setCurrentStep(1);
       fetchProducts();
       fetchCategories();
       if (discountToEdit) {
         setFormData({
           discountName: discountToEdit.title || '',
           discountCode: discountToEdit.discountCode || '',
+          discountCategory: discountToEdit.discountCategory || 'promo_voucher',
+          scope: discountToEdit.scope || 'entire_order',
           discountType: discountToEdit.discountType || 'percentage',
           discountValue: discountToEdit.discountValue || '',
           appliesTo: discountToEdit.appliesTo || 'all',
@@ -189,6 +195,8 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
         setFormData({
           discountName: '',
           discountCode: '',
+          discountCategory: 'promo_voucher',
+          scope: 'entire_order',
           discountType: 'percentage',
           discountValue: '',
           appliesTo: 'all',
@@ -209,34 +217,55 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
   if (!isOpen) return null;
 
+  const isSeniorOrPwd =
+    formData.discountCategory === 'senior_citizen' ||
+    formData.discountCategory === 'pwd';
+
+  const ensureCategoryRules = (data) => {
+    if (!data) return data;
+    if (
+      data.discountCategory === 'senior_citizen' ||
+      data.discountCategory === 'pwd'
+    ) {
+      return {
+        ...data,
+        scope: 'per_item',
+        discountType: 'percentage',
+        discountValue: '20'
+      };
+    }
+    return data;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (formData.appliesTo === 'category' && !formData.category) {
+    const preparedForm = ensureCategoryRules(formData);
+    if (preparedForm.appliesTo === 'category' && !preparedForm.category) {
       alert('Please select a category');
       return;
     }
-    if (formData.appliesTo === 'products' && formData.selectedProducts.length === 0) {
+    if (preparedForm.appliesTo === 'products' && preparedForm.selectedProducts.length === 0) {
       alert('Please select at least one product');
       return;
     }
-    const numVal = parseFloat(String(formData.discountValue).replace(/,/g, ''));
+    const numVal = parseFloat(String(preparedForm.discountValue).replace(/,/g, ''));
     if (Number.isNaN(numVal) || numVal < 0) {
       alert('Please enter a valid discount value');
       return;
     }
-    if (formData.discountType === 'percentage' && numVal > 100) {
+    if (preparedForm.discountType === 'percentage' && numVal > 100) {
       alert('Percentage discount cannot exceed 100%.');
       return;
     }
-    const minPurchase = formData.minPurchaseAmount
-      ? parseFloat(String(formData.minPurchaseAmount).replace(/,/g, ''))
+    const minPurchase = preparedForm.minPurchaseAmount
+      ? parseFloat(String(preparedForm.minPurchaseAmount).replace(/,/g, ''))
       : NaN;
     const maxPurchase =
-      formData.maxPurchaseAmount === '' ||
-      formData.maxPurchaseAmount === null ||
-      formData.maxPurchaseAmount === undefined
+      preparedForm.maxPurchaseAmount === '' ||
+      preparedForm.maxPurchaseAmount === null ||
+      preparedForm.maxPurchaseAmount === undefined
         ? null
-        : parseFloat(String(formData.maxPurchaseAmount).replace(/,/g, ''));
+        : parseFloat(String(preparedForm.maxPurchaseAmount).replace(/,/g, ''));
     if (maxPurchase != null && !Number.isNaN(maxPurchase) && maxPurchase < 0) {
       alert('Maximum purchase amount cannot be negative.');
       return;
@@ -254,9 +283,9 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
       return;
     }
     if (discountToEdit) {
-      onEdit(discountToEdit._id, formData);
+      onEdit(discountToEdit._id, preparedForm);
     } else {
-      onAdd(formData);
+      onAdd(preparedForm);
     }
     onClose();
   };
@@ -268,6 +297,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
       return;
     }
     if (name === 'discountType') {
+      if (isSeniorOrPwd && value !== 'percentage') return;
       setFormData((prev) => {
         const next = { ...prev, discountType: value };
         if (value === 'percentage' && prev.discountValue !== '') {
@@ -280,7 +310,20 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
       });
       return;
     }
+    if (name === 'discountCategory') {
+      setFormData((prev) => ensureCategoryRules({ ...prev, discountCategory: value }));
+      return;
+    }
+    if (name === 'scope') {
+      if (isSeniorOrPwd && value !== 'per_item') return;
+      setFormData((prev) => ({ ...prev, scope: value }));
+      return;
+    }
     if (name === 'discountValue') {
+      if (isSeniorOrPwd) {
+        setFormData((prev) => ({ ...prev, discountValue: '20' }));
+        return;
+      }
       setFormData((prev) => {
         if (prev.discountType !== 'percentage') {
           return { ...prev, discountValue: value };
@@ -344,6 +387,14 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   };
 
   const isDark = theme === 'dark';
+  const stepTitleClass = (step) =>
+    `w-8 h-8 rounded-full border-2 flex items-center justify-center text-sm font-bold ${
+      currentStep >= step
+        ? 'bg-[#16A34A] border-[#16A34A] text-white'
+        : isDark
+          ? 'border-gray-600 text-gray-400'
+          : 'border-gray-400 text-gray-500'
+    }`;
   const inputClass = `w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent ${isDark ?
   'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
   'bg-white border-gray-300 text-gray-900'}`;
@@ -368,7 +419,26 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
             <div className="p-6">
-              <div className="grid grid-cols-2 gap-6">
+              <div className="mb-6">
+                <div className="flex items-center justify-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <div className={stepTitleClass(1)}>1</div>
+                    <span className={`text-xs ${currentStep >= 1 ? 'text-[#16A34A] font-semibold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>Discount Info</span>
+                  </div>
+                  <div className={`w-12 h-[2px] ${currentStep >= 2 ? 'bg-[#16A34A]' : isDark ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                  <div className="flex items-center gap-2">
+                    <div className={stepTitleClass(2)}>2</div>
+                    <span className={`text-xs ${currentStep >= 2 ? 'text-[#16A34A] font-semibold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>Rules & Limits</span>
+                  </div>
+                  <div className={`w-12 h-[2px] ${currentStep >= 3 ? 'bg-[#16A34A]' : isDark ? 'bg-gray-600' : 'bg-gray-300'}`} />
+                  <div className="flex items-center gap-2">
+                    <div className={stepTitleClass(3)}>3</div>
+                    <span className={`text-xs ${currentStep >= 3 ? 'text-[#16A34A] font-semibold' : isDark ? 'text-gray-400' : 'text-gray-500'}`}>Review & Save</span>
+                  </div>
+                </div>
+              </div>
+
+              {currentStep === 1 && (
                 <div>
                   <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Basic Info</h3>
 
@@ -405,6 +475,36 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
 
                     <div>
                       <label className={labelClass}>
+                        Discount Category <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex flex-wrap gap-6">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="radio" name="discountCategory" value="promo_voucher" checked={formData.discountCategory === 'promo_voucher'} onChange={handleChange} className="w-4 h-4 text-[#AD7F65] focus:ring-[#AD7F65]" />
+                          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Promo / Voucher</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="radio" name="discountCategory" value="senior_citizen" checked={formData.discountCategory === 'senior_citizen'} onChange={handleChange} className="w-4 h-4 text-[#AD7F65] focus:ring-[#AD7F65]" />
+                          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Senior Citizen Discount</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input type="radio" name="discountCategory" value="pwd" checked={formData.discountCategory === 'pwd'} onChange={handleChange} className="w-4 h-4 text-[#AD7F65] focus:ring-[#AD7F65]" />
+                          <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>PWD Discount</span>
+                        </label>
+                      </div>
+                      {isSeniorOrPwd && (
+                        <div className={`mt-3 rounded-lg border p-3 text-sm ${isDark ? 'bg-blue-900/20 border-blue-700 text-blue-200' : 'bg-blue-100 border-blue-400 text-[#0F3E68]'}`}>
+                          <p className="font-semibold mb-1">
+                            {formData.discountCategory === 'senior_citizen' ? 'Senior' : 'PWD'} rules (auto-applied):
+                          </p>
+                          <p>&#10003; VAT Exempt</p>
+                          <p>&#10003; 20% Discount</p>
+                          <p>&#10003; Applies per item only</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className={labelClass}>
                         Discount Type <span className="text-red-500">*</span>
                       </label>
                       <div className="flex gap-6">
@@ -415,6 +515,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                             value="percentage"
                             checked={formData.discountType === 'percentage'}
                             onChange={handleChange}
+                            disabled={isSeniorOrPwd}
                             className="w-4 h-4 text-[#AD7F65] focus:ring-[#AD7F65]" />
                           
                           <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Percentage</span>
@@ -426,6 +527,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                             value="fixed"
                             checked={formData.discountType === 'fixed'}
                             onChange={handleChange}
+                            disabled={isSeniorOrPwd}
                             className="w-4 h-4 text-[#AD7F65] focus:ring-[#AD7F65]" />
                           
                           <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Fixed Amount</span>
@@ -443,6 +545,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           name="discountValue"
                           value={formData.discountValue}
                           onChange={handleChange}
+                          disabled={isSeniorOrPwd}
                           min={0}
                           max={formData.discountType === 'percentage' ? 100 : undefined}
                           step="any"
@@ -464,7 +567,46 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                       }
                     </div>
 
-                    <div>
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStep(2)}
+                        className="px-8 py-3 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition-all"
+                        style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {currentStep === 2 && (
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Rules & Scope</h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label className={labelClass}>
+                          Applies Discount to <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex gap-6">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="scope" value="entire_order" checked={formData.scope === 'entire_order'} onChange={handleChange} disabled={isSeniorOrPwd} className="w-4 h-4 text-[#AD7F65] focus:ring-[#AD7F65]" />
+                            <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Entire Order/Cart</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="scope" value="per_item" checked={formData.scope === 'per_item'} onChange={handleChange} className="w-4 h-4 text-[#AD7F65] focus:ring-[#AD7F65]" />
+                            <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>Per Item</span>
+                          </label>
+                        </div>
+                        {isSeniorOrPwd && (
+                          <div className={`mt-2 rounded-md border px-3 py-2 text-sm ${isDark ? 'bg-blue-900/20 border-blue-700 text-blue-200' : 'bg-blue-100 border-blue-400 text-[#0F3E68]'}`}>
+                            Senior/PWD is automatically set to Per Item.
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
                       <label className={labelClass}>
                         Applies to <span className="text-red-500">*</span>
                       </label>
@@ -650,7 +792,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                   </div>
                 </div>
 
-                <div>
+                  <div>
                   <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Advanced Option</h3>
 
                   <div className="space-y-4">
@@ -729,19 +871,58 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     </div>
                   </div>
                 </div>
+                <div className="pt-2 flex justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(1)}
+                    className={`px-8 py-3 rounded-lg font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(3)}
+                    className="px-8 py-3 text-white rounded-lg font-bold shadow-md hover:shadow-lg transition-all"
+                    style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
+                    Continue
+                  </button>
+                </div>
               </div>
+              )}
+
+              {currentStep === 3 && (
+                <div className="space-y-4">
+                  <h3 className={`text-lg font-bold ${isDark ? 'text-white' : 'text-black'}`}>Review & Save</h3>
+                  <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-gray-50 border-gray-200 text-gray-800'}`}>
+                    <p><span className="font-semibold">Name:</span> {formData.discountName || '-'}</p>
+                    <p><span className="font-semibold">Code:</span> {formData.discountCode || '-'}</p>
+                    <p><span className="font-semibold">Category:</span> {formData.discountCategory === 'promo_voucher' ? 'Promo / Voucher' : formData.discountCategory === 'senior_citizen' ? 'Senior Citizen' : 'PWD'}</p>
+                    <p><span className="font-semibold">Scope:</span> {formData.scope === 'per_item' ? 'Per Item' : 'Entire Order/Cart'}</p>
+                    <p><span className="font-semibold">Value:</span> {formData.discountValue || 0}{formData.discountType === 'percentage' ? '% OFF' : ' PHP OFF'}</p>
+                    <p><span className="font-semibold">Applies to:</span> {formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? `Category: ${formData.category || '-'}` : `${formData.selectedProducts.length} selected product(s)`}</p>
+                  </div>
+                  <div className="flex justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className={`px-8 py-3 rounded-lg font-bold border transition-all ${isDark ? 'border-gray-600 text-gray-300 hover:bg-[#352F2A]' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}>
+                      Back
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className={`px-6 py-4 border-t flex justify-end ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
-              <button
-                type="submit"
-                className="px-8 py-3 text-white rounded-lg font-bold text-lg shadow-md hover:shadow-lg transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
-                }}>
-                
-                {discountToEdit ? 'Update Discount' : 'Add New Discount'}
-              </button>
+              {currentStep === 3 && (
+                <button
+                  type="submit"
+                  className="px-8 py-3 text-white rounded-lg font-bold text-lg shadow-md hover:shadow-lg transition-all"
+                  style={{
+                    background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
+                  }}>
+                  {discountToEdit ? 'Update Discount' : 'Add New Discount'}
+                </button>
+              )}
             </div>
           </form>
         </div>

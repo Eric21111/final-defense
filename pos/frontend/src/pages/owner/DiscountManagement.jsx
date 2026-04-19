@@ -191,6 +191,8 @@ const DiscountManagement = () => {
       const discountData = {
         title: formData.discountName.toUpperCase(),
         discountCode: formData.discountCode || '',
+        discountCategory: formData.discountCategory || 'promo_voucher',
+        scope: formData.scope || 'entire_order',
         discountType: formData.discountType,
         discountValue: parseFloat(formData.discountValue),
         appliesTo: formData.appliesTo,
@@ -232,6 +234,8 @@ const DiscountManagement = () => {
       const discountData = {
         title: formData.discountName.toUpperCase(),
         discountCode: formData.discountCode || '',
+        discountCategory: formData.discountCategory || 'promo_voucher',
+        scope: formData.scope || 'entire_order',
         discountType: formData.discountType,
         discountValue: parseFloat(formData.discountValue),
         appliesTo: formData.appliesTo,

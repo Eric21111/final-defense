@@ -45,6 +45,19 @@ function validatePurchaseRange(minPurchaseAmount, maxPurchaseAmount) {
   return { ok: true };
 }
 
+function enforceCategoryRules(discountData) {
+  const category = String(discountData.discountCategory || 'promo_voucher');
+  if (category === 'senior_citizen' || category === 'pwd') {
+    return {
+      ...discountData,
+      scope: 'per_item',
+      discountType: 'percentage',
+      discountValue: 20,
+    };
+  }
+  return discountData;
+}
+
 exports.getAllDiscounts = async (req, res) => {
   try {
     const discounts = await Discount.find({}).sort({ dateCreated: -1 }).lean();
@@ -129,7 +142,8 @@ exports.getDiscountById = async (req, res) => {
 
 exports.createDiscount = async (req, res) => {
   try {
-    const discountData = { ...req.body };
+    let discountData = { ...req.body };
+    discountData = enforceCategoryRules(discountData);
 
     if (!discountData.title || !discountData.discountType || discountData.discountValue === undefined) {
       return res.status(400).json({
@@ -189,7 +203,7 @@ exports.createDiscount = async (req, res) => {
 
 exports.updateDiscount = async (req, res) => {
   try {
-    const updateData = { ...req.body };
+    let updateData = { ...req.body };
     updateData.lastUpdated = Date.now();
 
     const currentDiscount = await Discount.findById(req.params.id);
@@ -198,6 +212,16 @@ exports.updateDiscount = async (req, res) => {
         success: false,
         message: 'Discount not found',
       });
+    }
+
+    const effectiveCategory =
+      updateData.discountCategory !== undefined
+        ? updateData.discountCategory
+        : currentDiscount.discountCategory;
+    if (effectiveCategory === 'senior_citizen' || effectiveCategory === 'pwd') {
+      updateData.scope = 'per_item';
+      updateData.discountType = 'percentage';
+      updateData.discountValue = 20;
     }
 
     if (

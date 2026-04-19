@@ -11,6 +11,16 @@ const discountSchema = new mongoose.Schema({
     default: '',
     trim: true
   },
+  discountCategory: {
+    type: String,
+    enum: ['promo_voucher', 'senior_citizen', 'pwd'],
+    default: 'promo_voucher'
+  },
+  scope: {
+    type: String,
+    enum: ['entire_order', 'per_item'],
+    default: 'entire_order'
+  },
   discountType: {
     type: String,
     enum: ['percentage', 'fixed'],
