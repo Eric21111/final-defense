@@ -156,8 +156,9 @@ const DiscountManagement = () => {
 
 
   const handleEditClick = async (discount) => {
+    const appliesToType = discount.appliesToType || discount.appliesTo;
 
-    if (discount.appliesTo === 'products' && discount.productIds && discount.productIds.length > 0) {
+    if (appliesToType === 'products' && discount.productIds && discount.productIds.length > 0) {
       try {
         const response = await fetch(API_ENDPOINTS.products);
         const data = await response.json();

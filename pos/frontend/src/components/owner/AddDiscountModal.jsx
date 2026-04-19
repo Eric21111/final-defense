@@ -166,14 +166,29 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
       fetchProducts();
       fetchCategories();
       if (discountToEdit) {
+        const parsedDiscountValue = (() => {
+          const rawValue = discountToEdit.discountValue;
+          if (rawValue === undefined || rawValue === null) return '';
+          if (typeof rawValue === 'number') return String(rawValue);
+          const matched = String(rawValue).match(/-?\d+(\.\d+)?/);
+          return matched ? matched[0] : '';
+        })();
+        const appliesToValue = (() => {
+          const rawAppliesTo = discountToEdit.appliesToType || discountToEdit.appliesTo || 'all';
+          if (rawAppliesTo === 'all' || rawAppliesTo === 'category' || rawAppliesTo === 'products') return rawAppliesTo;
+          const lower = String(rawAppliesTo).toLowerCase();
+          if (lower.includes('category')) return 'category';
+          if (lower.includes('specific products') || lower.includes('products')) return 'products';
+          return 'all';
+        })();
         setFormData({
-          discountName: discountToEdit.title || '',
+          discountName: discountToEdit.discountName || discountToEdit.title || '',
           discountCode: discountToEdit.discountCode || '',
           discountCategory: discountToEdit.discountCategory || 'promo_voucher',
           scope: discountToEdit.scope || 'entire_order',
           discountType: discountToEdit.discountType || 'percentage',
-          discountValue: discountToEdit.discountValue || '',
-          appliesTo: discountToEdit.appliesTo || 'all',
+          discountValue: parsedDiscountValue,
+          appliesTo: appliesToValue,
           category: discountToEdit.category || '',
           subCategory: discountToEdit.subCategory || '',
           selectedProducts: discountToEdit.selectedProducts || [],
@@ -964,7 +979,14 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                           <p><span className="text-gray-500">Subcategory:</span> <span className="font-semibold">{formData.subCategory || '-'}</span></p>
                         )}
                         {formData.appliesTo === 'products' && (
-                          <p><span className="text-gray-500">Selected Products:</span> <span className="font-semibold">{formData.selectedProducts.length || 0}</span></p>
+                          <div>
+                            <p><span className="text-gray-500">Selected Products:</span></p>
+                            <p className="font-semibold">
+                              {formData.selectedProducts.length > 0
+                                ? formData.selectedProducts.map((product) => product.itemName).join(', ')
+                                : '-'}
+                            </p>
+                          </div>
                         )}
                       </div>
                       <div className="space-y-1">
