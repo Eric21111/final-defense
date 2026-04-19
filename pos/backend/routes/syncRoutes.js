@@ -9,10 +9,22 @@ router.post("/all", async (req, res) => {
     console.log("[Sync Route] Manual sync triggered...");
     const startTime = Date.now();
 
-    await dataSyncService.sync();
+    const syncResult = await dataSyncService.sync();
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(1);
-    console.log(`[Sync Route] Manual sync completed in ${duration}s`);
+    console.log(`[Sync Route] Manual sync finished in ${duration}s`);
+
+    if (syncResult?.skipped) {
+      return res.json({
+        success: true,
+        skipped: true,
+        message:
+          "Bidirectional local/cloud sync is disabled (single MONGODB_URI deployment).",
+        reason: syncResult.reason,
+        syncedAt: new Date().toISOString(),
+        duration: `${duration}s`,
+      });
+    }
 
     return res.json({
       success: true,

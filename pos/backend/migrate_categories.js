@@ -7,9 +7,10 @@ const Product = require('./models/Product');
 
 const connectDB = async () => {
     try {
-        const mongoUri = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://localhost:27017/pos-system";
-        if (!process.env.MONGODB_URI) {
-            console.log("MongoDB URI empty, falling back to local database");
+        const mongoUri = String(process.env.MONGODB_URI || process.env.MONGO_URI || "").trim();
+        if (!mongoUri) {
+            console.error("Set MONGODB_URI or MONGO_URI in .env before running this script.");
+            process.exit(1);
         }
 
         const conn = await mongoose.connect(mongoUri, {

@@ -295,8 +295,8 @@ server.listen(PORT, HOST, () => {
   console.log(`  Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`  Port: ${PORT}`);
   console.log(`  Host: ${HOST}`);
-  console.log(`  Cloud-Only Mode: ${process.env.CLOUD_ONLY === 'true' ? 'Yes' : 'No'}`);
-  console.log(`  Sync Enabled: ${process.env.ENABLE_SYNC !== 'false' ? 'Yes' : 'No'}`);
+  console.log(`  Database: single remote URI (MONGODB_URI); local MongoDB removed`);
+  console.log(`  Sync cron: ${process.env.ENABLE_SYNC !== 'false' ? 'Yes (no-op; no local secondary)' : 'No'}`);
   console.log(`========================================\n`);
 
   // Initialize background services (Sync & Alerts) - Only run if enabled (default: true)
