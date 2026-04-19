@@ -686,6 +686,14 @@ const AddProductModal = ({
     }
   }, [showAddModal, newProduct.brandName, setNewProduct]);
 
+  useEffect(() => {
+    const currentUnit = String(newProduct.unitOfMeasure || "").trim();
+    if (!currentUnit) return;
+    const exists = unitOptions.some((opt) => opt.value === currentUnit);
+    if (exists) return;
+    setUnitOptions((prev) => [...prev, { value: currentUnit, label: currentUnit }]);
+  }, [newProduct.unitOfMeasure, unitOptions]);
+
   if (!showAddModal) return null;
 
   const partnerNames = Array.from(
@@ -729,14 +737,6 @@ const AddProductModal = ({
     });
     setNewProduct((prev) => ({ ...prev, unitOfMeasure: normalizedValue }));
   };
-
-  useEffect(() => {
-    const currentUnit = String(newProduct.unitOfMeasure || "").trim();
-    if (!currentUnit) return;
-    const exists = unitOptions.some((opt) => opt.value === currentUnit);
-    if (exists) return;
-    setUnitOptions((prev) => [...prev, { value: currentUnit, label: currentUnit }]);
-  }, [newProduct.unitOfMeasure, unitOptions]);
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
