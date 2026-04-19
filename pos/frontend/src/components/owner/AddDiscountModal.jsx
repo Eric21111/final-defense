@@ -1014,7 +1014,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                   </button>
                   <button
                     type="submit"
-                    className="px-10 py-3 text-white rounded-xl font-bold text-lg shadow-md hover:shadow-lg transition-all"
+                    className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
                     style={{
                       background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)'
                     }}>
