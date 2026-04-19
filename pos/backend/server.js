@@ -275,6 +275,7 @@ app.use("/api/void-logs", require("./routes/voidLogRoutes"));
 app.use("/api/discounts", require("./routes/discountRoutes"));
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/brand-partners", require("./routes/brandPartnerRoutes"));
+app.use("/api/uploads", require("./routes/uploadRoutes"));
 app.use("/api/sync", require("./routes/syncRoutes"));
 app.use("/api/reports", require("./routes/reportRoutes"));
 app.use("/api/data-management", require("./routes/dataManagementRoutes"));

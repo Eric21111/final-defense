@@ -3,6 +3,7 @@ import { useTheme } from "../../context/ThemeContext";
 import AddBrandModal from "./AddBrandModal";
 import AddCategoryModal from "./AddCategoryModal";
 import AddSubcategoryModal from "./AddSubcategoryModal";
+import { API_BASE_URL } from "../../config/api";
 
 
 const COMMON_COLORS = [
@@ -64,6 +65,7 @@ const AddProductModal = ({
   onBrandAdd
 }) => {
   const { theme } = useTheme();
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   // Used when user only selects Option Group 1 (variants) but does not select Option Group 2 (sizes).
   // Keeps per-variant inputs independent instead of falling back to a shared global product price/qty.
   const VARIANT_ONLY_KEY = "__VARIANT_ONLY__";
@@ -84,6 +86,34 @@ const AddProductModal = ({
   const defaultParentCategories = Object.keys(categoryStructure);
   const allKnownDefaultSubs = new Set(Object.values(categoryStructure).flat());
   const legacyParentCategories = ["Apparel", "Shoes", "Foods", "Accessories", "Makeup", "Head Wear", "Essentials"];
+
+  const uploadImages = async (files) => {
+    const list = Array.isArray(files) ? files : [];
+    if (list.length === 0) return [];
+
+    setIsUploadingImages(true);
+    try {
+      const uploaded = [];
+      for (const file of list) {
+        if (!file) continue;
+        const res = await fetch(`${API_BASE_URL}/api/uploads/image`, {
+          method: "POST",
+          headers: {
+            "Content-Type": file.type || "application/octet-stream",
+          },
+          body: file,
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.success || !data?.url) {
+          throw new Error(data?.message || `Upload failed (${res.status})`);
+        }
+        uploaded.push(String(data.url));
+      }
+      return uploaded;
+    } finally {
+      setIsUploadingImages(false);
+    }
+  };
 
   const customParentCategories = categories
     .filter((c) =>
@@ -928,20 +958,39 @@ const AddProductModal = ({
                             </div>
                           ))}
                       <div
-                        onClick={() => document.getElementById("editFileInput").click()}
+                        onClick={() => {
+                          if (isUploadingImages) return;
+                          document.getElementById("editFileInput").click();
+                        }}
                       className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all flex-shrink-0 ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 hover:border-[#09A046]" : "bg-gray-50 border-gray-300 hover:border-[#09A046]"}`}
                       style={{ width: '120px', height: '120px' }}>
-                        <input id="editFileInput" type="file" accept="image/*" multiple onChange={(e) => {
-                          const files = Array.from(e.target.files);
-                          files.forEach(file => {
-                            const reader = new FileReader();
-                          reader.onloadend = () => { setProductImages(prev => { const updated = [...prev, reader.result]; setNewProduct(p => ({ ...p, itemImage: updated[0] })); return updated; }); };
-                            reader.readAsDataURL(file);
-                          });
-                          e.target.value = '';
-                        }} className="hidden" />
+                        <input
+                          id="editFileInput"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || []);
+                            e.target.value = "";
+                            if (!files.length) return;
+                            try {
+                              const urls = await uploadImages(files);
+                              if (!urls.length) return;
+                              setProductImages((prev) => {
+                                const updated = [...(prev || []), ...urls];
+                                setNewProduct((p) => ({ ...p, itemImage: updated[0] || "" }));
+                                return updated;
+                              });
+                            } catch (err) {
+                              alert(err?.message || "Image upload failed");
+                            }
+                          }}
+                          className="hidden"
+                        />
                       <svg className="w-6 h-6 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-                      <p className={`text-[10px] text-center ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Upload an image</p>
+                      <p className={`text-[10px] text-center ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                        {isUploadingImages ? "Uploading..." : "Upload an image"}
+                      </p>
                         </div>
                   </div>
                       </div>
@@ -1086,28 +1135,41 @@ const AddProductModal = ({
 
                         {/* Upload box */}
                       <div
-                        onClick={() => document.getElementById("fileInput").click()}
+                        onClick={() => {
+                          if (isUploadingImages) return;
+                          document.getElementById("fileInput").click();
+                        }}
                           className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all flex-shrink-0 ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 hover:border-[#09A046]" : "bg-gray-50 border-gray-300 hover:border-[#09A046]"}`}
                           style={{ width: '120px', height: '120px' }}>
-                        <input id="fileInput" type="file" accept="image/*" multiple onChange={(e) => {
-                          const files = Array.from(e.target.files);
-                          files.forEach(file => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => {
-                              setProductImages(prev => {
-                                const updated = [...prev, reader.result];
-                                setNewProduct(p => ({ ...p, itemImage: updated[0] }));
+                        <input
+                          id="fileInput"
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={async (e) => {
+                            const files = Array.from(e.target.files || []);
+                            e.target.value = "";
+                            if (!files.length) return;
+                            try {
+                              const urls = await uploadImages(files);
+                              if (!urls.length) return;
+                              setProductImages((prev) => {
+                                const updated = [...(prev || []), ...urls];
+                                setNewProduct((p) => ({ ...p, itemImage: updated[0] || "" }));
                                 return updated;
                               });
-                            };
-                            reader.readAsDataURL(file);
-                          });
-                          e.target.value = '';
-                        }} className="hidden" />
+                            } catch (err) {
+                              alert(err?.message || "Image upload failed");
+                            }
+                          }}
+                          className="hidden"
+                        />
                           <svg className="w-8 h-8 text-gray-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
                           </svg>
-                          <p className={`text-[10px] text-center px-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>Upload an image</p>
+                          <p className={`text-[10px] text-center px-1 ${theme === "dark" ? "text-gray-500" : "text-gray-400"}`}>
+                            {isUploadingImages ? "Uploading..." : "Upload an image"}
+                          </p>
                         </div>
                       </div>
 
