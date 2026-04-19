@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { FaBox, FaCalendarAlt, FaCheck, FaSearch, FaTag, FaTimes, FaUsers } from 'react-icons/fa';
+import { FaBox, FaCheck, FaSearch, FaTag, FaTimes } from 'react-icons/fa';
 import { API_ENDPOINTS } from '../../config/api';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -290,6 +290,52 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
       onAdd(preparedForm);
     }
     onClose();
+  };
+
+  const handleNextFromStep1 = () => {
+    const preparedForm = ensureCategoryRules(formData);
+    if (!String(preparedForm.discountName || '').trim()) {
+      alert('Discount Name is required.');
+      return;
+    }
+    if (!String(preparedForm.discountCategory || '').trim()) {
+      alert('Discount Category is required.');
+      return;
+    }
+    if (!String(preparedForm.discountType || '').trim()) {
+      alert('Discount Type is required.');
+      return;
+    }
+    const numVal = parseFloat(String(preparedForm.discountValue).replace(/,/g, ''));
+    if (Number.isNaN(numVal) || numVal < 0) {
+      alert('Discount Value is required.');
+      return;
+    }
+    if (preparedForm.discountType === 'percentage' && numVal > 100) {
+      alert('Percentage discount cannot exceed 100%.');
+      return;
+    }
+    setCurrentStep(2);
+  };
+
+  const handleNextFromStep2 = () => {
+    if (!String(formData.scope || '').trim()) {
+      alert('Apply Discount to is required.');
+      return;
+    }
+    if (!String(formData.appliesTo || '').trim()) {
+      alert('Applies to is required.');
+      return;
+    }
+    if (formData.appliesTo === 'category' && !String(formData.category || '').trim()) {
+      alert('Please select a category.');
+      return;
+    }
+    if (formData.appliesTo === 'products' && formData.selectedProducts.length === 0) {
+      alert('Please select at least one product.');
+      return;
+    }
+    setCurrentStep(3);
   };
 
   const handleChange = (e) => {
@@ -887,20 +933,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div className="space-y-1">
-                        <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Discount Value: <strong>{formData.discountValue || '-'}{formData.discountValue !== '' ? (formData.discountType === 'percentage' ? '% OFF' : ' PHP OFF') : ''}</strong></p>
-                        <p className="flex items-center gap-1 text-[12px]"><FaCalendarAlt className="text-gray-400" /> Valid only from: <strong>{formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} to ${formData.validUntil}` : '-')}</strong></p>
-                      </div>
-                      <div className="space-y-1">
-                        <p><span className="font-semibold">Minimum:</span> {formData.minPurchaseAmount || '-'}</p>
-                        <p><span className="font-semibold">Maximum:</span> {formData.maxPurchaseAmount || '-'}</p>
-                        <p><span className="font-semibold">Usage Limit:</span> {formData.usageLimit || '-'}</p>
-                        <p><span className="font-semibold">Validity:</span> {formData.noExpiration ? 'Permanent' : (formData.validFrom && formData.validUntil ? `${formData.validFrom} - ${formData.validUntil}` : '-')}</p>
-                        <p className="flex items-center gap-1 text-[12px]"><FaTag className="text-gray-400" /> Applies to: <strong>{formData.appliesTo === 'all' ? 'All Products' : formData.appliesTo === 'category' ? 'Specific Category' : 'Specific Products'}</strong></p>
-                        <p className="flex items-center gap-1 text-[12px]"><FaUsers className="text-gray-400" /> Used: <strong>{formData.usageLimit ? `0 / ${formData.usageLimit}` : 'No limit'}</strong></p>
-                      </div>
-                    </div>
+                    <div className="min-h-[4px]" />
                   </div>
 
                   <div className={`rounded-xl border p-4 ${isDark ? 'bg-[#1E1B18] border-gray-700 text-gray-200' : 'bg-white border-gray-200 text-gray-800'}`}>
@@ -945,7 +978,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(2)}
+                    onClick={handleNextFromStep1}
                     className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
                     style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
                     Continue
@@ -963,7 +996,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setCurrentStep(3)}
+                    onClick={handleNextFromStep2}
                     className="px-10 py-2.5 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all"
                     style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
                     Continue
