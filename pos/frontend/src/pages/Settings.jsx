@@ -41,11 +41,11 @@ import { useDataCache } from "../context/DataCacheContext";
 import { SidebarContext } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
 import {
-  DEFAULT_RECEIPT_PROFILE,
+  getReceiptProfile,
   mapGlobalSettingsToReceiptCache,
   setReceiptProfileCache
 } from "../utils/receiptProfile";
-import { getTerminalId, setTerminalId } from "../utils/terminalIdentity";
+import { getTerminalId, normalizeTerminalId, setTerminalId } from "../utils/terminalIdentity";
 
 const PRODUCTS_BUMP_KEY = "pos-products-bump";
 
@@ -109,8 +109,8 @@ const Settings = () => {
   const [gcashMessage, setGcashMessage] = useState({ type: "", text: "" });
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const [receiptForm, setReceiptForm] = useState(() => ({ ...DEFAULT_RECEIPT_PROFILE }));
-  const [terminalIdLocal, setTerminalIdLocal] = useState("");
+  const [receiptForm, setReceiptForm] = useState(() => ({ ...getReceiptProfile() }));
+  const [terminalIdLocal, setTerminalIdLocal] = useState(() => getTerminalId());
   const [receiptLoading, setReceiptLoading] = useState(false);
   const [receiptSaving, setReceiptSaving] = useState(false);
 
@@ -534,8 +534,19 @@ const Settings = () => {
       const response = await fetch(`${API_BASE}/api/global-settings`, { cache: "no-store" });
       const data = await response.json();
       if (data.success && data.data) {
-        setReceiptForm(mapGlobalSettingsToReceiptCache(data.data));
-        setTerminalIdLocal(getTerminalId());
+        const mapped = mapGlobalSettingsToReceiptCache(data.data);
+        setReceiptForm(mapped);
+        setReceiptProfileCache(data.data);
+        const localTerm = getTerminalId();
+        const serverTerm = String(data.data.posTerminalId || "").trim();
+        if (localTerm) {
+          setTerminalIdLocal(localTerm);
+        } else if (serverTerm) {
+          setTerminalId(serverTerm);
+          setTerminalIdLocal(serverTerm);
+        } else {
+          setTerminalIdLocal("");
+        }
       }
     } catch (error) {
       console.error("Error loading receipt settings:", error);
@@ -566,6 +577,7 @@ const Settings = () => {
     setError("");
     try {
       const normalized = mapGlobalSettingsToReceiptCache(receiptForm);
+      const posTerminalId = normalizeTerminalId(terminalIdLocal);
       const response = await fetch(`${API_BASE}/api/global-settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -579,7 +591,8 @@ const Settings = () => {
           birCompliantEnabled: normalized.birCompliantEnabled,
           storeTin: normalized.storeTin,
           ptuNumber: normalized.ptuNumber,
-          vatRatePercent: normalized.vatRatePercent
+          vatRatePercent: normalized.vatRatePercent,
+          posTerminalId
         })
       });
       const data = await response.json();
@@ -1617,7 +1630,7 @@ const Settings = () => {
                         <label
                           className={`block text-sm font-semibold mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
 
-                          Terminal ID (this device)
+                          Terminal ID
                         </label>
                         <input
                           type="text"
@@ -1627,7 +1640,8 @@ const Settings = () => {
                           className={`w-full px-4 py-3 text-sm border rounded-xl focus:outline-none focus:ring-2 focus:ring-[#AD7F65] ${isDark ? "bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500" : "bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400"}`}
                         />
                         <p className={`text-xs mt-1.5 ${isDark ? "text-gray-500" : "text-gray-500"}`}>
-                          Saved only on this browser. Sequential receipt numbers are{" "}
+                          Saved with your store settings (login on any browser). This device also keeps a copy for
+                          printing. Sequential receipt numbers look like{" "}
                           <span className="font-semibold">{terminalIdLocal || "…"}-000001</span>
                           , etc.
                         </p>

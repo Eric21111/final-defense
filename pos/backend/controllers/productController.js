@@ -1637,8 +1637,24 @@ exports.updateStockAfterTransaction = async (req, res) => {
     };
 
     // Process items sequentially to prevent race conditions when multiple
-    // items reference the same product (e.g., same shirt in different sizes)
+    // items reference the same product (e.g., same shirt in different sizes).
+    // One DB round-trip to load all line items' products (was N sequential findById calls).
     const updatedProducts = [];
+    const preloadIds = [
+      ...new Set(
+        items
+          .map((i) => i._id)
+          .filter((id) => id != null && String(id).trim() !== "")
+          .map((id) => String(id).trim()),
+      ),
+    ];
+    const preloadedDocs = preloadIds.length
+      ? await Product.find({ _id: { $in: preloadIds } })
+      : [];
+    const productByIdCache = new Map(
+      preloadedDocs.map((p) => [String(p._id), p]),
+    );
+
     for (const item of items) {
       if (!item._id && !item.sku) {
         throw new Error("Item missing both _id and sku fields");
@@ -1646,10 +1662,19 @@ exports.updateStockAfterTransaction = async (req, res) => {
 
       let product = null;
       if (item._id) {
-        product = await Product.findById(item._id);
+        product = productByIdCache.get(String(item._id).trim());
       }
       if (!product && item.sku) {
         product = await Product.findOne({ sku: item.sku });
+        if (product) {
+          productByIdCache.set(String(product._id), product);
+        }
+      }
+      if (!product && item._id) {
+        product = await Product.findById(item._id);
+        if (product) {
+          productByIdCache.set(String(product._id), product);
+        }
       }
 
       if (!product) {

@@ -74,6 +74,7 @@ exports.updateGlobalSettings = async (req, res) => {
             storeTin,
             ptuNumber,
             vatRatePercent,
+            posTerminalId,
         } = req.body;
         let settings = await GlobalSettings.findOne();
         if (!settings) {
@@ -211,6 +212,9 @@ exports.updateGlobalSettings = async (req, res) => {
             settings.vatRatePercent =
                 Number.isFinite(v) && v >= 0 && v <= 100 ? v : settings.vatRatePercent ?? 12;
         }
+        if (posTerminalId !== undefined) {
+            settings.posTerminalId = trimStr(posTerminalId, 32);
+        }
 
         const hasOpeningFloatPayload =
             openingFloat !== undefined ||
@@ -229,7 +233,8 @@ exports.updateGlobalSettings = async (req, res) => {
             birCompliantEnabled !== undefined ||
             storeTin !== undefined ||
             ptuNumber !== undefined ||
-            vatRatePercent !== undefined;
+            vatRatePercent !== undefined ||
+            posTerminalId !== undefined;
 
         if (!hasOpeningFloatPayload && !hasReceiptPayload) {
             return res.status(400).json({

@@ -108,8 +108,19 @@ async function assertSaleStockAvailable(rawItems) {
     byProduct.get(idStr).push(agg);
   }
 
+  const distinctIds = [...byProduct.keys()]
+    .map((idStr) => toObjectId(idStr))
+    .filter(Boolean);
+  const productDocs =
+    distinctIds.length > 0
+      ? await Product.find({ _id: { $in: distinctIds } })
+      : [];
+  const productById = new Map(
+    productDocs.map((p) => [String(p._id), p]),
+  );
+
   for (const [, aggs] of byProduct) {
-    const product = await Product.findById(aggs[0].productId);
+    const product = productById.get(String(aggs[0].productId));
     if (!product) {
       throw new Error(`Product not found: ${aggs[0].itemName}`);
     }

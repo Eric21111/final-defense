@@ -93,6 +93,10 @@ const {
 const wssInventory = new WebSocketServer({ noServer: true });
 wssInventory.on("connection", (ws) => {
   registerInventoryClient(ws);
+  ws.isAlive = true;
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
   try {
     ws.send(
       JSON.stringify({
@@ -105,6 +109,27 @@ wssInventory.on("connection", (ws) => {
   }
   console.log("[WS inventory] Client connected");
 });
+
+// Keep inventory sockets warm (some hosts/proxies drop idle WS; cheap no-op traffic).
+const inventoryWsPing = setInterval(() => {
+  wssInventory.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      try {
+        ws.terminate();
+      } catch {
+        /* ignore */
+      }
+      return;
+    }
+    ws.isAlive = false;
+    try {
+      ws.ping();
+    } catch {
+      /* ignore */
+    }
+  });
+}, 25000);
+inventoryWsPing.unref?.();
 
 server.on("upgrade", (request, socket, head) => {
   let pathname;

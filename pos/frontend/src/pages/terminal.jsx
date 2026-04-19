@@ -148,6 +148,10 @@ const Terminal = () => {
   const [products, setProducts] = useState(
     () => getCachedData("products") || []
   );
+  const productsRef = useRef(products);
+  useEffect(() => {
+    productsRef.current = products;
+  }, [products]);
   const [selectedMainCategory, setSelectedMainCategory] = useState("All");
   const [selectedSubCategory, setSelectedSubCategory] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -683,20 +687,64 @@ const Terminal = () => {
     let ws;
     let reconnectTimer;
     let cancelled = false;
+    let attempt = 0;
+    let inCooldownUntil = 0;
+    let consecutiveFailures = 0;
 
     const refresh = () => {
       fetchProductsRef.current(true);
     };
 
-    const connect = () => {
+    const nextBackoffMs = () => {
+      const cap = 60_000;
+      const ms = Math.min(cap, Math.round(2000 * Math.pow(1.45, attempt)));
+      attempt += 1;
+      return ms;
+    };
+
+    const scheduleReconnect = (delayMs) => {
       if (cancelled) return;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connect, delayMs);
+    };
+
+    const connect = async () => {
+      if (cancelled) return;
+      if (Date.now() < inCooldownUntil) {
+        scheduleReconnect(inCooldownUntil - Date.now() + 500);
+        return;
+      }
+
+      // Wake sleeping hosts (e.g. Render free tier) so the upgrade has an HTTP peer.
+      try {
+        await fetchWithTimeout(
+          `${API_BASE_URL}/api/ping`,
+          { method: "GET", cache: "no-store" },
+          8000
+        );
+      } catch {
+        /* still try WebSocket */
+      }
+      if (cancelled) return;
+
       try {
         ws = new WebSocket(url);
       } catch (e) {
         console.warn("[WS inventory] Failed to open:", e?.message || e);
-        reconnectTimer = setTimeout(connect, 4000);
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 6) {
+          inCooldownUntil = Date.now() + 120_000;
+          consecutiveFailures = 0;
+          attempt = 0;
+        }
+        scheduleReconnect(nextBackoffMs());
         return;
       }
+
+      ws.onopen = () => {
+        consecutiveFailures = 0;
+        attempt = 0;
+      };
 
       ws.onmessage = (ev) => {
         try {
@@ -711,9 +759,14 @@ const Terminal = () => {
       };
 
       ws.onclose = () => {
-        if (!cancelled) {
-          reconnectTimer = setTimeout(connect, 4000);
+        if (cancelled) return;
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 6) {
+          inCooldownUntil = Date.now() + 120_000;
+          consecutiveFailures = 0;
+          attempt = 0;
         }
+        scheduleReconnect(nextBackoffMs());
       };
 
       ws.onerror = () => {
@@ -2087,13 +2140,18 @@ const Terminal = () => {
     const currentDiscountIds = selectedDiscounts.map((d) => d._id);
 
     try {
-      // Minimal product payload is enough for stock validation; awaiting the full
-      // /api/products (with images) made checkout hang on slow or cold APIs.
-      const freshProducts = await fetchProducts(true, {
-        skipFullHydration: true,
-        timeoutMs: CHECKOUT_NETWORK_TIMEOUT_MS,
-      });
-      if (!validateCartAgainstProducts(cartSnapshot, freshProducts)) {
+      // Skip the extra /api/products round trip when the list already in memory validates
+      // the cart (cache timestamps can lag behind minimal loads until images finish).
+      let freshProducts = productsRef.current;
+      let validationOk = validateCartAgainstProducts(cartSnapshot, freshProducts);
+      if (!validationOk) {
+        freshProducts = await fetchProducts(true, {
+          skipFullHydration: true,
+          timeoutMs: CHECKOUT_NETWORK_TIMEOUT_MS,
+        });
+        validationOk = validateCartAgainstProducts(cartSnapshot, freshProducts);
+      }
+      if (!validationOk) {
         toastBr.error(
           "One or more items are out of stock or the quantity exceeds available stock. Please update your cart."
         );

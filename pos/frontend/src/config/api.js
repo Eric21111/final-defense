@@ -11,8 +11,29 @@
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
+/** Optional override, e.g. wss://my-api.onrender.com (no path). */
+const VITE_WS_URL = import.meta.env.VITE_WS_URL;
 
-export const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws');
+/**
+ * WebSocket URL must target the API origin only. If VITE_API_URL mistakenly
+ * includes a path (e.g. .../api), naive http→ws replacement yields .../api/ws/...
+ * which never hits the server's /ws/* upgrade handler.
+ */
+export function websocketBaseFromApiUrl(apiUrl) {
+  try {
+    const u = new URL(apiUrl);
+    const wsProto = u.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${wsProto}//${u.host}`;
+  } catch {
+    return String(apiUrl || '')
+      .replace(/^http/, 'ws')
+      .replace(/\/$/, '');
+  }
+}
+
+export const WS_BASE_URL = VITE_WS_URL
+  ? String(VITE_WS_URL).replace(/\/$/, '')
+  : websocketBaseFromApiUrl(API_BASE_URL);
 
 
 

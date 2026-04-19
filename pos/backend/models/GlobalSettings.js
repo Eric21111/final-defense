@@ -92,6 +92,13 @@ const globalSettingsSchema = new mongoose.Schema(
             min: 0,
             max: 100,
         },
+        /** POS terminal label for BIR sequential receipt numbers (e.g. POS01). Synced with Settings save. */
+        posTerminalId: {
+            type: String,
+            default: "",
+            trim: true,
+            maxlength: 32,
+        },
         openingFloat: {
             type: Number,
             default: 2000,
