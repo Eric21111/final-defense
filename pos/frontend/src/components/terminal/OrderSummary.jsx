@@ -819,62 +819,64 @@ const OrderSummary = memo(({
             </div>
           }
 
-          { }
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder={seniorPwdModeEnabled ? 'Disabled while Senior / PWD is enabled' : promoInputsDisabled ? 'One discount per order' : 'Enter discount code'}
-              value={discountCode}
-              onChange={(e) => setDiscountCode(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !applyingDiscount && !promoInputsDisabled && !seniorPwdModeEnabled) {
-                  applyDiscountCode();
-                }
-              }}
-              disabled={promoInputsDisabled || seniorPwdModeEnabled}
-              className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ?
-                'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
-                'bg-white border-[#d6c1b5] text-gray-900'}`
-              } />
-
-            <button
-              type="button"
-              onClick={onOpenDiscountModal}
-              disabled={promoInputsDisabled || seniorPwdModeEnabled}
-              className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title={promoInputsDisabled ? 'Remove the current discount to choose another' : 'Browse discounts'}>
-
-              <FaTag className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={applyDiscountCode}
-              disabled={promoInputsDisabled || seniorPwdModeEnabled || applyingDiscount || !discountCode || !discountCode.trim()}
-              className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
-              title={promoInputsDisabled ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
-
-              {applyingDiscount ? 'Applying...' : 'Apply'}
-            </button>
-          </div>
-          <label className="mt-3 inline-flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={seniorPwdModeEnabled}
-              onChange={(e) => setSeniorPwdModeEnabled(e.target.checked)}
-              className="w-4 h-4 rounded border-[#d6c1b5] text-[#AD7F65] focus:ring-[#AD7F65]"
-            />
+          <label className="mt-1 mb-3 inline-flex items-center gap-2 cursor-pointer select-none">
+            <span className="relative inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={seniorPwdModeEnabled}
+                onChange={(e) => setSeniorPwdModeEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <span className="w-11 h-6 rounded-full bg-gray-300 peer-checked:bg-[linear-gradient(135deg,_#AD7F65_0%,_#76462B_100%)] transition-all after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-all peer-checked:after:translate-x-5" />
+            </span>
             <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-[#8B7355]'}`}>
               Senior Citizen / PWD Discount
             </span>
           </label>
-        </div>
 
-        {seniorPwdModeEnabled && (
-          <div className="mb-6">
-          <label className="block text-xs font-semibold text-[#8B7355] mb-2">
-            Discount for Senior Citizen / PWD
-          </label>
+          {!seniorPwdModeEnabled ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder={promoInputsDisabled ? 'One discount per order' : 'Enter discount code'}
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !applyingDiscount && !promoInputsDisabled) {
+                    applyDiscountCode();
+                  }
+                }}
+                disabled={promoInputsDisabled}
+                className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ?
+                  'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
+                  'bg-white border-[#d6c1b5] text-gray-900'}`
+                } />
+
+              <button
+                type="button"
+                onClick={onOpenDiscountModal}
+                disabled={promoInputsDisabled}
+                className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                title={promoInputsDisabled ? 'Remove the current discount to choose another' : 'Browse discounts'}>
+
+                <FaTag className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={applyDiscountCode}
+                disabled={promoInputsDisabled || applyingDiscount || !discountCode || !discountCode.trim()}
+                className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
+                title={promoInputsDisabled ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
+
+                {applyingDiscount ? 'Applying...' : 'Apply'}
+              </button>
+            </div>
+          ) : (
+            <>
+              <label className="block text-xs font-semibold text-[#8B7355] mb-2">
+                Discount for Senior Citizen / PWD
+              </label>
           {seniorPwdAppliedAmount > 0 &&
             <div className={`flex items-center gap-2 p-2 rounded-lg border mb-3 ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600' : 'bg-gray-50 border-[#d6c1b5]'}`}>
               <div className="flex-1">
@@ -931,8 +933,9 @@ const OrderSummary = memo(({
           <p className={`text-[11px] mt-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
             Owner PIN is required to apply this discount.
           </p>
-          </div>
-        )}
+            </>
+          )}
+        </div>
 
         <div className="space-y-2 mb-6 text-xs">
           <div className="flex justify-between">
