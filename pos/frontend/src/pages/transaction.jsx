@@ -1243,7 +1243,7 @@ const Transaction = () => {
     setShowReturnModal(true);
   };
 
-  const handleReturnConfirm = async (itemsToReturn, transaction) => {
+  const handleReturnConfirm = async (itemsToReturn, transaction, approverInfo = {}) => {
     try {
       setLoading(true);
       console.log("Processing return for items:", itemsToReturn);
@@ -1253,6 +1253,8 @@ const Transaction = () => {
         `${currentUser?.firstName || ""} ${currentUser?.lastName || ""}`.trim() ||
         transaction.performedByName ||
         "System";
+      // Use the approver name from PIN verification (the owner/manager who approved)
+      const approverReturnName = approverInfo.returnedByName || returnProcessorName;
 
 
       const returnedIndices = itemsToReturn.map((item) => item.originalIndex);
@@ -1342,10 +1344,16 @@ const Transaction = () => {
         );
 
 
+      // Preserve the original total amount (before any returns) so the subtotal line
+      // on the receipt always reflects the original purchase value.
+      const originalTotalAmount = transaction.originalTotalAmount ||
+        originalLineSubtotalFromItems(transaction);
+
       const updatePayload = {
         status: newStatus,
         items: updatedItems,
-        totalAmount: newTotalAmount
+        totalAmount: newTotalAmount,
+        originalTotalAmount: originalTotalAmount
       };
       console.log("Updating original transaction FIRST:", updatePayload);
 
@@ -1544,7 +1552,7 @@ const Transaction = () => {
           performedByName: returnProcessorName,
           returnedBy: returnProcessorId || undefined,
           returnedById: returnProcessorId || undefined,
-          returnedByName: returnProcessorName,
+          returnedByName: approverReturnName,
           status: "Returned",
           originalTransactionId: transaction._id,
           checkedOutAt: new Date()

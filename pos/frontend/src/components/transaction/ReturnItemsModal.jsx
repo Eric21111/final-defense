@@ -105,9 +105,10 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
         const employee = result.data;
         const role = employee.role?.toLowerCase();
         if (role === 'owner' || role === 'manager') {
-          setApproverName(`${employee.firstName} ${employee.lastName}`);
+          const verifiedName = `${employee.firstName} ${employee.lastName}`;
+          setApproverName(verifiedName);
           setShowPinModal(false);
-          await processReturn();
+          await processReturn(verifiedName);
         } else {
           setPinError('Only Owner or Manager can approve returns');
           setPin(['', '', '', '', '', '']);
@@ -126,7 +127,7 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
     }
   };
 
-  const processReturn = async () => {
+  const processReturn = async (returnedByName) => {
     setLoading(true);
     try {
       const finalReason = globalReason === 'Other' ? `Other: ${otherReason}` : globalReason;
@@ -149,7 +150,7 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
       }).
       filter(Boolean);
 
-      await onConfirm(itemsToReturn, transaction);
+      await onConfirm(itemsToReturn, transaction, { returnedByName: returnedByName || '' });
       onClose();
     } catch (err) {
       console.error('Error processing return:', err);
@@ -289,6 +290,11 @@ const ReturnItemsModal = ({ isOpen, onClose, transaction, onConfirm }) => {
                 ● {transaction.status || 'Completed'}
               </span>
             </div>
+            {approverName && (
+              <p className="text-sm text-gray-500 mt-1">
+                Returned By: <span className="font-medium text-gray-700">{approverName}</span>
+              </p>
+            )}
           </div>
 
           {error &&

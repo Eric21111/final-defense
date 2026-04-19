@@ -43,6 +43,29 @@ export function lineSubtotalFromItems(transaction) {
 }
 
 /**
+ * Original subtotal from ALL items at their original quantities (before any returns).
+ * For partially returned items the original qty = current qty + returnedQuantity.
+ * For fully returned items the original qty = returnedQuantity (or quantity as stored).
+ * This value should NEVER change after a return — it represents what was originally purchased.
+ */
+export function originalSubtotalFromItems(transaction) {
+  if (!transaction?.items?.length) return 0;
+  return transaction.items.reduce((sum, item) => {
+    const unitPrice = item.price || item.itemPrice || 0;
+    let originalQty = item.quantity || 1;
+    // For partial returns the DB reduces quantity, so add back returnedQuantity
+    if (item.returnStatus === "Partially Returned" && item.returnedQuantity) {
+      originalQty = (item.quantity || 0) + (item.returnedQuantity || 0);
+    }
+    // For full returns the quantity stays but is marked Returned
+    if (item.returnStatus === "Returned" && item.returnedQuantity) {
+      originalQty = item.returnedQuantity;
+    }
+    return sum + unitPrice * originalQty;
+  }, 0);
+}
+
+/**
  * Discount to show: stored on txn, or inferred from subtotal − total for legacy rows.
  */
 export function resolveTransactionDiscount(transaction, lineSubtotal, { skipInference = false } = {}) {

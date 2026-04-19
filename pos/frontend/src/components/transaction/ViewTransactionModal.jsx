@@ -2,7 +2,7 @@ import { FaPrint, FaTimes } from 'react-icons/fa';
 import {
   cleanItemNameForDisplay,
   formatItemVariantSizeLabel,
-  lineSubtotalFromItems,
+  originalSubtotalFromItems,
   resolveTransactionDiscount
 } from '../../utils/transactionDisplay';
 // comment kahit saan
@@ -56,12 +56,6 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
   }
 
 
-  const currentSubtotal = lineSubtotalFromItems(transaction) || transaction.totalAmount || 0;
-
-  const totalReturned = transaction.returnTransactions?.reduce((sum, returnTrx) => {
-    return sum + (returnTrx.totalAmount || 0);
-  }, 0) || 0;
-
   const canReturn = transaction.status === 'Completed' || transaction.status === 'Partially Returned';
   const hasReturns = (transaction.returnTransactions?.length || 0) > 0;
   const latestReturnTransaction = hasReturns
@@ -77,12 +71,17 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
     latestReturnTransaction?.cashierName ||
     '';
 
-  const subtotal = hasReturns
-    ? currentSubtotal + Math.abs(totalReturned)
-    : currentSubtotal;
+  // Subtotal: always the ORIGINAL purchase total (never changes after returns)
+  const subtotal = originalSubtotalFromItems(transaction) || transaction.originalTotalAmount || transaction.totalAmount || 0;
+
+  const totalReturned = transaction.returnTransactions?.reduce((sum, returnTrx) => {
+    return sum + (returnTrx.totalAmount || 0);
+  }, 0) || 0;
+
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturns
   });
+  // Adjusted Total = Subtotal - Discount - Returned Amount
   const adjustedTotal = subtotal - discountAmount - Math.abs(totalReturned);
 
   const amountPaid = transaction.amountReceived || 0;
