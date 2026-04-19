@@ -10,6 +10,7 @@ const {
   computeVatInclusiveBreakdown,
   getNextSequentialReceiptNo,
 } = require('../utils/birReceipt');
+const { sanitizeItemImageForStorage } = require('../utils/itemImagePayload');
 
 // Helper function to safely convert to ObjectId
 const toObjectId = (id) => {
@@ -269,7 +270,7 @@ exports.createTransaction = async (req, res) => {
           selectedSize: item.selectedSize || item.size || null,
           quantity: item.quantity || 1,
           price: item.itemPrice || item.price || 0,
-          itemImage: item.itemImage || '',
+          itemImage: sanitizeItemImageForStorage(item.itemImage),
           returnReason: item.returnReason || null
         };
       }).filter(item => item.productId !== null),
@@ -390,7 +391,7 @@ exports.voidTransaction = async (req, res) => {
         selectedSize: item.selectedSize,
         quantity: item.quantity,
         price: item.price,
-        itemImage: item.itemImage,
+        itemImage: sanitizeItemImageForStorage(item.itemImage),
         voidReason
       })),
       totalAmount: transaction.totalAmount,
@@ -485,7 +486,7 @@ exports.returnItems = async (req, res) => {
         selectedSize: item.selectedSize,
         quantity: item.quantity,
         price,
-        itemImage: item.itemImage,
+        itemImage: sanitizeItemImageForStorage(item.itemImage),
         returnReason: item.returnReason || returnReason
       };
     });

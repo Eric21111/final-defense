@@ -17,6 +17,7 @@ import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
 import { useTheme } from "../context/ThemeContext";
 import { getTerminalId } from "../utils/terminalIdentity";
+import { lightweightItemImageForApi } from "../utils/itemImagePayload";
 
 import accessoriesIcon from "../assets/inventory-icons/accesories.svg";
 import allIcon from "../assets/inventory-icons/ALL.svg";
@@ -1319,7 +1320,7 @@ const Terminal = () => {
             selectedSize: resolveItemSize(item) || null,
             quantity: item.quantity || 1,
             price: item.itemPrice || 0,
-            itemImage: item.itemImage || "",
+            itemImage: lightweightItemImageForApi(item.itemImage),
             voidReason: voidReason || null
           }],
 
@@ -1987,7 +1988,7 @@ const Terminal = () => {
       selectedSize: resolveItemSize(item) || null,
       quantity: item.quantity || 1,
       price: item.itemPrice || 0,
-      itemImage: item.itemImage || ""
+      itemImage: lightweightItemImageForApi(item.itemImage)
     }));
 
   const applyStockOutOptimistically = useCallback((stockItems, { alsoUpdateSelectedProduct = true, capturePrev = false } = {}) => {

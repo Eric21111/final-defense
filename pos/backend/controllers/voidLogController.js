@@ -1,4 +1,5 @@
 const VoidLog = require('../models/VoidLog');
+const { sanitizeItemImageForStorage } = require('../utils/itemImagePayload');
 
 // Generate a unique void ID
 const generateVoidId = async () => {
@@ -76,7 +77,7 @@ exports.createVoidLog = async (req, res) => {
         selectedSize: item.selectedSize || item.size || null,
         quantity: item.quantity,
         price: item.itemPrice || item.price || 0,
-        itemImage: item.itemImage || '',
+        itemImage: sanitizeItemImageForStorage(item.itemImage),
         voidReason: item.voidReason || voidReason
       })),
       totalAmount,

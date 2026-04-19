@@ -114,6 +114,8 @@ async function assertSaleStockAvailable(rawItems) {
   const productDocs =
     distinctIds.length > 0
       ? await Product.find({ _id: { $in: distinctIds } })
+          .select("-itemImage -productImages -stockHistory")
+          .lean()
       : [];
   const productById = new Map(
     productDocs.map((p) => [String(p._id), p]),

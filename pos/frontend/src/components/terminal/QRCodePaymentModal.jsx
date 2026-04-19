@@ -28,6 +28,7 @@ import { API_BASE_URL as API_BASE, WS_BASE_URL as WS_BASE } from "../../config/a
 import { useTheme } from "../../context/ThemeContext";
 import { sendReceiptToPrinter } from "../../utils/printBridge";
 import { getReceiptProfile } from "../../utils/receiptProfile";
+import { lightweightItemImageForApi } from "../../utils/itemImagePayload";
 import { getTerminalId } from "../../utils/terminalIdentity";
 import PrintingModal from "./PrintingModal";
 import ReceiptModal from "./ReceiptModal";
@@ -193,7 +194,7 @@ const QRCodePaymentModal = ({
             selectedSize: item.selectedSize,
             quantity: item.quantity || 1,
             price: item.itemPrice || item.price || 0,
-            itemImage: item.itemImage || ""
+            itemImage: lightweightItemImageForApi(item.itemImage)
           })),
           totalAmount,
           subtotal: subtotalAmount || totalAmount + discountAmount,

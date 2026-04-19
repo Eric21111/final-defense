@@ -26,6 +26,7 @@ const {
   computeVatInclusiveBreakdown,
   getNextSequentialReceiptNo,
 } = require("../utils/birReceipt");
+const { sanitizeItemImageForStorage } = require("../utils/itemImagePayload");
 
 const clearTransactionAnalyticsCache = () => {
   try {
@@ -190,7 +191,7 @@ exports.createGCashPayment = async (req, res) => {
         selectedSize: item.selectedSize || null,
         quantity: item.quantity || 1,
         price: item.price || item.itemPrice || 0,
-        itemImage: item.itemImage || "",
+        itemImage: sanitizeItemImageForStorage(item.itemImage),
       })),
       subtotal: subtotal || totalAmount,
       discount: discount || 0,

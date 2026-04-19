@@ -1649,7 +1649,9 @@ exports.updateStockAfterTransaction = async (req, res) => {
       ),
     ];
     const preloadedDocs = preloadIds.length
-      ? await Product.find({ _id: { $in: preloadIds } })
+      ? await Product.find({ _id: { $in: preloadIds } }).select(
+          "-itemImage -productImages -stockHistory",
+        )
       : [];
     const productByIdCache = new Map(
       preloadedDocs.map((p) => [String(p._id), p]),
