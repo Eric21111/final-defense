@@ -21,8 +21,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
     noExpiration: false,
     minPurchaseAmount: '',
     maxPurchaseAmount: '',
-    usageLimit: '',
-    description: ''
+    usageLimit: ''
   });
 
   const [showProductPicker, setShowProductPicker] = useState(false);
@@ -188,8 +187,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
             discountToEdit.maxPurchaseAmount !== null
               ? String(discountToEdit.maxPurchaseAmount)
               : '',
-          usageLimit: discountToEdit.usageLimit || '',
-          description: discountToEdit.description || ''
+          usageLimit: discountToEdit.usageLimit || ''
         });
       } else {
         setFormData({
@@ -208,8 +206,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
           noExpiration: false,
           minPurchaseAmount: '',
           maxPurchaseAmount: '',
-          usageLimit: '',
-          description: ''
+          usageLimit: ''
         });
       }
     }
@@ -404,7 +401,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
   return (
     <>
       <div className="fixed inset-0 flex items-center justify-center z-[10002] p-4 backdrop-blur-sm">
-        <div className={`rounded-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col ${isDark ? 'bg-[#2A2724]' : 'bg-white'}`}>
+        <div className={`rounded-2xl w-full max-w-[920px] max-h-[90vh] overflow-hidden shadow-2xl flex flex-col ${isDark ? 'bg-[#2A2724]' : 'bg-white'}`}>
           <div className={`px-6 py-4 border-b flex items-center justify-between ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
             <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-black'}`}>
               {discountToEdit ? 'Edit Discount' : 'Create New Discount'}
@@ -442,7 +439,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                 <div>
                   <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Basic Info</h3>
 
-                  <div className="space-y-4">
+                  <div className="space-y-4 max-w-[860px]">
                     <div>
                       <label className={labelClass}>
                         Discount Name <span className="text-red-500">*</span>
@@ -567,7 +564,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                       }
                     </div>
 
-                    <div className="pt-2 flex justify-end">
+                    <div className="pt-3 flex justify-end">
                       <button
                         type="button"
                         onClick={() => setCurrentStep(2)}
@@ -581,7 +578,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
               )}
 
               {currentStep === 2 && (
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-5">
                   <div>
                     <h3 className={`text-lg font-bold mb-4 ${isDark ? 'text-white' : 'text-black'}`}>Rules & Scope</h3>
                     <div className="space-y-4">
@@ -739,13 +736,11 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                     </div>
 
                     <div>
-                      <label className={labelClass}>
-                        Validity Period {!formData.noExpiration}
-                      </label>
+                      <label className={labelClass}>Validity Period</label>
                       <div className="grid grid-cols-2 gap-3 mb-2">
                         <div>
                           <label className={`text-xs font-medium block mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Valid from {!formData.noExpiration}
+                            Valid from
                           </label>
                           <input
                             type="date"
@@ -753,7 +748,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                             value={formData.validFrom}
                             onChange={handleChange}
                             disabled={formData.noExpiration}
-                            required={!formData.noExpiration}
                             className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed ${isDark ?
                             'bg-[#1E1B18] border-gray-600 text-white' :
                             'bg-white border-gray-300 text-gray-900 disabled:bg-gray-100'}`
@@ -762,7 +756,7 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                         </div>
                         <div>
                           <label className={`text-xs font-medium block mb-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                            Valid until {!formData.noExpiration}
+                            Valid until
                           </label>
                           <input
                             type="date"
@@ -770,7 +764,6 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                             value={formData.validUntil}
                             onChange={handleChange}
                             disabled={formData.noExpiration}
-                            required={!formData.noExpiration}
                             className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed ${isDark ?
                             'bg-[#1E1B18] border-gray-600 text-white' :
                             'bg-white border-gray-300 text-gray-900 disabled:bg-gray-100'}`
@@ -853,25 +846,9 @@ const AddDiscountModal = ({ isOpen, onClose, onAdd, onEdit, discountToEdit }) =>
                       <p className="text-xs text-gray-400 mt-1">Total number of times this discount can be used</p>
                     </div>
 
-                    <div>
-                      <label className={labelClass}>
-                        Description / Notes <span className="text-[10px] font-normal normal-case tracking-normal text-gray-400">Optional</span>
-                      </label>
-                      <textarea
-                        name="description"
-                        value={formData.description}
-                        onChange={handleChange}
-                        placeholder="Notes about this discount..."
-                        rows="4"
-                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent resize-none ${isDark ?
-                        'bg-[#1E1B18] border-gray-600 text-white placeholder-gray-500' :
-                        'bg-white border-gray-300 text-gray-900'}`
-                        } />
-                      
-                    </div>
                   </div>
                 </div>
-                <div className="pt-2 flex justify-between">
+                <div className="pt-3 flex justify-between md:col-span-2">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(1)}
