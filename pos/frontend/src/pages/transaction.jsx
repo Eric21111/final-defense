@@ -868,14 +868,18 @@ const Transaction = () => {
       lineSub > 0 && Number.isFinite(vatRate) && vatRate > 0
         ? (lineSub / (1 + vatRate / 100)) * 0.8
         : NaN;
-    const isSeniorPwdTxn =
-      Number.isFinite(expectedScPwdTotal) &&
-      Math.abs(totalAmount - expectedScPwdTotal) <= 0.05;
     const discount = hasReturnActivity
       ? Math.max(0, lineSub - totalAmount)
       : resolveTransactionDiscount(trx, lineSub, {
           skipInference: hasReturnActivity
         });
+    const expectedScPwdDiscount =
+      lineSub > 0 && Number.isFinite(vatRate) && vatRate > 0
+        ? lineSub - (lineSub / (1 + vatRate / 100)) * 0.8
+        : NaN;
+    const isSeniorPwdTxn =
+      (Number.isFinite(expectedScPwdTotal) && Math.abs(totalAmount - expectedScPwdTotal) <= 0.05) ||
+      (Number.isFinite(expectedScPwdDiscount) && Math.abs(discount - expectedScPwdDiscount) <= 0.05);
     const hasVat = isSeniorPwdTxn || (trx.netOfVat != null && trx.vatAmount != null);
     const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
     const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
