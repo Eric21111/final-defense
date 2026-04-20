@@ -865,13 +865,23 @@ const Transaction = () => {
     });
     const vatRate = Number(trx.vatRateApplied ?? receiptBranding.vatRatePercent ?? 12);
     const totalAmount = Number(trx.totalAmount ?? 0);
+    const discountAmount = Number(discount ?? 0);
     const expectedScPwdTotal =
       lineSub > 0 && Number.isFinite(vatRate) && vatRate > 0
         ? (lineSub / (1 + vatRate / 100)) * 0.8
         : NaN;
-    const isSeniorPwdTxn =
+    const expectedScPwdDiscount =
+      lineSub > 0 && Number.isFinite(vatRate) && vatRate > 0
+        ? lineSub - expectedScPwdTotal
+        : NaN;
+    const matchesScPwdTotal =
       Number.isFinite(expectedScPwdTotal) &&
       Math.abs(totalAmount - expectedScPwdTotal) <= 0.05;
+    const matchesScPwdDiscount =
+      Number.isFinite(expectedScPwdDiscount) &&
+      Math.abs(discountAmount - expectedScPwdDiscount) <= 0.05;
+    const isSeniorPwdTxn =
+      matchesScPwdTotal || matchesScPwdDiscount;
     const hasVat = isSeniorPwdTxn || (trx.netOfVat != null && trx.vatAmount != null);
     const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
     const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
