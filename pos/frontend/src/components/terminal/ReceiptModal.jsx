@@ -9,6 +9,26 @@ import { getReceiptBranding } from '../../utils/receiptProfile';
 import { formatReceiptVariantSizeLine } from '../../utils/transactionDisplay';
 import { useTheme } from '../../context/ThemeContext';
 
+const hasSeniorPwdDiscount = (source = {}) => {
+  const textHasSeniorPwd = (value) => /(senior|pwd|sc\s*\/\s*pwd)/i.test(String(value || ""));
+  if (textHasSeniorPwd(source.customerType) || textHasSeniorPwd(source.discountCategory)) return true;
+  if (Array.isArray(source.discounts)) {
+    return source.discounts.some((d) =>
+      textHasSeniorPwd(d?.title) ||
+      textHasSeniorPwd(d?.name) ||
+      textHasSeniorPwd(d?.discountCategory) ||
+      textHasSeniorPwd(d?.category)
+    );
+  }
+  if (Array.isArray(source.appliedDiscountIds)) {
+    return source.appliedDiscountIds.some((d) =>
+      d && typeof d === "object" &&
+      (textHasSeniorPwd(d?.title) || textHasSeniorPwd(d?.name) || textHasSeniorPwd(d?.discountCategory))
+    );
+  }
+  return false;
+};
+
 const ReceiptModal = ({
   isOpen,
   onClose,
@@ -48,9 +68,12 @@ const ReceiptModal = ({
     receipt.netOfVat != null &&
     receipt.vatAmount != null;
   const totalPay = Number(receipt.total ?? receipt.totalAmount ?? 0);
-  const netOfVatAmount = Number(receipt.netOfVat ?? 0);
-  const vatAmount = Number(receipt.vatAmount ?? 0);
-  const vatExemptSales = Math.max(0, totalPay - netOfVatAmount - vatAmount);
+  const isSeniorPwdTxn = hasSeniorPwdDiscount(receipt);
+  const netOfVatAmount = isSeniorPwdTxn ? 0 : Number(receipt.netOfVat ?? 0);
+  const vatAmount = isSeniorPwdTxn ? 0 : Number(receipt.vatAmount ?? 0);
+  const vatExemptSales = isSeniorPwdTxn
+    ? Math.max(0, totalPay)
+    : Math.max(0, totalPay - netOfVatAmount - vatAmount);
 
   const handlePrint = useCallback(async () => {
     setIsPrinting(true);

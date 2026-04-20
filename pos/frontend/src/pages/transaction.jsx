@@ -86,6 +86,26 @@ const formatCurrency = (value = 0) =>
     currency: "PHP"
   }).format(value);
 
+const hasSeniorPwdDiscount = (source = {}) => {
+  const textHasSeniorPwd = (value) => /(senior|pwd|sc\s*\/\s*pwd)/i.test(String(value || ""));
+  if (textHasSeniorPwd(source.customerType) || textHasSeniorPwd(source.discountCategory)) return true;
+  if (Array.isArray(source.discounts)) {
+    return source.discounts.some((d) =>
+      textHasSeniorPwd(d?.title) ||
+      textHasSeniorPwd(d?.name) ||
+      textHasSeniorPwd(d?.discountCategory) ||
+      textHasSeniorPwd(d?.category)
+    );
+  }
+  if (Array.isArray(source.appliedDiscountIds)) {
+    return source.appliedDiscountIds.some((d) =>
+      d && typeof d === "object" &&
+      (textHasSeniorPwd(d?.title) || textHasSeniorPwd(d?.name) || textHasSeniorPwd(d?.discountCategory))
+    );
+  }
+  return false;
+};
+
 const formatCurrencyCompact = (value = 0) => {
   const n = parseFloat(value) || 0;
   const abs = Math.abs(n).toLocaleString("en-PH", {
@@ -835,10 +855,13 @@ const Transaction = () => {
       skipInference: hasReturnActivity
     });
     const hasVat = trx.netOfVat != null && trx.vatAmount != null;
-    const netOfVat = Number(trx.netOfVat ?? 0);
-    const vatAmount = Number(trx.vatAmount ?? 0);
+    const isSeniorPwdTxn = hasSeniorPwdDiscount(trx);
+    const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
+    const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
     const totalAmount = Number(trx.totalAmount ?? 0);
-    const vatExemptSales = Math.max(0, totalAmount - netOfVat - vatAmount);
+    const vatExemptSales = isSeniorPwdTxn
+      ? Math.max(0, totalAmount)
+      : Math.max(0, totalAmount - netOfVat - vatAmount);
     return { lineSub, discount, hasVat, netOfVat, vatAmount, vatExemptSales };
   }, [selectedTransaction]);
 

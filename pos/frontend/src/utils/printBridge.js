@@ -1,6 +1,26 @@
 import { formatReceiptVariantSizeLine } from './transactionDisplay';
 import { getReceiptProfile } from './receiptProfile';
 
+const hasSeniorPwdDiscount = (source = {}) => {
+  const textHasSeniorPwd = (value) => /(senior|pwd|sc\s*\/\s*pwd)/i.test(String(value || ''));
+  if (textHasSeniorPwd(source.customerType) || textHasSeniorPwd(source.discountCategory)) return true;
+  if (Array.isArray(source.discounts)) {
+    return source.discounts.some((d) =>
+      textHasSeniorPwd(d?.title) ||
+      textHasSeniorPwd(d?.name) ||
+      textHasSeniorPwd(d?.discountCategory) ||
+      textHasSeniorPwd(d?.category)
+    );
+  }
+  if (Array.isArray(source.appliedDiscountIds)) {
+    return source.appliedDiscountIds.some((d) =>
+      d && typeof d === 'object' &&
+      (textHasSeniorPwd(d?.title) || textHasSeniorPwd(d?.name) || textHasSeniorPwd(d?.discountCategory))
+    );
+  }
+  return false;
+};
+
 function mergeReceiptWithStoreProfile(receipt = {}) {
   const p = getReceiptProfile();
   const totalPay = Number(receipt.total ?? receipt.totalAmount ?? 0);
@@ -155,9 +175,12 @@ export const buildReceiptLines = (receipt) => {
 
 
   const totalPay = Number(r.total ?? r.totalAmount ?? 0);
-  const netOfVat = Number(r.netOfVat ?? 0);
-  const vatAmount = Number(r.vatAmount ?? 0);
-  const vatExemptSales = Math.max(0, totalPay - netOfVat - vatAmount);
+  const isSeniorPwdTxn = hasSeniorPwdDiscount(r);
+  const netOfVat = isSeniorPwdTxn ? 0 : Number(r.netOfVat ?? 0);
+  const vatAmount = isSeniorPwdTxn ? 0 : Number(r.vatAmount ?? 0);
+  const vatExemptSales = isSeniorPwdTxn
+    ? Math.max(0, totalPay)
+    : Math.max(0, totalPay - netOfVat - vatAmount);
 
   lines.push(padLine('Subtotal:', `PHP ${Number(r.subtotal || 0).toFixed(2)}`));
   lines.push(padLine('Discount:', `PHP ${Number(r.discount || 0).toFixed(2)}`));
@@ -222,9 +245,12 @@ const buildReceiptHTML = (receiptRaw) => {
   const subtotal = Number(receipt.subtotal || 0);
   const discount = Number(receipt.discount || 0);
   const total = Number(receipt.total ?? receipt.totalAmount ?? 0);
-  const netOfVat = Number(receipt.netOfVat ?? 0);
-  const vatAmount = Number(receipt.vatAmount ?? 0);
-  const vatExemptSales = Math.max(0, total - netOfVat - vatAmount);
+  const isSeniorPwdTxn = hasSeniorPwdDiscount(receipt);
+  const netOfVat = isSeniorPwdTxn ? 0 : Number(receipt.netOfVat ?? 0);
+  const vatAmount = isSeniorPwdTxn ? 0 : Number(receipt.vatAmount ?? 0);
+  const vatExemptSales = isSeniorPwdTxn
+    ? Math.max(0, total)
+    : Math.max(0, total - netOfVat - vatAmount);
   const showBirVat =
     receipt.birCompliantEnabled &&
     receipt.vatAmount != null &&
