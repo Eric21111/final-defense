@@ -864,7 +864,10 @@ const Transaction = () => {
       skipInference: hasReturnActivity
     });
     const hasVat = trx.netOfVat != null && trx.vatAmount != null;
-    const isSeniorPwdTxn = hasSeniorPwdDiscount(trx);
+    const isSeniorPwdTxn = hasSeniorPwdDiscount({
+      ...trx,
+      lineSub
+    });
     const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
     const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
     const totalAmount = Number(trx.totalAmount ?? 0);
