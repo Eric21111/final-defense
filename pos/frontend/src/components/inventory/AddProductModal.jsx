@@ -170,18 +170,6 @@ const AddProductModal = ({
 
   const parentCategories = [...defaultParentCategories, ...customParentCategories];
 
-  const orphanCustomSubCategories = categories
-    .filter(
-      (c) =>
-        c?.name !== "All" &&
-        c?.name !== "Others" &&
-        c?.parentCategory &&
-        !defaultParentCategories.includes(c?.name) &&
-        !allKnownDefaultSubs.has(c?.name) &&
-        !legacyParentCategories.includes(c?.name)
-    )
-    .map((c) => c?.name);
-
   const getSubcategories = (parentCat) => {
     const defaultSubs = categoryStructure[parentCat] || [];
     const mappedCustomSubCategories = categories
@@ -189,7 +177,7 @@ const AddProductModal = ({
       .map((c) => c?.name)
       .filter(Boolean);
 
-    const subs = [...defaultSubs, ...mappedCustomSubCategories, ...orphanCustomSubCategories];
+    const subs = [...defaultSubs, ...mappedCustomSubCategories];
 
     if (newProduct.subCategory && newProduct.subCategory !== "__add_new__" && !subs.includes(newProduct.subCategory)) {
       if (newProduct.category === parentCat) {
