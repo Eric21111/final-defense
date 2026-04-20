@@ -863,11 +863,11 @@ const Transaction = () => {
     const discount = resolveTransactionDiscount(trx, lineSub, {
       skipInference: hasReturnActivity
     });
-    const hasVat = trx.netOfVat != null && trx.vatAmount != null;
     const isSeniorPwdTxn = hasSeniorPwdDiscount({
       ...trx,
       lineSub
     });
+    const hasVat = isSeniorPwdTxn || (trx.netOfVat != null && trx.vatAmount != null);
     const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
     const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
     const totalAmount = Number(trx.totalAmount ?? 0);
@@ -2479,16 +2479,6 @@ const Transaction = () => {
                   </span>
                 </div>
               </div>
-              <button
-                className="w-full mt-6 py-3 rounded-xl text-white font-semibold shadow-lg transition-all hover:shadow-xl hover:brightness-105 active:scale-98"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)",
-                  boxShadow: "0 12px 20px rgba(118,70,43,0.25)"
-                }}>
-
-                Print Receipt
-              </button>
               <p className="text-center text-[11px] text-gray-400 mt-4 tracking-wide">
                 This is not an official receipt
               </p>
