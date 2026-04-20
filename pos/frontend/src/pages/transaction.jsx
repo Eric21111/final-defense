@@ -863,19 +863,23 @@ const Transaction = () => {
     const discount = resolveTransactionDiscount(trx, lineSub, {
       skipInference: hasReturnActivity
     });
-    const isSeniorPwdTxn = hasSeniorPwdDiscount({
-      ...trx,
-      lineSub
-    });
+    const vatRate = Number(trx.vatRateApplied ?? receiptBranding.vatRatePercent ?? 12);
+    const totalAmount = Number(trx.totalAmount ?? 0);
+    const expectedScPwdTotal =
+      lineSub > 0 && Number.isFinite(vatRate) && vatRate > 0
+        ? (lineSub / (1 + vatRate / 100)) * 0.8
+        : NaN;
+    const isSeniorPwdTxn =
+      Number.isFinite(expectedScPwdTotal) &&
+      Math.abs(totalAmount - expectedScPwdTotal) <= 0.05;
     const hasVat = isSeniorPwdTxn || (trx.netOfVat != null && trx.vatAmount != null);
     const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
     const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
-    const totalAmount = Number(trx.totalAmount ?? 0);
     const vatExemptSales = isSeniorPwdTxn
       ? Math.max(0, totalAmount)
       : Math.max(0, totalAmount - netOfVat - vatAmount);
     return { lineSub, discount, hasVat, netOfVat, vatAmount, vatExemptSales };
-  }, [selectedTransaction]);
+  }, [selectedTransaction, receiptBranding.vatRatePercent]);
 
   useEffect(() => {
     setSelectedTransactionIds((prev) =>
