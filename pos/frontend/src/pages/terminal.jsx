@@ -2852,9 +2852,7 @@ const Terminal = () => {
               onRemoveSeniorPwdDiscount={handleRemoveSeniorPwdDiscount}
               showSeniorPwdVatSummary={Boolean(seniorPwdSummaryBreakdown)}
               seniorPwdVatExemptSales={seniorPwdSummaryBreakdown?.vatExemptSales || 0}
-              seniorPwdVatDiscount={seniorPwdSummaryBreakdown?.scPwdDiscount || 0}
-              vatEnabled={vatConfig.enabled}
-              vatRatePercent={vatConfig.rate} />
+              seniorPwdVatDiscount={seniorPwdSummaryBreakdown?.scPwdDiscount || 0} />
 
           </div>
         </div>
