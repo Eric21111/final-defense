@@ -855,14 +855,13 @@ const Transaction = () => {
     if (!trx) {
       return { lineSub: 0, discount: 0, hasVat: false, netOfVat: 0, vatAmount: 0, vatExemptSales: 0 };
     }
-    const lineSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
     const hasReturnActivity =
       (trx.returnTransactions?.length || 0) > 0 ||
       trx.status === "Returned" ||
       trx.status === "Partially Returned";
-    const discount = resolveTransactionDiscount(trx, lineSub, {
-      skipInference: hasReturnActivity
-    });
+    const originalSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
+    const remainingSub = lineSubtotalFromItems(trx) || 0;
+    const lineSub = hasReturnActivity ? remainingSub : originalSub;
     const vatRate = Number(trx.vatRateApplied ?? receiptBranding.vatRatePercent ?? 12);
     const totalAmount = Number(trx.totalAmount ?? 0);
     const expectedScPwdTotal =
@@ -872,6 +871,11 @@ const Transaction = () => {
     const isSeniorPwdTxn =
       Number.isFinite(expectedScPwdTotal) &&
       Math.abs(totalAmount - expectedScPwdTotal) <= 0.05;
+    const discount = hasReturnActivity
+      ? Math.max(0, lineSub - totalAmount)
+      : resolveTransactionDiscount(trx, lineSub, {
+          skipInference: hasReturnActivity
+        });
     const hasVat = isSeniorPwdTxn || (trx.netOfVat != null && trx.vatAmount != null);
     const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
     const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
