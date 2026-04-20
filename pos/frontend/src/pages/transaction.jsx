@@ -104,7 +104,7 @@ const hasSeniorPwdDiscount = (source = {}) => {
     );
   }
   const vatRate = Number(source.vatRateApplied ?? 12);
-  const subtotal = Number(source.subtotal ?? source.originalTotalAmount ?? source.lineSub ?? 0);
+  const subtotal = Number(source.lineSub ?? source.subtotal ?? source.originalTotalAmount ?? 0);
   const total = Number(source.total ?? source.totalAmount ?? 0);
   if (subtotal > 0 && total >= 0 && Number.isFinite(vatRate) && vatRate > 0) {
     const expectedScPwdTotal = (subtotal / (1 + vatRate / 100)) * 0.8;
