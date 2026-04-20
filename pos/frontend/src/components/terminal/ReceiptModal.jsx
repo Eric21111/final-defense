@@ -48,6 +48,9 @@ const ReceiptModal = ({
     receipt.netOfVat != null &&
     receipt.vatAmount != null;
   const totalPay = Number(receipt.total ?? receipt.totalAmount ?? 0);
+  const netOfVatAmount = Number(receipt.netOfVat ?? 0);
+  const vatAmount = Number(receipt.vatAmount ?? 0);
+  const vatExemptSales = Math.max(0, totalPay - netOfVatAmount - vatAmount);
 
   const handlePrint = useCallback(async () => {
     setIsPrinting(true);
@@ -310,11 +313,19 @@ const ReceiptModal = ({
                 <>
                   <div className="flex justify-between text-sm pt-2">
                     <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Net (vatable) sales:</span>
-                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {Number(receipt.netOfVat).toFixed(2)}</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {netOfVatAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>VAT {Number(receipt.vatRateApplied ?? branding.vatRatePercent)}%:</span>
-                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {Number(receipt.vatAmount).toFixed(2)}</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {vatAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>VAT Exempt Sales:</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {vatExemptSales.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Zero-Sales:</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP 0.00</span>
                   </div>
                   <div className={`flex justify-between pt-3 mt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                     <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>Total (incl. VAT):</span>
