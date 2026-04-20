@@ -103,6 +103,15 @@ const hasSeniorPwdDiscount = (source = {}) => {
       (textHasSeniorPwd(d?.title) || textHasSeniorPwd(d?.name) || textHasSeniorPwd(d?.discountCategory))
     );
   }
+  const vatRate = Number(source.vatRateApplied ?? 12);
+  const subtotal = Number(source.subtotal ?? source.originalTotalAmount ?? source.lineSub ?? 0);
+  const total = Number(source.total ?? source.totalAmount ?? 0);
+  if (subtotal > 0 && total >= 0 && Number.isFinite(vatRate) && vatRate > 0) {
+    const expectedScPwdTotal = (subtotal / (1 + vatRate / 100)) * 0.8;
+    if (Math.abs(total - expectedScPwdTotal) <= 0.05) {
+      return true;
+    }
+  }
   return false;
 };
 
