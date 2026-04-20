@@ -200,11 +200,19 @@ const ReceiptModal = ({
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0', paddingTop: '6px' }}>
                 <span style={{ color: '#4a5568' }}>Net (vatable) sales:</span>
-                <span style={{ color: '#1a202c' }}>PHP {Number(receipt.netOfVat).toFixed(2)}</span>
+                <span style={{ color: '#1a202c' }}>PHP {netOfVatAmount.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
                 <span style={{ color: '#4a5568' }}>VAT {Number(receipt.vatRateApplied ?? branding.vatRatePercent)}%:</span>
-                <span style={{ color: '#1a202c' }}>PHP {Number(receipt.vatAmount).toFixed(2)}</span>
+                <span style={{ color: '#1a202c' }}>PHP {vatAmount.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+                <span style={{ color: '#4a5568' }}>VAT Exempt Sales:</span>
+                <span style={{ color: '#1a202c' }}>PHP {vatExemptSales.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+                <span style={{ color: '#4a5568' }}>Zero-Rated Sales:</span>
+                <span style={{ color: '#1a202c' }}>PHP 0.00</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', paddingTop: '8px' }}>
                 <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>Total (incl. VAT):</span>
@@ -324,7 +332,7 @@ const ReceiptModal = ({
                     <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {vatExemptSales.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Zero-Sales:</span>
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Zero-Rated Sales:</span>
                     <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP 0.00</span>
                   </div>
                   <div className={`flex justify-between pt-3 mt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>

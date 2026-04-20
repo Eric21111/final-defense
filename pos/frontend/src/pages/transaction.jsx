@@ -823,7 +823,9 @@ const Transaction = () => {
 
   const sidebarReceiptTotals = useMemo(() => {
     const trx = selectedTransaction;
-    if (!trx) return { lineSub: 0, discount: 0 };
+    if (!trx) {
+      return { lineSub: 0, discount: 0, hasVat: false, netOfVat: 0, vatAmount: 0, vatExemptSales: 0 };
+    }
     const lineSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
     const hasReturnActivity =
       (trx.returnTransactions?.length || 0) > 0 ||
@@ -832,7 +834,12 @@ const Transaction = () => {
     const discount = resolveTransactionDiscount(trx, lineSub, {
       skipInference: hasReturnActivity
     });
-    return { lineSub, discount };
+    const hasVat = trx.netOfVat != null && trx.vatAmount != null;
+    const netOfVat = Number(trx.netOfVat ?? 0);
+    const vatAmount = Number(trx.vatAmount ?? 0);
+    const totalAmount = Number(trx.totalAmount ?? 0);
+    const vatExemptSales = Math.max(0, totalAmount - netOfVat - vatAmount);
+    return { lineSub, discount, hasVat, netOfVat, vatAmount, vatExemptSales };
   }, [selectedTransaction]);
 
   useEffect(() => {
@@ -2405,25 +2412,32 @@ const Transaction = () => {
                     {formatCurrency(sidebarReceiptTotals.discount)}
                   </span>
                 </div>
-                {selectedTransaction?.netOfVat != null &&
-                  selectedTransaction?.vatAmount != null &&
+                {sidebarReceiptTotals.hasVat &&
                   <div className="space-y-1 pt-1 border-t border-dashed border-gray-600/40">
                     <div className="flex justify-between">
                       <span>Net (vatable) sales</span>
-                      <span>{formatCurrency(selectedTransaction.netOfVat)}</span>
+                      <span>{formatCurrency(sidebarReceiptTotals.netOfVat)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>
                         VAT {Number(selectedTransaction.vatRateApplied ?? receiptBranding.vatRatePercent)}%
                       </span>
-                      <span>{formatCurrency(selectedTransaction.vatAmount)}</span>
+                      <span>{formatCurrency(sidebarReceiptTotals.vatAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>VAT Exempt Sales</span>
+                      <span>{formatCurrency(sidebarReceiptTotals.vatExemptSales)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Zero-Rated Sales</span>
+                      <span>{formatCurrency(0)}</span>
                     </div>
                   </div>}
                 <div
                   className={`flex justify-between font-semibold text-base pt-2 border-t ${theme === "dark" ? "text-white border-gray-700" : "text-gray-800 border-gray-100"}`}>
 
                   <span>
-                    {selectedTransaction?.netOfVat != null ? "Total (incl. VAT)" : "Total"}
+                    {sidebarReceiptTotals.hasVat ? "Total (incl. VAT)" : "Total"}
                   </span>
                   <span>
                     {formatCurrency(selectedTransaction?.totalAmount || 0)}
