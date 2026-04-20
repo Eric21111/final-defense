@@ -663,8 +663,19 @@ const Transaction = () => {
           ),
           performedByName: trx.performedByName || "Staff",
           performedById: String(trx.performedById || ""),
-          returnedByName: latestReturn?.performedByName || trx.performedByName || "Staff",
-          returnedById: String(latestReturn?.performedById || trx.performedById || ""),
+          returnedByName:
+            latestReturn?.returnedByName ||
+            latestReturn?.performedByName ||
+            trx.returnedByName ||
+            trx.performedByName ||
+            "Staff",
+          returnedById: String(
+            latestReturn?.returnedById ||
+              latestReturn?.performedById ||
+              trx.returnedById ||
+              trx.performedById ||
+              ""
+          ),
           reason: Array.from(reasons).join(", ") || "Returned item(s)",
           originalAmount,
           discountedAmount,
