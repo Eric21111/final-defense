@@ -2,14 +2,12 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FaMinus, FaPlus, FaQrcode, FaTag, FaTimes } from 'react-icons/fa';
 import { HiDocumentRemove } from 'react-icons/hi';
 import { MdCategory } from 'react-icons/md';
-import { QRCodeSVG } from 'qrcode.react';
 import cashIcon from '../../assets/cash.svg';
-import gcashHeader from '../../assets/gcashHeader.png';
 import qrIcon from '../../assets/qr.png';
-import { API_BASE_URL } from '../../config/api';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import RemoveItemPinModal from './RemoveItemPinModal';
+import SplitPaymentModal from './SplitPaymentModal';
 import VoidTransactionModal from './VoidTransactionModal';
 import { generateDynamicSku } from '../../utils/skuUtils';
 
@@ -60,11 +58,6 @@ const OrderSummary = memo(({
   const [isBulkVoid, setIsBulkVoid] = useState(false);
   const [isStockConflictModalOpen, setIsStockConflictModalOpen] = useState(false);
   const [showSplitPaymentModal, setShowSplitPaymentModal] = useState(false);
-  const [splitCashAmount, setSplitCashAmount] = useState('');
-  const [splitGcashAmount, setSplitGcashAmount] = useState('');
-  const [splitCheckoutUrl, setSplitCheckoutUrl] = useState('');
-  const [isGeneratingSplitQr, setIsGeneratingSplitQr] = useState(false);
-  const [splitError, setSplitError] = useState('');
   const isProcessingVoidRef = useRef(false);
 
   const [pendingQuantities, setPendingQuantities] = useState({});
@@ -149,97 +142,12 @@ const OrderSummary = memo(({
     }
   };
 
-  const parseSplitInput = (value) => {
-    const parsed = Number.parseFloat(String(value || '').replace(/,/g, ''));
-    return Number.isFinite(parsed) ? parsed : 0;
-  };
-
-  const splitCashValue = parseSplitInput(splitCashAmount);
-  const splitGcashValue = parseSplitInput(splitGcashAmount);
-  const splitEnteredTotal = splitCashValue + splitGcashValue;
-  const splitChange = Math.max(0, splitEnteredTotal - Number(total || 0));
-
   const handleSplitButtonClick = () => {
     setSelectedPaymentMethod('split');
-    setSplitError('');
-  };
-
-  const resetSplitPaymentState = () => {
-    setSplitCashAmount('');
-    setSplitGcashAmount('');
-    setSplitCheckoutUrl('');
-    setIsGeneratingSplitQr(false);
-    setSplitError('');
   };
 
   const closeSplitPaymentModal = () => {
     setShowSplitPaymentModal(false);
-    resetSplitPaymentState();
-  };
-
-  const handleGenerateSplitQr = async () => {
-    const gcashValue = splitGcashValue;
-    if (!Number.isFinite(gcashValue) || gcashValue <= 0) {
-      setSplitError('Enter a valid GCash amount before generating QR.');
-      return;
-    }
-
-    setIsGeneratingSplitQr(true);
-    setSplitError('');
-    setSplitCheckoutUrl('');
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/payments/gcash/create-qr`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          totalAmount: gcashValue,
-          description: 'Split payment QR'
-        })
-      });
-
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data?.success || !data?.data?.checkoutUrl) {
-        throw new Error(data?.message || 'Failed to generate GCash QR code.');
-      }
-
-      setSplitCheckoutUrl(data.data.checkoutUrl);
-    } catch (error) {
-      setSplitError(error.message || 'Failed to generate GCash QR code.');
-    } finally {
-      setIsGeneratingSplitQr(false);
-    }
-  };
-
-  const handleSplitPaymentConfirm = async () => {
-    const cashValue = splitCashValue;
-    const gcashValue = splitGcashValue;
-    const combined = cashValue + gcashValue;
-
-    if (cashValue < 0 || gcashValue < 0) {
-      setSplitError('Cash and GCash amounts cannot be negative.');
-      return;
-    }
-    if (combined <= 0) {
-      setSplitError('Enter split amounts first.');
-      return;
-    }
-    if (combined < total) {
-      setSplitError(`Split amount is short by PHP ${(total - combined).toFixed(2)}.`);
-      return;
-    }
-
-    if (!onSplitPayment) {
-      setSplitError('Split payment action is unavailable.');
-      return;
-    }
-
-    setSplitError('');
-    await onSplitPayment({
-      cashAmount: cashValue,
-      gcashAmount: gcashValue
-    });
-    closeSplitPaymentModal();
   };
 
   const handleConfirmStockConflict = () => {
@@ -1213,132 +1121,17 @@ const OrderSummary = memo(({
         onConfirm={handleVoidItemsConfirm}
         cartItems={cart} />
 
-      {showSplitPaymentModal &&
-        <div
-          className="fixed inset-0 z-[10000] bg-opacity-50 backdrop-blur-sm flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="split-payment-title">
-
-          <div className={`rounded-2xl w-full max-w-md relative shadow-2xl ${theme === 'dark' ? 'bg-[#1E1B18]' : 'bg-white'}`}>
-            <div className={`px-6 py-4 border-b relative ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
-              <h3 id="split-payment-title" className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                Split Payment
-              </h3>
-              <button
-                type="button"
-                onClick={closeSplitPaymentModal}
-                className={`absolute top-4 right-4 transition-colors ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-400 hover:text-gray-600'}`}>
-                <FaTimes className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-6">
-              <div className="mb-6">
-                <div className="mb-2">
-                  <label className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Total:
-                  </label>
-                </div>
-                <div className="text-4xl font-bold text-orange-500">
-                  ₱{Number(total || 0).toFixed(2)}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Cash Amount:
-                </label>
-                <input
-                  type="text"
-                  value={splitCashAmount}
-                  onChange={(e) => setSplitCashAmount(e.target.value)}
-                  placeholder="0.00"
-                  className={`w-full px-4 py-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' : 'border-gray-300 bg-white text-gray-900'}`}
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  GCash Amount:
-                </label>
-                <input
-                  type="text"
-                  value={splitGcashAmount}
-                  onChange={(e) => setSplitGcashAmount(e.target.value)}
-                  placeholder="0.00"
-                  className={`w-full px-4 py-3 text-lg border rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' : 'border-gray-300 bg-white text-gray-900'}`}
-                />
-                <button
-                  type="button"
-                  onClick={handleGenerateSplitQr}
-                  disabled={isGeneratingSplitQr}
-                  className={`mt-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ? 'border-gray-600 bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'border-gray-300 bg-gray-50 text-gray-700 hover:bg-gray-100'}`}>
-                  {isGeneratingSplitQr ? 'Generating...' : 'Generate QR Code (Optional)'}
-                </button>
-              </div>
-
-              <div>
-              {splitCheckoutUrl &&
-                <div className="rounded-lg border border-dashed border-[#AD7F65] p-3 mb-4 flex flex-col items-center gap-2">
-                  <div className="bg-white p-4 border-2 border-blue-200 rounded-xl shadow-sm">
-                    <QRCodeSVG
-                      value={splitCheckoutUrl}
-                      size={200}
-                      level="H"
-                      includeMargin={true}
-                      imageSettings={{
-                        src: gcashHeader,
-                        height: 24,
-                        width: 60,
-                        excavate: true
-                      }}
-                    />
-                  </div>
-                  <p className={`text-[11px] ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    QR uses the same GCash payment generation flow.
-                  </p>
-                </div>
-              }
-              </div>
-
-              <div className="mb-6">
-                <label className={`block text-sm font-medium mb-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Change:
-                </label>
-                <div className={`rounded-lg p-4 text-center ${theme === 'dark' ? 'bg-green-900/30' : 'bg-green-100'}`}>
-                  <span className={`text-2xl font-bold ${theme === 'dark' ? 'text-green-400' : 'text-green-700'}`}>
-                    PHP {splitChange.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-
-              <div className={`rounded-lg px-3 py-2 text-sm mb-4 ${theme === 'dark' ? 'bg-[#2A2724] text-gray-200' : 'bg-gray-50 text-gray-700'}`}>
-                <div className="flex justify-between"><span>Total Due</span><span>PHP {Number(total || 0).toFixed(2)}</span></div>
-                <div className="flex justify-between"><span>Entered Split</span><span>PHP {splitEnteredTotal.toFixed(2)}</span></div>
-              </div>
-
-              {splitError && <p className="mb-4 text-sm text-red-600">{splitError}</p>}
-
-              <div className="flex gap-4">
-                <button
-                  type="button"
-                  onClick={closeSplitPaymentModal}
-                  className={`flex-1 py-3 px-6 rounded-lg font-semibold transition-all ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'text-gray-700 bg-gray-200 hover:bg-gray-300'}`}>
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSplitPaymentConfirm}
-                  className="flex-1 py-3 px-6 rounded-lg font-semibold text-white hover:opacity-90 transition-all"
-                  style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}>
-                  Confirm Payment
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      }
+      <SplitPaymentModal
+        isOpen={showSplitPaymentModal}
+        onClose={closeSplitPaymentModal}
+        totalAmount={total}
+        subtotalAmount={subtotal}
+        discountAmount={discount}
+        selectedDiscounts={selectedDiscounts}
+        onProceed={onSplitPayment}
+        cartItems={cart}
+        cashierName={currentUser?.name}
+      />
 
 
       <RemoveItemPinModal
