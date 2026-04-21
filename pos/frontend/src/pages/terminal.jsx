@@ -11,7 +11,7 @@ import ProductCard from "../components/terminal/ProductCard";
 import ProductDetailsModal from "../components/terminal/ProductDetailsModal";
 import QRCodePaymentModal from "../components/terminal/QRCodePaymentModal";
 import RemoveItemPinModal from "../components/terminal/RemoveItemPinModal";
-import { API_BASE_URL, WS_BASE_URL } from "../config/api";
+import { API_BASE_URL, API_ENDPOINTS, WS_BASE_URL } from "../config/api";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useDataCache } from "../context/DataCacheContext";
@@ -181,6 +181,7 @@ const Terminal = () => {
   const [seniorPwdDiscountAmount, setSeniorPwdDiscountAmount] = useState(0);
   const [seniorPwdInput, setSeniorPwdInput] = useState("");
   const [showSeniorPwdPinModal, setShowSeniorPwdPinModal] = useState(false);
+  const [vatConfig, setVatConfig] = useState({ enabled: false, rate: 12 });
   const pendingSeniorPwdRef = useRef(null);
   const [sortOption, setSortOption] = useState("newest");
   const [isProcessingTransaction, setIsProcessingTransaction] = useState(false);
@@ -194,6 +195,35 @@ const Terminal = () => {
     }),
     []
   );
+
+  const isSeniorPwdDiscountItem = useCallback((discountItem) => {
+    const category = String(discountItem?.discountCategory || "").toLowerCase();
+    return category === "senior_citizen" || category === "pwd";
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadVatConfig = async () => {
+      try {
+        const response = await fetch(API_ENDPOINTS.globalSettings, { cache: "no-store" });
+        const data = await response.json();
+        if (!active || !data?.success || !data?.data) return;
+        const rateRaw = Number(data.data.vatRatePercent);
+        const safeRate =
+          Number.isFinite(rateRaw) && rateRaw >= 0 && rateRaw <= 100 ? rateRaw : 12;
+        setVatConfig({
+          enabled: Boolean(data.data.birCompliantEnabled),
+          rate: safeRate
+        });
+      } catch (error) {
+        console.warn("Unable to load VAT settings, using defaults.", error);
+      }
+    };
+    loadVatConfig();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const getCartItemCount = useCallback(
     (items = cart) =>
@@ -1920,16 +1950,61 @@ const Terminal = () => {
 
 
   const discount = useMemo(() => {
+    const minLineRemaining = 0.01;
+    const lineTotals = cart.map(
+      (item) => Math.max(0, (Number(item.itemPrice) || 0) * (Number(item.quantity) || 1))
+    );
+    const maxCartDiscount = lineTotals.reduce((sum, lineTotal) => {
+      if (lineTotal <= 0) return sum;
+      return sum + Math.max(0, lineTotal - minLineRemaining);
+    }, 0);
+
     const senior = Math.max(0, Number(seniorPwdDiscountAmount) || 0);
     if (senior > 0) {
-      return Math.min(senior, subtotal);
+      return Math.min(senior, maxCartDiscount);
     }
 
     if (selectedDiscounts.length === 0) {
-      return parseFloat(discountAmount) || 0;
+      const manualDiscount = Math.max(0, parseFloat(discountAmount) || 0);
+      return Math.min(manualDiscount, maxCartDiscount);
     }
 
-    let totalDiscount = 0;
+    const cumulativeLineDiscount = new Map();
+    const getLineTotal = (idx) => lineTotals[idx] || 0;
+    const maxLineDiscount = (idx) => {
+      const lineTotal = getLineTotal(idx);
+      if (lineTotal <= 0) return 0;
+      return Math.max(0, lineTotal - minLineRemaining);
+    };
+    const applyLineDiscount = (idx, requestedAmount) => {
+      const requested = Math.max(0, Number(requestedAmount) || 0);
+      const used = cumulativeLineDiscount.get(idx) || 0;
+      const remaining = Math.max(0, maxLineDiscount(idx) - used);
+      const applied = Math.min(requested, remaining);
+      if (applied > 0) {
+        cumulativeLineDiscount.set(idx, used + applied);
+      }
+      return applied;
+    };
+    const applyProportionalDiscount = (eligibleIndexes, totalRequested) => {
+      const requested = Math.max(0, Number(totalRequested) || 0);
+      if (requested <= 0 || eligibleIndexes.length === 0) return 0;
+      const weightedTotal = eligibleIndexes.reduce((sum, idx) => sum + getLineTotal(idx), 0);
+      if (weightedTotal <= 0) return 0;
+
+      let appliedTotal = 0;
+      for (let i = 0; i < eligibleIndexes.length; i++) {
+        const idx = eligibleIndexes[i];
+        const lineTotal = getLineTotal(idx);
+        if (lineTotal <= 0) continue;
+        const isLast = i === eligibleIndexes.length - 1;
+        const planned = isLast
+          ? Math.max(0, requested - appliedTotal)
+          : (requested * lineTotal) / weightedTotal;
+        appliedTotal += applyLineDiscount(idx, planned);
+      }
+      return appliedTotal;
+    };
 
     for (const selectedDiscount of selectedDiscounts) {
 
@@ -1940,66 +2015,43 @@ const Terminal = () => {
 
 
       const discountValueStr = selectedDiscount.discountValue || "";
+      const isSeniorPwdDiscount = isSeniorPwdDiscountItem(selectedDiscount);
 
       try {
-        let totalEligibleAmount = 0;
         const appliesToType =
           selectedDiscount.appliesToType || selectedDiscount.appliesTo;
-
-
-        if (appliesToType === "all") {
-          totalEligibleAmount = subtotal;
-        } else if (appliesToType === "category" && selectedDiscount.category) {
-          totalEligibleAmount = cart.reduce((sum, item) => {
-            if (itemMatchesDiscountCategory(item, selectedDiscount.category, selectedDiscount.subCategory)) {
-              return sum + item.itemPrice * item.quantity;
+        const eligibleIndexes = cart
+          .map((item, idx) => ({ item, idx }))
+          .filter(({ item }) => {
+            if (appliesToType === "all") return true;
+            if (appliesToType === "category" && selectedDiscount.category) {
+              return itemMatchesDiscountCategory(
+                item,
+                selectedDiscount.category,
+                selectedDiscount.subCategory
+              );
             }
-            return sum;
-          }, 0);
-        } else if (
-          appliesToType === "products" &&
-          selectedDiscount.productIds &&
-          selectedDiscount.productIds.length > 0) {
-          totalEligibleAmount = cart.reduce((sum, item) => {
-            const itemId = item._id || item.productId || item.id;
-            const isEligible = selectedDiscount.productIds.some((pid) => {
-              const pidStr = pid.toString ? pid.toString() : pid;
-              const itemIdStr = itemId.toString ? itemId.toString() : itemId;
-              return pidStr === itemIdStr;
-            });
-
-            if (isEligible) {
-              return sum + item.itemPrice * item.quantity;
+            if (
+              appliesToType === "products" &&
+              selectedDiscount.productIds &&
+              selectedDiscount.productIds.length > 0
+            ) {
+              const itemId = item._id || item.productId || item.id;
+              return selectedDiscount.productIds.some((pid) => {
+                const pidStr = pid.toString ? pid.toString() : pid;
+                const itemIdStr = itemId.toString ? itemId.toString() : itemId;
+                return pidStr === itemIdStr;
+              });
             }
-            return sum;
-          }, 0);
-        }
-
+            return false;
+          })
+          .map(({ idx }) => idx);
+        const totalEligibleAmount = eligibleIndexes.reduce(
+          (sum, idx) => sum + getLineTotal(idx),
+          0
+        );
 
         const scope = selectedDiscount.scope || "entire_order";
-        const eligibleItems = cart.filter((item) => {
-          if (appliesToType === "all") return true;
-          if (appliesToType === "category" && selectedDiscount.category) {
-            return itemMatchesDiscountCategory(
-              item,
-              selectedDiscount.category,
-              selectedDiscount.subCategory
-            );
-          }
-          if (
-            appliesToType === "products" &&
-            selectedDiscount.productIds &&
-            selectedDiscount.productIds.length > 0
-          ) {
-            const itemId = item._id || item.productId || item.id;
-            return selectedDiscount.productIds.some((pid) => {
-              const pidStr = pid.toString ? pid.toString() : pid;
-              const itemIdStr = itemId.toString ? itemId.toString() : itemId;
-              return pidStr === itemIdStr;
-            });
-          }
-          return false;
-        });
 
         if (
           typeof discountValueStr === "string" &&
@@ -2008,14 +2060,29 @@ const Terminal = () => {
             discountValueStr.replace("% OFF", "").replace(/\s/g, "")
           );
           if (!isNaN(percentage)) {
+            if (isSeniorPwdDiscount && vatConfig.enabled) {
+              const vatMultiplier = 1 + (Number(vatConfig.rate) || 12) / 100;
+              const vatExclusiveEligible = vatMultiplier > 0
+                ? totalEligibleAmount / vatMultiplier
+                : totalEligibleAmount;
+              const lessVatAmount = Math.max(0, totalEligibleAmount - vatExclusiveEligible);
+              const seniorPwdDiscount = vatExclusiveEligible * (percentage / 100);
+              applyProportionalDiscount(
+                eligibleIndexes,
+                lessVatAmount + seniorPwdDiscount
+              );
+              continue;
+            }
             if (scope === "per_item") {
-              const perItemDiscount = eligibleItems.reduce((sum, item) => {
-                const lineTotal = (item.itemPrice || 0) * (item.quantity || 1);
-                return sum + lineTotal * percentage / 100;
-              }, 0);
-              totalDiscount += perItemDiscount;
+              eligibleIndexes.forEach((idx) => {
+                const lineTotal = getLineTotal(idx);
+                applyLineDiscount(idx, lineTotal * percentage / 100);
+              });
             } else {
-              totalDiscount += totalEligibleAmount * percentage / 100;
+              applyProportionalDiscount(
+                eligibleIndexes,
+                totalEligibleAmount * percentage / 100
+              );
             }
           }
         } else if (
@@ -2024,13 +2091,12 @@ const Terminal = () => {
           const amount = parseFloat(discountValueStr.replace(/[P₱\sOFF]/g, ""));
           if (!isNaN(amount)) {
             if (scope === "per_item") {
-              const eligibleQty = eligibleItems.reduce(
-                (sum, item) => sum + (Number(item.quantity) || 1),
-                0
-              );
-              totalDiscount += amount * eligibleQty;
+              eligibleIndexes.forEach((idx) => {
+                const qty = Number(cart[idx]?.quantity) || 1;
+                applyLineDiscount(idx, amount * qty);
+              });
             } else {
-              totalDiscount += amount;
+              applyProportionalDiscount(eligibleIndexes, amount);
             }
           }
         }
@@ -2039,12 +2105,33 @@ const Terminal = () => {
       }
     }
 
-    return totalDiscount || parseFloat(discountAmount) || 0;
-  }, [seniorPwdDiscountAmount, discountAmount, selectedDiscounts, subtotal, cart, products]);
+    const totalDiscount = Array.from(cumulativeLineDiscount.values()).reduce(
+      (sum, value) => sum + value,
+      0
+    );
+    return Math.min(totalDiscount || 0, maxCartDiscount);
+  }, [seniorPwdDiscountAmount, discountAmount, selectedDiscounts, subtotal, cart, products, isSeniorPwdDiscountItem, vatConfig.enabled, vatConfig.rate]);
 
   const total = useMemo(() => {
     return subtotal - discount;
   }, [subtotal, discount]);
+
+  const hasSeniorPwdSelectedDiscount = useMemo(
+    () => selectedDiscounts.some((d) => isSeniorPwdDiscountItem(d)),
+    [selectedDiscounts, isSeniorPwdDiscountItem]
+  );
+
+  const seniorPwdSummaryBreakdown = useMemo(() => {
+    if (!hasSeniorPwdSelectedDiscount || !vatConfig.enabled) return null;
+    const vatMultiplier = 1 + (Number(vatConfig.rate) || 12) / 100;
+    const vatExemptSales =
+      vatMultiplier > 0 ? subtotal / vatMultiplier : subtotal;
+    const scPwdDiscount = vatExemptSales * 0.2;
+    return {
+      vatExemptSales: Math.max(0, vatExemptSales),
+      scPwdDiscount: Math.max(0, scPwdDiscount)
+    };
+  }, [hasSeniorPwdSelectedDiscount, vatConfig.enabled, vatConfig.rate, subtotal]);
 
   useEffect(() => {
     if (cart.length === 0) {
@@ -2517,7 +2604,14 @@ const Terminal = () => {
         return;
       }
 
-      if (selectedDiscounts.length > 0) {
+      const selectingSeniorPwd = isSeniorPwdDiscountItem(discountItem);
+
+      if (selectingSeniorPwd && seniorPwdDiscountAmount > 0) {
+        setSeniorPwdDiscountAmount(0);
+        setSeniorPwdInput("");
+      }
+
+      if (!selectingSeniorPwd && selectedDiscounts.length > 0) {
         alert(
           "Only one discount can be applied per transaction. Remove the current discount first."
         );
@@ -2539,7 +2633,11 @@ const Terminal = () => {
       }
 
 
-      setSelectedDiscounts((prev) => [...prev, discountItem]);
+      if (selectingSeniorPwd) {
+        setSelectedDiscounts([discountItem]);
+      } else {
+        setSelectedDiscounts((prev) => [...prev, discountItem]);
+      }
 
 
       setDiscountAmount("");
@@ -2547,7 +2645,7 @@ const Terminal = () => {
       console.error("Error selecting discount:", error);
       alert("An error occurred while applying the discount. Please try again.");
     }
-  }, [selectedDiscounts, cart, validateDiscountForCart, seniorPwdDiscountAmount]);
+  }, [selectedDiscounts, cart, validateDiscountForCart, seniorPwdDiscountAmount, isSeniorPwdDiscountItem]);
 
   const handleRemoveSeniorPwdDiscount = useCallback(() => {
     setSeniorPwdDiscountAmount(0);
@@ -2751,7 +2849,10 @@ const Terminal = () => {
               onSeniorPwdInputChange={setSeniorPwdInput}
               seniorPwdAppliedAmount={seniorPwdDiscountAmount}
               onRequestSeniorPwdApply={handleRequestSeniorPwdDiscount}
-              onRemoveSeniorPwdDiscount={handleRemoveSeniorPwdDiscount} />
+              onRemoveSeniorPwdDiscount={handleRemoveSeniorPwdDiscount}
+              showSeniorPwdVatSummary={Boolean(seniorPwdSummaryBreakdown)}
+              seniorPwdVatExemptSales={seniorPwdSummaryBreakdown?.vatExemptSales || 0}
+              seniorPwdVatDiscount={seniorPwdSummaryBreakdown?.scPwdDiscount || 0} />
 
           </div>
         </div>

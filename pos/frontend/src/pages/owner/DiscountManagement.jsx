@@ -45,7 +45,7 @@ const DiscountManagement = () => {
       if (value >= 50) {
         return {
           icon: icon50Percent,
-          iconColor: 'linear-gradient(135deg, #6B7280 0%, #4B5563 100%)',
+          iconColor: 'linear-gradient(135deg, #1B89CD 0%, #FFACC3 100%)',
           titleColor: '#6B7280'
         };
       }
@@ -156,8 +156,9 @@ const DiscountManagement = () => {
 
 
   const handleEditClick = async (discount) => {
+    const appliesToType = discount.appliesToType || discount.appliesTo;
 
-    if (discount.appliesTo === 'products' && discount.productIds && discount.productIds.length > 0) {
+    if (appliesToType === 'products' && discount.productIds && discount.productIds.length > 0) {
       try {
         const response = await fetch(API_ENDPOINTS.products);
         const data = await response.json();
@@ -205,7 +206,8 @@ const DiscountManagement = () => {
         minPurchaseAmount: formData.minPurchaseAmount ? parseFloat(formData.minPurchaseAmount) : 0,
         maxPurchaseAmount: formData.maxPurchaseAmount ? parseFloat(formData.maxPurchaseAmount) : null,
         usageLimit: formData.usageLimit && formData.usageLimit !== '0' ? parseInt(formData.usageLimit) : null,
-        description: ''
+        description: '',
+        status: formData.status || 'active'
       };
 
       const response = await fetch(API_ENDPOINTS.discountById(id), {
@@ -249,7 +251,7 @@ const DiscountManagement = () => {
         maxPurchaseAmount: formData.maxPurchaseAmount ? parseFloat(formData.maxPurchaseAmount) : null,
         usageLimit: formData.usageLimit && formData.usageLimit !== '0' ? parseInt(formData.usageLimit) : null,
         description: '',
-        status: 'active'
+        status: formData.status || 'active'
       };
 
       const response = await fetch(API_ENDPOINTS.discounts, {
@@ -387,19 +389,19 @@ const DiscountManagement = () => {
           {filteredDiscounts.map((discount) =>
         <div
           key={discount._id}
-          className={`rounded-xl overflow-hidden border shadow-lg flex ${theme === 'dark' ?
+          className={`rounded-xl overflow-hidden border flex ${theme === 'dark' ?
           'bg-[#2A2724] border-[#4A4037]' :
-          'bg-white border-blue-200'}`
+          'bg-white border-gray-200'}`
           }>
           
               <div
-            className="w-15 flex items-center justify-center shrink-0"
+            className="w-25 flex items-center justify-center shrink-0"
             style={{ background: discount.iconColor }}>
             
                 <img
               src={discount.icon}
               alt={discount.title}
-              className="w-full h-full object-contain p-2" />
+              className="w-full h-full object-contain p-4" />
             
               </div>
 

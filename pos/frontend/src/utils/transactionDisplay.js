@@ -65,21 +65,56 @@ export function originalSubtotalFromItems(transaction) {
   }, 0);
 }
 
+function originalQuantityForItem(item) {
+  let originalQty = item?.quantity || 1;
+  if (item?.returnStatus === "Partially Returned" && item?.returnedQuantity) {
+    originalQty = (item.quantity || 0) + (item.returnedQuantity || 0);
+  }
+  if (item?.returnStatus === "Returned" && item?.returnedQuantity) {
+    originalQty = item.returnedQuantity;
+  }
+  return Math.max(0, Number(originalQty) || 0);
+}
+
+/** Total original quantity from the initial transaction (across all items/variants/sizes). */
+export function totalOriginalQuantityFromItems(transaction) {
+  if (!transaction?.items?.length) return 0;
+  return transaction.items.reduce((sum, item) => sum + originalQuantityForItem(item), 0);
+}
+
+/** Total returned quantity from linked return transactions or fallback item statuses. */
+export function totalReturnedQuantityFromTransaction(transaction) {
+  const fromReturnRecords =
+    transaction?.returnTransactions?.reduce((sum, r) => {
+      const qtyFromRecord =
+        r?.items?.reduce((itemSum, item) => itemSum + (Number(item?.quantity) || 0), 0) || 0;
+      return sum + qtyFromRecord;
+    }, 0) || 0;
+
+  if (fromReturnRecords > 0) return fromReturnRecords;
+  if (!transaction?.items?.length) return 0;
+
+  return transaction.items.reduce((sum, item) => {
+    const isFullyReturned = item.returnStatus === "Returned";
+    const returnedQty = item.returnedQuantity || (isFullyReturned ? (item.quantity || 1) : 0);
+    return sum + (Number(returnedQty) || 0);
+  }, 0);
+}
+
 /**
  * Total returned amount. Uses returnTransactions if available, otherwise computes from item statuses.
  */
 export function totalReturnedFromTransaction(transaction) {
-  const fromRecords = transaction?.returnTransactions?.reduce((sum, r) => sum + (r.totalAmount || 0), 0) || 0;
-  if (fromRecords > 0) return fromRecords;
+  const subtotal = originalSubtotalFromItems(transaction);
+  const discount = Number(transaction?.discount ?? transaction?.discountAmount ?? 0) || 0;
+  const totalOriginalQty = totalOriginalQuantityFromItems(transaction);
+  if (subtotal <= 0 || totalOriginalQty <= 0) return 0;
 
-  if (!transaction?.items?.length) return 0;
-  return transaction.items.reduce((sum, item) => {
-    const isFullyReturned = item.returnStatus === "Returned";
-    // For full returns, if returnedQuantity isn't set, it means the whole quantity was returned.
-    const returnedQty = item.returnedQuantity || (isFullyReturned ? (item.quantity || 1) : 0);
-    const unitPrice = item.price || item.itemPrice || 0;
-    return sum + (returnedQty * unitPrice);
-  }, 0);
+  const paidAfterDiscount = Math.max(0, subtotal - discount);
+  const paidPerUnit = paidAfterDiscount / totalOriginalQty;
+  const returnedQty = totalReturnedQuantityFromTransaction(transaction);
+  const returnedAmount = paidPerUnit * returnedQty;
+  return Math.round(returnedAmount * 100) / 100;
 }
 
 /**
@@ -103,14 +138,6 @@ export function resolveTransactionDiscount(transaction, lineSubtotal, { skipInfe
     }
   }
 
-  // Scale the discount proportionally:
-  // If an item is returned, the discount applied to that item is revoked,
-  // making the final returned total accurate without entering negatives.
-  if (discount > 0 && lineSubtotal > 0) {
-    const totalReturned = totalReturnedFromTransaction(transaction);
-    const proportionKept = Math.max(0, lineSubtotal - Math.abs(totalReturned)) / lineSubtotal;
-    discount = discount * proportionKept;
-  }
-  
+  discount = Math.max(0, discount);
   return discount;
 }

@@ -3,7 +3,9 @@ import {
   cleanItemNameForDisplay,
   formatItemVariantSizeLabel,
   originalSubtotalFromItems,
+  totalOriginalQuantityFromItems,
   totalReturnedFromTransaction,
+  totalReturnedQuantityFromTransaction,
   resolveTransactionDiscount
 } from '../../utils/transactionDisplay';
 // comment kahit saan
@@ -85,8 +87,15 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
   const discountAmount = resolveTransactionDiscount(transaction, subtotal, {
     skipInference: hasReturns
   });
+  const totalOriginalQty = totalOriginalQuantityFromItems(transaction);
+  const totalReturnedQty = totalReturnedQuantityFromTransaction(transaction);
+  const paidAfterDiscount = Math.max(0, subtotal - discountAmount);
+  const paidPerUnit = totalOriginalQty > 0 ? paidAfterDiscount / totalOriginalQty : 0;
   // Adjusted Total = Subtotal - Discount - Returned Amount
-  const adjustedTotal = subtotal - discountAmount - Math.abs(totalReturned);
+  const adjustedTotal = Math.max(
+    0,
+    Math.round((subtotal - discountAmount - Math.abs(totalReturned)) * 100) / 100
+  );
 
   const amountPaid = transaction.amountReceived || 0;
   const change = transaction.changeGiven || 0;
@@ -186,7 +195,9 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                 const variantLabel = formatItemVariantSizeLabel(item);
                 const unitPrice = item.price || item.itemPrice || 0;
                 const lineTotal = unitPrice * displayQty;
-                const returnedLineAmount = returnedQty > 0 ? unitPrice * returnedQty : 0;
+                const returnedLineAmount = returnedQty > 0
+                  ? Math.round((paidPerUnit * returnedQty) * 100) / 100
+                  : 0;
 
                 return (
                   <div key={idx}>

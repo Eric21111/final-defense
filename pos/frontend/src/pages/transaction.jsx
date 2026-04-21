@@ -86,6 +86,35 @@ const formatCurrency = (value = 0) =>
     currency: "PHP"
   }).format(value);
 
+const hasSeniorPwdDiscount = (source = {}) => {
+  const textHasSeniorPwd = (value) => /(senior|pwd|sc\s*\/\s*pwd)/i.test(String(value || ""));
+  if (textHasSeniorPwd(source.customerType) || textHasSeniorPwd(source.discountCategory)) return true;
+  if (Array.isArray(source.discounts)) {
+    return source.discounts.some((d) =>
+      textHasSeniorPwd(d?.title) ||
+      textHasSeniorPwd(d?.name) ||
+      textHasSeniorPwd(d?.discountCategory) ||
+      textHasSeniorPwd(d?.category)
+    );
+  }
+  if (Array.isArray(source.appliedDiscountIds)) {
+    return source.appliedDiscountIds.some((d) =>
+      d && typeof d === "object" &&
+      (textHasSeniorPwd(d?.title) || textHasSeniorPwd(d?.name) || textHasSeniorPwd(d?.discountCategory))
+    );
+  }
+  const vatRate = Number(source.vatRateApplied ?? 12);
+  const subtotal = Number(source.lineSub ?? source.subtotal ?? source.originalTotalAmount ?? 0);
+  const total = Number(source.total ?? source.totalAmount ?? 0);
+  if (subtotal > 0 && total >= 0 && Number.isFinite(vatRate) && vatRate > 0) {
+    const expectedScPwdTotal = (subtotal / (1 + vatRate / 100)) * 0.8;
+    if (Math.abs(total - expectedScPwdTotal) <= 0.05) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const formatCurrencyCompact = (value = 0) => {
   const n = parseFloat(value) || 0;
   const abs = Math.abs(n).toLocaleString("en-PH", {
@@ -304,6 +333,7 @@ const Transaction = () => {
   const isInitialMount = useRef(true);
   const hasLoaded = useRef(false);
   const isInitialLoading = useRef(true);
+  const isFetchInFlightRef = useRef(false);
   const setCachedDataRef = useRef(setCachedData);
   const selectAllTransactionsRef = useRef(null);
   const selectAllReturnedLogsRef = useRef(null);
@@ -314,6 +344,8 @@ const Transaction = () => {
   }, [setCachedData]);
 
   const fetchTransactions = useCallback(async () => {
+    if (isFetchInFlightRef.current) return;
+    isFetchInFlightRef.current = true;
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -411,6 +443,7 @@ const Transaction = () => {
       setTransactions([]);
       setCachedDataRef.current("transactions", []);
     } finally {
+      isFetchInFlightRef.current = false;
       setLoading(false);
     }
   }, [debouncedSearch, filters.method, filters.status, filters.user]);
@@ -474,13 +507,14 @@ const Transaction = () => {
   useEffect(() => {
     if (isInitialMount.current) return;
 
+    const LIVE_REFRESH_MS = 3000;
     const refresh = () => {
       if (document.visibilityState === "visible") {
         fetchTransactions();
       }
     };
 
-    const intervalId = window.setInterval(refresh, 10000);
+    const intervalId = window.setInterval(refresh, LIVE_REFRESH_MS);
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
 
@@ -658,8 +692,19 @@ const Transaction = () => {
           ),
           performedByName: trx.performedByName || "Staff",
           performedById: String(trx.performedById || ""),
-          returnedByName: latestReturn?.performedByName || trx.performedByName || "Staff",
-          returnedById: String(latestReturn?.performedById || trx.performedById || ""),
+          returnedByName:
+            latestReturn?.returnedByName ||
+            latestReturn?.performedByName ||
+            trx.returnedByName ||
+            trx.performedByName ||
+            "Staff",
+          returnedById: String(
+            latestReturn?.returnedById ||
+              latestReturn?.performedById ||
+              trx.returnedById ||
+              trx.performedById ||
+              ""
+          ),
           reason: Array.from(reasons).join(", ") || "Returned item(s)",
           originalAmount,
           discountedAmount,
@@ -807,17 +852,42 @@ const Transaction = () => {
 
   const sidebarReceiptTotals = useMemo(() => {
     const trx = selectedTransaction;
-    if (!trx) return { lineSub: 0, discount: 0 };
-    const lineSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
+    if (!trx) {
+      return { lineSub: 0, discount: 0, hasVat: false, netOfVat: 0, vatAmount: 0, vatExemptSales: 0 };
+    }
     const hasReturnActivity =
       (trx.returnTransactions?.length || 0) > 0 ||
       trx.status === "Returned" ||
       trx.status === "Partially Returned";
-    const discount = resolveTransactionDiscount(trx, lineSub, {
-      skipInference: hasReturnActivity
-    });
-    return { lineSub, discount };
-  }, [selectedTransaction]);
+    const originalSub = originalSubtotalFromItems(trx) || trx.originalTotalAmount || trx.totalAmount || 0;
+    const remainingSub = lineSubtotalFromItems(trx) || 0;
+    const lineSub = hasReturnActivity ? remainingSub : originalSub;
+    const vatRate = Number(trx.vatRateApplied ?? receiptBranding.vatRatePercent ?? 12);
+    const totalAmount = Number(trx.totalAmount ?? 0);
+    const expectedScPwdTotal =
+      lineSub > 0 && Number.isFinite(vatRate) && vatRate > 0
+        ? (lineSub / (1 + vatRate / 100)) * 0.8
+        : NaN;
+    const discount = hasReturnActivity
+      ? Math.max(0, lineSub - totalAmount)
+      : resolveTransactionDiscount(trx, lineSub, {
+          skipInference: hasReturnActivity
+        });
+    const expectedScPwdDiscount =
+      lineSub > 0 && Number.isFinite(vatRate) && vatRate > 0
+        ? lineSub - (lineSub / (1 + vatRate / 100)) * 0.8
+        : NaN;
+    const isSeniorPwdTxn =
+      (Number.isFinite(expectedScPwdTotal) && Math.abs(totalAmount - expectedScPwdTotal) <= 0.05) ||
+      (Number.isFinite(expectedScPwdDiscount) && Math.abs(discount - expectedScPwdDiscount) <= 0.05);
+    const hasVat = isSeniorPwdTxn || (trx.netOfVat != null && trx.vatAmount != null);
+    const netOfVat = isSeniorPwdTxn ? 0 : Number(trx.netOfVat ?? 0);
+    const vatAmount = isSeniorPwdTxn ? 0 : Number(trx.vatAmount ?? 0);
+    const vatExemptSales = isSeniorPwdTxn
+      ? Math.max(0, totalAmount)
+      : Math.max(0, totalAmount - netOfVat - vatAmount);
+    return { lineSub, discount, hasVat, netOfVat, vatAmount, vatExemptSales };
+  }, [selectedTransaction, receiptBranding.vatRatePercent]);
 
   useEffect(() => {
     setSelectedTransactionIds((prev) =>
@@ -2389,41 +2459,38 @@ const Transaction = () => {
                     {formatCurrency(sidebarReceiptTotals.discount)}
                   </span>
                 </div>
-                {selectedTransaction?.netOfVat != null &&
-                  selectedTransaction?.vatAmount != null &&
+                {sidebarReceiptTotals.hasVat &&
                   <div className="space-y-1 pt-1 border-t border-dashed border-gray-600/40">
                     <div className="flex justify-between">
                       <span>Net (vatable) sales</span>
-                      <span>{formatCurrency(selectedTransaction.netOfVat)}</span>
+                      <span>{formatCurrency(sidebarReceiptTotals.netOfVat)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>
                         VAT {Number(selectedTransaction.vatRateApplied ?? receiptBranding.vatRatePercent)}%
                       </span>
-                      <span>{formatCurrency(selectedTransaction.vatAmount)}</span>
+                      <span>{formatCurrency(sidebarReceiptTotals.vatAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>VAT Exempt Sales</span>
+                      <span>{formatCurrency(sidebarReceiptTotals.vatExemptSales)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Zero-Rated Sales</span>
+                      <span>{formatCurrency(0)}</span>
                     </div>
                   </div>}
                 <div
                   className={`flex justify-between font-semibold text-base pt-2 border-t ${theme === "dark" ? "text-white border-gray-700" : "text-gray-800 border-gray-100"}`}>
 
                   <span>
-                    {selectedTransaction?.netOfVat != null ? "Total (incl. VAT)" : "Total"}
+                    {sidebarReceiptTotals.hasVat ? "Total (incl. VAT)" : "Total"}
                   </span>
                   <span>
                     {formatCurrency(selectedTransaction?.totalAmount || 0)}
                   </span>
                 </div>
               </div>
-              <button
-                className="w-full mt-6 py-3 rounded-xl text-white font-semibold shadow-lg transition-all hover:shadow-xl hover:brightness-105 active:scale-98"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(135deg, #AD7F65 0%, #76462B 100%)",
-                  boxShadow: "0 12px 20px rgba(118,70,43,0.25)"
-                }}>
-
-                Print Receipt
-              </button>
               <p className="text-center text-[11px] text-gray-400 mt-4 tracking-wide">
                 This is not an official receipt
               </p>

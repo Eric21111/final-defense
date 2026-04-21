@@ -123,7 +123,8 @@ const CashPaymentModal = ({
         discount: discountAmount,
         discounts: selectedDiscounts.map((d) => ({
           title: d.title,
-          value: d.discountValue
+          value: d.discountValue,
+          discountCategory: d.discountCategory
         })),
         total: totalAmount,
         totalAmount,

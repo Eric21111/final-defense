@@ -37,13 +37,17 @@ const OrderSummary = memo(({
   onSeniorPwdInputChange = () => {},
   seniorPwdAppliedAmount = 0,
   onRequestSeniorPwdApply = () => {},
-  onRemoveSeniorPwdDiscount = () => {}
+  onRemoveSeniorPwdDiscount = () => {},
+  showSeniorPwdVatSummary = false,
+  seniorPwdVatExemptSales = 0,
+  seniorPwdVatDiscount = 0
 }) => {
   const { theme } = useTheme();
   const { currentUser } = useAuth();
   const userId = currentUser?._id || currentUser?.id || currentUser?.email || 'guest';
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(null);
   const [discountCode, setDiscountCode] = useState('');
+  const [seniorPwdModeEnabled, setSeniorPwdModeEnabled] = useState(false);
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
   const [applyingDiscount, setApplyingDiscount] = useState(false);
@@ -59,6 +63,17 @@ const OrderSummary = memo(({
   const promoInputsDisabled =
     selectedDiscounts.length > 0 || seniorPwdAppliedAmount > 0;
   const seniorPwdInputsDisabled = selectedDiscounts.length > 0;
+
+  useEffect(() => {
+    if (!seniorPwdModeEnabled) {
+      if (seniorPwdAppliedAmount > 0) {
+        onRemoveSeniorPwdDiscount();
+      }
+      if (seniorPwdInput) {
+        onSeniorPwdInputChange('');
+      }
+    }
+  }, [seniorPwdModeEnabled, seniorPwdAppliedAmount, seniorPwdInput, onRemoveSeniorPwdDiscount, onSeniorPwdInputChange]);
 
 
   useEffect(() => {
@@ -807,50 +822,49 @@ const OrderSummary = memo(({
             </div>
           }
 
-          { }
-          <div className="flex items-center gap-2">
-            <input
-              type="text"
-              placeholder={promoInputsDisabled ? 'One discount per order' : 'Enter discount code'}
-              value={discountCode}
-              onChange={(e) => setDiscountCode(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && !applyingDiscount && !promoInputsDisabled) {
-                  applyDiscountCode();
-                }
-              }}
-              disabled={promoInputsDisabled}
-              className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ?
-                'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
-                'bg-white border-[#d6c1b5] text-gray-900'}`
-              } />
+          {!seniorPwdModeEnabled ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                placeholder={promoInputsDisabled ? 'One discount per order' : 'Enter discount code'}
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !applyingDiscount && !promoInputsDisabled) {
+                    applyDiscountCode();
+                  }
+                }}
+                disabled={promoInputsDisabled}
+                className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-[#AD7F65] focus:border-transparent disabled:opacity-60 disabled:cursor-not-allowed ${theme === 'dark' ?
+                  'bg-[#2A2724] border-gray-600 text-white placeholder-gray-500' :
+                  'bg-white border-[#d6c1b5] text-gray-900'}`
+                } />
 
-            <button
-              type="button"
-              onClick={onOpenDiscountModal}
-              disabled={promoInputsDisabled}
-              className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-              title={promoInputsDisabled ? 'Remove the current discount to choose another' : 'Browse discounts'}>
+              <button
+                type="button"
+                onClick={onOpenDiscountModal}
+                disabled={promoInputsDisabled}
+                className={`p-2 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${theme === 'dark' ? 'bg-[#2A2724] text-gray-300 hover:bg-[#322f2c]' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                title={promoInputsDisabled ? 'Remove the current discount to choose another' : 'Browse discounts'}>
 
-              <FaTag className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={applyDiscountCode}
-              disabled={promoInputsDisabled || applyingDiscount || !discountCode || !discountCode.trim()}
-              className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
-              title={promoInputsDisabled ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
+                <FaTag className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={applyDiscountCode}
+                disabled={promoInputsDisabled || applyingDiscount || !discountCode || !discountCode.trim()}
+                className="px-4 py-2 text-white rounded-lg font-medium hover:opacity-90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #AD7F65 0%, #76462B 100%)' }}
+                title={promoInputsDisabled ? 'Only one discount per order. Remove the current discount to apply another.' : undefined}>
 
-              {applyingDiscount ? 'Applying...' : 'Apply'}
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-6">
-          <label className="block text-xs font-semibold text-[#8B7355] mb-2">
-            Discount for Senior Citizen / PWD
-          </label>
+                {applyingDiscount ? 'Applying...' : 'Apply'}
+              </button>
+            </div>
+          ) : (
+            <>
+              <label className="block text-xs font-semibold text-[#8B7355] mb-2">
+                Discount for Senior Citizen / PWD
+              </label>
           {seniorPwdAppliedAmount > 0 &&
             <div className={`flex items-center gap-2 p-2 rounded-lg border mb-3 ${theme === 'dark' ? 'bg-[#2A2724] border-gray-600' : 'bg-gray-50 border-[#d6c1b5]'}`}>
               <div className="flex-1">
@@ -907,22 +921,58 @@ const OrderSummary = memo(({
           <p className={`text-[11px] mt-2 ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'}`}>
             Owner PIN is required to apply this discount.
           </p>
+            </>
+          )}
+          <label className="mt-3 inline-flex items-center gap-2 cursor-pointer select-none">
+            <span className="relative inline-flex items-center">
+              <input
+                type="checkbox"
+                checked={seniorPwdModeEnabled}
+                onChange={(e) => setSeniorPwdModeEnabled(e.target.checked)}
+                className="sr-only peer"
+              />
+              <span className="w-11 h-6 rounded-full bg-gray-300 peer-checked:bg-[linear-gradient(135deg,_#AD7F65_0%,_#76462B_100%)] transition-all after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow-sm after:transition-all peer-checked:after:translate-x-5" />
+            </span>
+            <span className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-[#8B7355]'}`}>
+              Senior Citizen / PWD Discount
+            </span>
+          </label>
         </div>
 
         <div className="space-y-2 mb-6 text-xs">
-          <div className="flex justify-between">
-            <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Subtotal</span>
-            <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {subtotal.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Discount</span>
-            <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {discount.toFixed(2)}</span>
-          </div>
-          <div className={`border-t my-3 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}></div>
-          <div className="flex justify-between">
-            <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Total</span>
-            <span className="text-sm font-bold" style={{ color: 'rgba(255, 133, 88, 1)' }}>PHP {total.toFixed(2)}</span>
-          </div>
+          {showSeniorPwdVatSummary ? (
+            <>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>VAT EXEMPT SALES</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {Number(seniorPwdVatExemptSales || 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>LESS: SC/PWD DISCOUNT</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {Number(seniorPwdVatDiscount || 0).toFixed(2)}</span>
+              </div>
+              <div className={`border-t my-3 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}></div>
+              <div className="flex justify-between">
+                <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>TOTAL</span>
+                <span className="text-sm font-bold" style={{ color: 'rgba(255, 133, 88, 1)' }}>PHP {total.toFixed(2)}</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Subtotal</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Discount</span>
+                <span className={`font-medium ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>PHP {discount.toFixed(2)}</span>
+              </div>
+              <div className={`border-t my-3 ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'}`}></div>
+              <div className="flex justify-between">
+                <span className={`text-sm font-bold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Total</span>
+                <span className="text-sm font-bold" style={{ color: 'rgba(255, 133, 88, 1)' }}>PHP {total.toFixed(2)}</span>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="mb-6">

@@ -434,7 +434,8 @@ const QRCodePaymentModal = ({
         discount: snapshotAmounts.discount || discountAmount,
         discounts: selectedDiscounts.map((d) => ({
           title: d.title,
-          value: d.discountValue
+          value: d.discountValue,
+          discountCategory: d.discountCategory
         })),
         total: snapshotAmounts.total || totalAmount,
         totalAmount: snapshotAmounts.total || totalAmount,

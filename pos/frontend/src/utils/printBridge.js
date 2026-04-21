@@ -1,6 +1,35 @@
 import { formatReceiptVariantSizeLine } from './transactionDisplay';
 import { getReceiptProfile } from './receiptProfile';
 
+const hasSeniorPwdDiscount = (source = {}) => {
+  const textHasSeniorPwd = (value) => /(senior|pwd|sc\s*\/\s*pwd)/i.test(String(value || ''));
+  if (textHasSeniorPwd(source.customerType) || textHasSeniorPwd(source.discountCategory)) return true;
+  if (Array.isArray(source.discounts)) {
+    return source.discounts.some((d) =>
+      textHasSeniorPwd(d?.title) ||
+      textHasSeniorPwd(d?.name) ||
+      textHasSeniorPwd(d?.discountCategory) ||
+      textHasSeniorPwd(d?.category)
+    );
+  }
+  if (Array.isArray(source.appliedDiscountIds)) {
+    return source.appliedDiscountIds.some((d) =>
+      d && typeof d === 'object' &&
+      (textHasSeniorPwd(d?.title) || textHasSeniorPwd(d?.name) || textHasSeniorPwd(d?.discountCategory))
+    );
+  }
+  const vatRate = Number(source.vatRateApplied ?? 12);
+  const subtotal = Number(source.subtotal ?? source.originalTotalAmount ?? 0);
+  const total = Number(source.total ?? source.totalAmount ?? 0);
+  if (subtotal > 0 && total >= 0 && Number.isFinite(vatRate) && vatRate > 0) {
+    const expectedScPwdTotal = (subtotal / (1 + vatRate / 100)) * 0.8;
+    if (Math.abs(total - expectedScPwdTotal) <= 0.05) {
+      return true;
+    }
+  }
+  return false;
+};
+
 function mergeReceiptWithStoreProfile(receipt = {}) {
   const p = getReceiptProfile();
   const totalPay = Number(receipt.total ?? receipt.totalAmount ?? 0);
@@ -155,6 +184,12 @@ export const buildReceiptLines = (receipt) => {
 
 
   const totalPay = Number(r.total ?? r.totalAmount ?? 0);
+  const isSeniorPwdTxn = hasSeniorPwdDiscount(r);
+  const netOfVat = isSeniorPwdTxn ? 0 : Number(r.netOfVat ?? 0);
+  const vatAmount = isSeniorPwdTxn ? 0 : Number(r.vatAmount ?? 0);
+  const vatExemptSales = isSeniorPwdTxn
+    ? Math.max(0, totalPay)
+    : Math.max(0, totalPay - netOfVat - vatAmount);
 
   lines.push(padLine('Subtotal:', `PHP ${Number(r.subtotal || 0).toFixed(2)}`));
   lines.push(padLine('Discount:', `PHP ${Number(r.discount || 0).toFixed(2)}`));
@@ -166,12 +201,16 @@ export const buildReceiptLines = (receipt) => {
   ) {
     lines.push('');
     lines.push(
-      padLine('Net (vatable) sales', `PHP ${Number(r.netOfVat).toFixed(2)}`)
+      padLine('Net (vatable) sales', `PHP ${netOfVat.toFixed(2)}`)
     );
     const vr = Number(r.vatRateApplied || 12);
     lines.push(
-      padLine(`VAT ${vr}%`, `PHP ${Number(r.vatAmount).toFixed(2)}`)
+      padLine(`VAT ${vr}%`, `PHP ${vatAmount.toFixed(2)}`)
     );
+    lines.push(
+      padLine('VAT Exempt Sales', `PHP ${vatExemptSales.toFixed(2)}`)
+    );
+    lines.push(padLine('Zero-Rated Sales', 'PHP 0.00'));
     lines.push(padLine('Total (incl. VAT)', `PHP ${totalPay.toFixed(2)}`));
   } else {
     lines.push('');
@@ -215,6 +254,12 @@ const buildReceiptHTML = (receiptRaw) => {
   const subtotal = Number(receipt.subtotal || 0);
   const discount = Number(receipt.discount || 0);
   const total = Number(receipt.total ?? receipt.totalAmount ?? 0);
+  const isSeniorPwdTxn = hasSeniorPwdDiscount(receipt);
+  const netOfVat = isSeniorPwdTxn ? 0 : Number(receipt.netOfVat ?? 0);
+  const vatAmount = isSeniorPwdTxn ? 0 : Number(receipt.vatAmount ?? 0);
+  const vatExemptSales = isSeniorPwdTxn
+    ? Math.max(0, total)
+    : Math.max(0, total - netOfVat - vatAmount);
   const showBirVat =
     receipt.birCompliantEnabled &&
     receipt.vatAmount != null &&
@@ -386,11 +431,19 @@ const buildReceiptHTML = (receiptRaw) => {
           ${showBirVat ? `
           <div style="display: flex; justify-content: space-between; margin: 4px 0; padding-top: 6px; font-size: 11px;">
             <span style="color: #4a5568;">Net (vatable) sales:</span>
-            <span style="color: #1a202c;">PHP ${Number(receipt.netOfVat).toFixed(2)}</span>
+            <span style="color: #1a202c;">PHP ${netOfVat.toFixed(2)}</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
             <span style="color: #4a5568;">VAT ${vrHtml}%:</span>
-            <span style="color: #1a202c;">PHP ${Number(receipt.vatAmount).toFixed(2)}</span>
+            <span style="color: #1a202c;">PHP ${vatAmount.toFixed(2)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
+            <span style="color: #4a5568;">VAT Exempt Sales:</span>
+            <span style="color: #1a202c;">PHP ${vatExemptSales.toFixed(2)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
+            <span style="color: #4a5568;">Zero-Rated Sales:</span>
+            <span style="color: #1a202c;">PHP 0.00</span>
           </div>
           <div style="display: flex; justify-content: space-between; margin: 8px 0; padding-top: 8px;">
             <span style="font-weight: bold; color: #1a365d; font-size: 13px;">Total (incl. VAT):</span>

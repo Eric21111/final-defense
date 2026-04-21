@@ -88,6 +88,25 @@ const buildTodayRemittanceQuery = (employeeId, startOfDay, endOfDay) => ({
     ]
 });
 
+const roundMoney = (n) => Math.round((Number(n) || 0) * 100) / 100;
+
+/** Original sale amount before returns: prefer originalTotalAmount, then subtotal, then line items. */
+const grossOriginalSaleAmount = (t) => {
+    const o = Number(t?.originalTotalAmount);
+    if (Number.isFinite(o) && o > 0) return o;
+    const s = Number(t?.subtotal);
+    if (Number.isFinite(s) && s > 0) return s;
+    if (Array.isArray(t?.items) && t.items.length > 0) {
+        const fromItems = t.items.reduce(
+            (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 1),
+            0
+        );
+        if (fromItems > 0) return fromItems;
+    }
+    const ta = Number(t?.totalAmount);
+    return Number.isFinite(ta) ? ta : 0;
+};
+
 // GET /api/remittances/summary?employeeId=xxx
 exports.getRemittanceSummary = async (req, res) => {
     try {
@@ -102,28 +121,18 @@ exports.getRemittanceSummary = async (req, res) => {
         const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
-        // Cash remittance basis:
-        // 1) Gross Sales = sales made by this cashier BEFORE any return deductions
-        // 2) Returns Processed = refunds this cashier processed (even for another cashier's sale)
-        // 3) Net Remittance = Gross Sales - Returns Processed
+        // Cash remittance (A-rules):
+        // — Gross: original sale amounts for this cashier's sales today (before returns), not post-return totalAmount.
+        // — Returns: only refunds linked to those sales, processed today.
+        // — No. of sales: count of original sale receipts today (includes fully returned).
+        // — Net: gross − returns (own sales, today's return window).
         const completedTransactions = await SalesTransaction.find({
             performedById: employeeId,
             status: { $in: ['Completed', 'Partially Returned', 'Returned'] },
             checkedOutAt: { $gte: startOfDay, $lt: endOfDay },
             paymentMethod: { $ne: 'return' }
         })
-            .select('_id totalAmount status')
-            .lean();
-
-        const returnTransactionsProcessed = await SalesTransaction.find({
-            paymentMethod: 'return',
-            $or: [
-                { performedById: employeeId },
-                { returnedById: employeeId }
-            ],
-            checkedOutAt: { $gte: startOfDay, $lt: endOfDay }
-        })
-            .select('totalAmount')
+            .select('_id originalTotalAmount subtotal items totalAmount status')
             .lean();
 
         const completedTransactionIds = completedTransactions
@@ -150,20 +159,22 @@ exports.getRemittanceSummary = async (req, res) => {
             getOpeningFloatForEmployee(employeeId)
         ]);
 
-        const salesAfterReturnDeductions = completedTransactions.reduce((sum, t) => sum + (t.totalAmount || 0), 0);
-        const returnsAgainstOwnSales = returnTransactionsAgainstOwnSales.reduce((sum, t) => sum + Math.abs(t.totalAmount || 0), 0);
-        const grossSales = salesAfterReturnDeductions + returnsAgainstOwnSales;
-        const returnsProcessed = returnTransactionsProcessed.reduce((sum, t) => sum + Math.abs(t.totalAmount || 0), 0);
-        const netRemittance = grossSales - returnsProcessed;
-        const noOfSales = completedTransactions.filter((t) => t.status !== 'Returned').length;
+        const grossSales = roundMoney(
+            completedTransactions.reduce((sum, t) => sum + grossOriginalSaleAmount(t), 0)
+        );
+        const returnsAgainstOwnSales = roundMoney(
+            returnTransactionsAgainstOwnSales.reduce((sum, t) => sum + Math.abs(Number(t.totalAmount) || 0), 0)
+        );
+        const netRemittance = roundMoney(grossSales - returnsAgainstOwnSales);
+        const noOfSales = completedTransactions.length;
 
         res.json({
             success: true,
             data: {
                 shiftDate: startOfDay,
                 grossSales,
-                returns: returnsProcessed,
-                returnsProcessed,
+                returns: returnsAgainstOwnSales,
+                returnsProcessed: returnsAgainstOwnSales,
                 netSales: netRemittance,
                 netRemittance,
                 noOfSales,
@@ -323,20 +334,8 @@ exports.getRemittanceKpiStats = async (req, res) => {
             salesMatch.performedById = empIdStr;
         }
 
-        const [completedTransactions, rawReturnTransactions, remitAgg, openingFloatTotal] = await Promise.all([
-            SalesTransaction.find(salesMatch).select('_id totalAmount').lean(),
-            SalesTransaction.find({
-                paymentMethod: 'return',
-                ...(empIdStr
-                    ? {
-                        $or: [
-                            { performedById: empIdStr },
-                            { returnedById: empIdStr }
-                        ]
-                    }
-                    : {}),
-                ...(transactionDateOr || {})
-            }).select('totalAmount').lean(),
+        const [completedTransactions, remitAgg, openingFloatTotal] = await Promise.all([
+            SalesTransaction.find(salesMatch).select('_id totalAmount originalTotalAmount subtotal items').lean(),
             (() => {
                 const shiftMatch = {};
                 if (!allTime) {
@@ -385,16 +384,16 @@ exports.getRemittanceKpiStats = async (req, res) => {
             (s, t) => s + (Number(t.totalAmount) || 0),
             0
         );
-        const returnsAgainstOwnSales = ownSalesReturnTransactions.reduce(
-            (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
-            0
+        const returnsAgainstOwnSales = roundMoney(
+            ownSalesReturnTransactions.reduce(
+                (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
+                0
+            )
         );
-        const grossSales = salesAfterReturnDeductions + returnsAgainstOwnSales;
-        const returnsProcessed = rawReturnTransactions.reduce(
-            (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
-            0
+        const grossSales = roundMoney(
+            completedTransactions.reduce((s, t) => s + grossOriginalSaleAmount(t), 0)
         );
-        const netRemittance = grossSales - returnsProcessed;
+        const netRemittance = roundMoney(grossSales - returnsAgainstOwnSales);
 
         const row = remitAgg[0] || {
             totalRemitted: 0,
@@ -415,7 +414,7 @@ exports.getRemittanceKpiStats = async (req, res) => {
             data: {
                 posNetSales: salesAfterReturnDeductions,
                 grossSales,
-                returns: returnsProcessed,
+                returns: returnsAgainstOwnSales,
                 netRemittance,
                 openingFloatTotal: openingFloatTotal || 0,
                 expectedCash,

@@ -3,6 +3,7 @@ import { useTheme } from "../../context/ThemeContext";
 import AddBrandModal from "./AddBrandModal";
 import AddCategoryModal from "./AddCategoryModal";
 import AddSubcategoryModal from "./AddSubcategoryModal";
+import AddUnitOfMeasureModal from "./AddUnitOfMeasureModal";
 import { API_BASE_URL } from "../../config/api";
 
 
@@ -33,6 +34,7 @@ const COMMON_COLORS = [
   "Custom"];
 
 const BRAND_ADD_SENTINEL = "__add_new_brand__";
+const UOM_ADD_SENTINEL = "__add_new_uom__";
 const UNIT_OF_MEASURE_OPTIONS = [
   { value: "pcs", label: "Pieces (pcs)" },
   { value: "kg", label: "Kilograms (kg)" },
@@ -168,18 +170,6 @@ const AddProductModal = ({
 
   const parentCategories = [...defaultParentCategories, ...customParentCategories];
 
-  const orphanCustomSubCategories = categories
-    .filter(
-      (c) =>
-        c?.name !== "All" &&
-        c?.name !== "Others" &&
-        c?.parentCategory &&
-        !defaultParentCategories.includes(c?.name) &&
-        !allKnownDefaultSubs.has(c?.name) &&
-        !legacyParentCategories.includes(c?.name)
-    )
-    .map((c) => c?.name);
-
   const getSubcategories = (parentCat) => {
     const defaultSubs = categoryStructure[parentCat] || [];
     const mappedCustomSubCategories = categories
@@ -187,7 +177,7 @@ const AddProductModal = ({
       .map((c) => c?.name)
       .filter(Boolean);
 
-    const subs = [...defaultSubs, ...mappedCustomSubCategories, ...orphanCustomSubCategories];
+    const subs = [...defaultSubs, ...mappedCustomSubCategories];
 
     if (newProduct.subCategory && newProduct.subCategory !== "__add_new__" && !subs.includes(newProduct.subCategory)) {
       if (newProduct.category === parentCat) {
@@ -201,6 +191,8 @@ const AddProductModal = ({
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
   const [showBrandModal, setShowBrandModal] = useState(false);
+  const [showUnitModal, setShowUnitModal] = useState(false);
+  const [unitOptions, setUnitOptions] = useState(UNIT_OF_MEASURE_OPTIONS);
   const [showCustomSizeInput, setShowCustomSizeInput] = useState(false);
   const [customSizeValue, setCustomSizeValue] = useState("");
   const [showSizeDropdown, setShowSizeDropdown] = useState(false);
@@ -682,6 +674,14 @@ const AddProductModal = ({
     }
   }, [showAddModal, newProduct.brandName, setNewProduct]);
 
+  useEffect(() => {
+    const currentUnit = String(newProduct.unitOfMeasure || "").trim();
+    if (!currentUnit) return;
+    const exists = unitOptions.some((opt) => opt.value === currentUnit);
+    if (exists) return;
+    setUnitOptions((prev) => [...prev, { value: currentUnit, label: currentUnit }]);
+  }, [newProduct.unitOfMeasure, unitOptions]);
+
   if (!showAddModal) return null;
 
   const partnerNames = Array.from(
@@ -702,6 +702,28 @@ const AddProductModal = ({
       return;
     }
     handleInputChange(e);
+  };
+
+  const normalizeUnitValue = (label) =>
+    String(label || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[()]/g, "")
+      .replace(/\s+/g, "_");
+
+  const upsertUnitOption = (label) => {
+    const cleanedLabel = String(label || "").trim();
+    if (!cleanedLabel) return;
+    const normalizedValue = normalizeUnitValue(cleanedLabel);
+    setUnitOptions((prev) => {
+      const hasLabel = prev.some(
+        (opt) => opt.label.toLowerCase() === cleanedLabel.toLowerCase()
+      );
+      const hasValue = prev.some((opt) => opt.value === normalizedValue);
+      if (hasLabel || hasValue) return prev;
+      return [...prev, { value: normalizedValue, label: cleanedLabel }];
+    });
+    setNewProduct((prev) => ({ ...prev, unitOfMeasure: normalizedValue }));
   };
 
   const handleFormSubmit = (e) => {
@@ -935,10 +957,20 @@ const AddProductModal = ({
                         </div>
                         <div>
                     <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Unit of Measure <span className="text-red-500">*</span></label>
-                    <select name="unitOfMeasure" value={newProduct.unitOfMeasure || "pcs"} onChange={handleInputChange} required
+                    <select
+                      name="unitOfMeasure"
+                      value={newProduct.unitOfMeasure || "pcs"}
+                      onChange={(e) => {
+                        if (e.target.value === UOM_ADD_SENTINEL) {
+                          setShowUnitModal(true);
+                          return;
+                        }
+                        handleInputChange(e);
+                      }}
+                      required
                       className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
-                            {UNIT_OF_MEASURE_OPTIONS.map((option) =>
+                            {unitOptions.map((option) =>
                               <option
                                 key={option.value}
                                 value={option.value}
@@ -946,6 +978,7 @@ const AddProductModal = ({
                                 {option.label}
                               </option>
                             )}
+                            <option value={UOM_ADD_SENTINEL} className="font-semibold text-[#09A046]">+ Add Unit of Measure</option>
                           </select>
                     </div>
                   </div>
@@ -1144,11 +1177,21 @@ const AddProductModal = ({
                           </div>
                           <div>
                         <label className={`block text-xs font-bold uppercase tracking-wide mb-1.5 ${theme === "dark" ? "text-gray-300" : "text-gray-700"}`}>Unit of Measure <span className="text-red-500">*</span></label>
-                        <select name="unitOfMeasure" value={newProduct.unitOfMeasure || ""} onChange={handleInputChange} required
+                        <select
+                          name="unitOfMeasure"
+                          value={newProduct.unitOfMeasure || ""}
+                          onChange={(e) => {
+                            if (e.target.value === UOM_ADD_SENTINEL) {
+                              setShowUnitModal(true);
+                              return;
+                            }
+                            handleInputChange(e);
+                          }}
+                          required
                           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#09A046] focus:border-transparent appearance-none bg-no-repeat bg-[length:16px] bg-[center_right_12px] ${!newProduct.unitOfMeasure ? "text-gray-400" : ""} ${theme === "dark" ? "bg-[#1E1B18] border-gray-600 text-white" : "bg-white border-gray-300"}`}
                           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")` }}>
                           <option value="" disabled className={theme === "dark" ? "bg-[#2A2724]" : ""} style={{ color: '#9CA3AF' }}>Select Unit</option>
-                              {UNIT_OF_MEASURE_OPTIONS.map((option) =>
+                              {unitOptions.map((option) =>
                                 <option
                                   key={option.value}
                                   value={option.value}
@@ -1156,6 +1199,7 @@ const AddProductModal = ({
                                   {option.label}
                                 </option>
                               )}
+                          <option value={UOM_ADD_SENTINEL} className="font-semibold text-[#09A046]">+ Add Unit of Measure</option>
                             </select>
                           </div>
                         </div>
@@ -1883,6 +1927,14 @@ const AddProductModal = ({
           }
           setNewProduct((prev) => ({ ...prev, brandName: newBrandName }));
         }} />
+
+      <AddUnitOfMeasureModal
+        show={showUnitModal}
+        onClose={() => setShowUnitModal(false)}
+        onAdd={(newUnitLabel) => {
+          upsertUnitOption(newUnitLabel);
+        }}
+      />
 
     </div>);
 

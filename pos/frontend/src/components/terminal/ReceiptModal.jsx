@@ -9,6 +9,35 @@ import { getReceiptBranding } from '../../utils/receiptProfile';
 import { formatReceiptVariantSizeLine } from '../../utils/transactionDisplay';
 import { useTheme } from '../../context/ThemeContext';
 
+const hasSeniorPwdDiscount = (source = {}) => {
+  const textHasSeniorPwd = (value) => /(senior|pwd|sc\s*\/\s*pwd)/i.test(String(value || ""));
+  if (textHasSeniorPwd(source.customerType) || textHasSeniorPwd(source.discountCategory)) return true;
+  if (Array.isArray(source.discounts)) {
+    return source.discounts.some((d) =>
+      textHasSeniorPwd(d?.title) ||
+      textHasSeniorPwd(d?.name) ||
+      textHasSeniorPwd(d?.discountCategory) ||
+      textHasSeniorPwd(d?.category)
+    );
+  }
+  if (Array.isArray(source.appliedDiscountIds)) {
+    return source.appliedDiscountIds.some((d) =>
+      d && typeof d === "object" &&
+      (textHasSeniorPwd(d?.title) || textHasSeniorPwd(d?.name) || textHasSeniorPwd(d?.discountCategory))
+    );
+  }
+  const vatRate = Number(source.vatRateApplied ?? 12);
+  const subtotal = Number(source.subtotal ?? source.originalTotalAmount ?? 0);
+  const total = Number(source.total ?? source.totalAmount ?? 0);
+  if (subtotal > 0 && total >= 0 && Number.isFinite(vatRate) && vatRate > 0) {
+    const expectedScPwdTotal = (subtotal / (1 + vatRate / 100)) * 0.8;
+    if (Math.abs(total - expectedScPwdTotal) <= 0.05) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const ReceiptModal = ({
   isOpen,
   onClose,
@@ -48,6 +77,12 @@ const ReceiptModal = ({
     receipt.netOfVat != null &&
     receipt.vatAmount != null;
   const totalPay = Number(receipt.total ?? receipt.totalAmount ?? 0);
+  const isSeniorPwdTxn = hasSeniorPwdDiscount(receipt);
+  const netOfVatAmount = isSeniorPwdTxn ? 0 : Number(receipt.netOfVat ?? 0);
+  const vatAmount = isSeniorPwdTxn ? 0 : Number(receipt.vatAmount ?? 0);
+  const vatExemptSales = isSeniorPwdTxn
+    ? Math.max(0, totalPay)
+    : Math.max(0, totalPay - netOfVatAmount - vatAmount);
 
   const handlePrint = useCallback(async () => {
     setIsPrinting(true);
@@ -197,11 +232,19 @@ const ReceiptModal = ({
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0', paddingTop: '6px' }}>
                 <span style={{ color: '#4a5568' }}>Net (vatable) sales:</span>
-                <span style={{ color: '#1a202c' }}>PHP {Number(receipt.netOfVat).toFixed(2)}</span>
+                <span style={{ color: '#1a202c' }}>PHP {netOfVatAmount.toFixed(2)}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
                 <span style={{ color: '#4a5568' }}>VAT {Number(receipt.vatRateApplied ?? branding.vatRatePercent)}%:</span>
-                <span style={{ color: '#1a202c' }}>PHP {Number(receipt.vatAmount).toFixed(2)}</span>
+                <span style={{ color: '#1a202c' }}>PHP {vatAmount.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+                <span style={{ color: '#4a5568' }}>VAT Exempt Sales:</span>
+                <span style={{ color: '#1a202c' }}>PHP {vatExemptSales.toFixed(2)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+                <span style={{ color: '#4a5568' }}>Zero-Rated Sales:</span>
+                <span style={{ color: '#1a202c' }}>PHP 0.00</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', margin: '8px 0', paddingTop: '8px' }}>
                 <span style={{ fontWeight: 'bold', color: '#1a365d', fontSize: '13px' }}>Total (incl. VAT):</span>
@@ -310,11 +353,19 @@ const ReceiptModal = ({
                 <>
                   <div className="flex justify-between text-sm pt-2">
                     <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Net (vatable) sales:</span>
-                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {Number(receipt.netOfVat).toFixed(2)}</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {netOfVatAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>VAT {Number(receipt.vatRateApplied ?? branding.vatRatePercent)}%:</span>
-                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {Number(receipt.vatAmount).toFixed(2)}</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {vatAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>VAT Exempt Sales:</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {vatExemptSales.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Zero-Rated Sales:</span>
+                    <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP 0.00</span>
                   </div>
                   <div className={`flex justify-between pt-3 mt-2 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                     <span className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-[#1a365d]'}`}>Total (incl. VAT):</span>
