@@ -113,7 +113,8 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
     const totalCashOnHand = useManualTotal ? parsedManualTotal : totalFromDenominations;
     const cashToRemit = totalCashOnHand - openingFloat;
     const expectedNetRemittance = summary.netRemittance ?? summary.netSales ?? 0;
-    const variance = cashToRemit - expectedNetRemittance;
+    const expectedCashWithFloat = expectedNetRemittance + openingFloat;
+    const variance = totalCashOnHand - expectedCashWithFloat;
 
     const fetchSummary = useCallback(async () => {
         if (!employeeId) return;
@@ -179,7 +180,7 @@ const RemittanceModal = ({ isOpen, onClose, employeeId, employeeName }) => {
                     totalCashOnHand,
                     openingFloat,
                     cashToRemit,
-                    expectedCash: expectedNetRemittance,
+                    expectedCash: expectedCashWithFloat,
                     variance,
                     remarks,
                     receivedBy,

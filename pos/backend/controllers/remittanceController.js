@@ -406,9 +406,8 @@ exports.getRemittanceKpiStats = async (req, res) => {
             remittanceCount: 0
         };
         const totalRemitted = row.totalRemitted || 0;
-        // KPI "Expected Cash" should reflect cash generated from sales/remittance,
-        // not include assigned opening float (which is tracked separately).
-        const expectedCash = netRemittance;
+        // Expected cash-in-drawer = net sales + opening float.
+        const expectedCash = roundMoney(netRemittance + (openingFloatTotal || 0));
         const unremittedCash = expectedCash - totalRemitted;
         const hasRemittance = (row.remittanceCount || 0) > 0;
         const totalVariance = hasRemittance ? (row.totalSlipVariance || 0) : 0;
