@@ -8,6 +8,13 @@ const isProd = import.meta.env.PROD;
 
 const showConsoleSafetyBanner = () => {
   try {
+    // Make the warning visible even when other startup logs are noisy.
+    console.clear();
+    console.warn("Stop!");
+    console.warn(
+      "This is a browser feature intended for developers. Do not paste code here from strangers."
+    );
+
     // Mirror the well-known devtools safety warning style.
     console.log(
       "%cStop!",
@@ -41,6 +48,9 @@ showConsoleSafetyBanner();
 suppressConsoleErrorsInProd();
 
 initializeApiInterceptor();
+
+// Re-print once after startup so it still appears when DevTools opens late.
+setTimeout(showConsoleSafetyBanner, 1200);
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
