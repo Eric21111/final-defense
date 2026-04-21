@@ -70,8 +70,18 @@ const salesTransactionSchema = new mongoose.Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ["cash", "gcash", "void", "return"],
+      enum: ["cash", "gcash", "split payment", "void", "return"],
       required: true,
+    },
+    splitPayment: {
+      cash: {
+        type: Number,
+        default: 0,
+      },
+      gcash: {
+        type: Number,
+        default: 0,
+      },
     },
     amountReceived: Number,
     changeGiven: Number,

@@ -99,6 +99,9 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
 
   const amountPaid = transaction.amountReceived || 0;
   const change = transaction.changeGiven || 0;
+  const isSplitPayment = String(transaction.paymentMethod || '').toLowerCase() === 'split payment';
+  const splitGcash = Number(transaction?.splitPayment?.gcash);
+  const splitCash = Number(transaction?.splitPayment?.cash);
 
 
   const getItemReturnInfo = (item) => {
@@ -145,7 +148,7 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
               )}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-sm text-gray-500">
-                  Payment: {transaction.paymentMethod?.charAt(0).toUpperCase() + transaction.paymentMethod?.slice(1) || 'N/A'}
+                  Payment: {String(transaction.paymentMethod || 'N/A').toLowerCase()}
                 </span>
                 <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${transaction.status === 'Completed' ?
                 'bg-green-100 text-green-700' :
@@ -308,6 +311,26 @@ const ViewTransactionModal = ({ isOpen, onClose, transaction, onReturnItems, onP
                 </div>
                 {!hasReturns &&
                 <>
+                    {isSplitPayment &&
+                    <>
+                        <div className="flex justify-between text-sm text-gray-600 pt-2 border-t border-gray-100">
+                          <span>Gcash:</span>
+                          <span>
+                            {Number.isFinite(splitGcash) ?
+                          `₱${splitGcash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` :
+                          '-'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm text-gray-600">
+                          <span>Cash:</span>
+                          <span>
+                            {Number.isFinite(splitCash) ?
+                          `₱${splitCash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` :
+                          '-'}
+                          </span>
+                        </div>
+                      </>
+                    }
                     <div className="flex justify-between text-sm text-gray-600 pt-2">
                       <span>Amount Paid:</span>
                       <span>₱{amountPaid.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>

@@ -203,6 +203,7 @@ exports.createTransaction = async (req, res) => {
       discountValue,
       totalAmount,
       paymentMethod,
+      splitPayment,
       amountPaid,
       amountReceived,
       change,
@@ -276,6 +277,44 @@ exports.createTransaction = async (req, res) => {
         ? computeVatInclusiveBreakdown(totalAmount, vatRate)
         : null;
 
+    const normalizedPaymentMethod =
+      String(paymentMethod || 'cash').trim().toLowerCase() === 'split payment' ?
+        'split payment' :
+        paymentMethod || 'cash';
+    const splitCashAmount = Number(splitPayment?.cash) || 0;
+    const splitGcashAmount = Number(splitPayment?.gcash) || 0;
+    const splitPaymentTotal = splitCashAmount + splitGcashAmount;
+
+    if (normalizedPaymentMethod === 'split payment') {
+      if (splitCashAmount < 0 || splitGcashAmount < 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Split payment values cannot be negative.'
+        });
+      }
+      if (splitPaymentTotal <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Split payment requires cash or gcash amount.'
+        });
+      }
+      if (splitPaymentTotal < Number(totalAmount || 0)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Split payment total is less than transaction total amount.'
+        });
+      }
+    }
+
+    const resolvedAmountReceived =
+      amountReceived ??
+      amountPaid ??
+      (normalizedPaymentMethod === 'split payment' ? splitPaymentTotal : 0);
+    const resolvedChangeGiven =
+      changeGiven ??
+      change ??
+      Math.max(0, Number(resolvedAmountReceived || 0) - Number(totalAmount || 0));
+
     const transactionData = {
       receiptNo,
       userId: userId || cashierId || performedById || 'system',
@@ -303,9 +342,13 @@ exports.createTransaction = async (req, res) => {
       discountType: discountType || null,
       discountValue: discountValue || 0,
       totalAmount: totalAmount || 0,
-      paymentMethod: paymentMethod || 'cash',
-      amountReceived: amountReceived || amountPaid || 0,
-      changeGiven: changeGiven || change || 0,
+      paymentMethod: normalizedPaymentMethod,
+      splitPayment: normalizedPaymentMethod === 'split payment' ? {
+        cash: splitCashAmount,
+        gcash: splitGcashAmount
+      } : undefined,
+      amountReceived: Number(resolvedAmountReceived) || 0,
+      changeGiven: Number(resolvedChangeGiven) || 0,
       status: status || 'Completed',
       customerName: customerName || null,
       customerType: customerType || 'regular',

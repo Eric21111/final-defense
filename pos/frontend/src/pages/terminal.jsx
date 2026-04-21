@@ -2388,6 +2388,7 @@ const Terminal = () => {
             paymentMethod: meta.paymentMethod || "cash",
             amountReceived: meta.amountReceived,
             changeGiven: meta.change,
+            splitPayment: meta.splitPayment,
             referenceNo: meta.referenceNo,
             receiptNo: meta.receiptNo,
             subtotal: lineSubtotal,
@@ -2540,6 +2541,23 @@ const Terminal = () => {
       amountReceived,
       change,
       receiptNo
+    });
+  };
+
+  const handleSplitPaymentProceed = async ({ cashAmount = 0, gcashAmount = 0 }) => {
+    const cash = Number(cashAmount) || 0;
+    const gcash = Number(gcashAmount) || 0;
+    const amountReceived = cash + gcash;
+    const change = Math.max(0, amountReceived - total);
+
+    return await finalizeTransaction({
+      paymentMethod: "split payment",
+      amountReceived,
+      change,
+      splitPayment: {
+        cash,
+        gcash
+      }
     });
   };
 
@@ -2840,6 +2858,7 @@ const Terminal = () => {
               handleCheckout={handleCheckout}
               onCashPayment={handleCashPayment}
               onQRPayment={handleQRPayment}
+              onSplitPayment={handleSplitPaymentProceed}
               onOpenDiscountModal={handleOpenDiscountModal}
               onSelectDiscount={handleSelectDiscount}
               stockAllowsCheckout={cartStockAllowsCheckout}

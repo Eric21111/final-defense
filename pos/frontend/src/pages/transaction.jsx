@@ -53,7 +53,7 @@ const STATUS_STYLES = {
   Voided: "bg-red-100 text-red-600 border border-red-200"
 };
 
-const paymentOptions = ["All", "cash", "gcash"];
+const paymentOptions = ["All", "cash", "gcash", "split payment"];
 const statusOptions = ["All", "Completed", "Returned", "Partially Returned"];
 const userOptions = ["All"];
 const dateOptions = ["Today", "All", "Last 7 days", "Last 30 days", "Custom"];
@@ -2231,7 +2231,7 @@ const Transaction = () => {
                             {trx.performedByName || "Staff"}
                           </td>
                           <td className="px-4 py-3 capitalize">
-                            {trx.paymentMethod}
+                            {String(trx.paymentMethod || "---").toLowerCase()}
                           </td>
                           <td className="px-4 py-3 font-semibold">
                             {formatCurrency(lineSub)}
@@ -2443,8 +2443,8 @@ const Transaction = () => {
 
                 <div className="flex justify-between">
                   <span>Payment Method:</span>
-                  <span className="uppercase">
-                    {selectedTransaction?.paymentMethod}
+                  <span className="capitalize">
+                    {String(selectedTransaction?.paymentMethod || "---").toLowerCase()}
                   </span>
                 </div>
                 <div className="flex justify-between">
