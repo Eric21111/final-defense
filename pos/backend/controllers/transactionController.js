@@ -4,6 +4,7 @@ const GlobalSettings = require('../models/GlobalSettings');
 const VoidLog = require('../models/VoidLog');
 const Product = require('../models/Product');
 const Discount = require('../models/Discount');
+const Employee = require('../models/Employee');
 const { assertSaleStockAvailable } = require('../utils/saleStockValidation');
 const { generateRandomReceiptNumber } = require('../utils/receiptNumbering');
 const {
@@ -439,6 +440,23 @@ exports.voidTransaction = async (req, res) => {
       });
     }
 
+    // Security: void requires Owner/Manager approval (even if UI is bypassed).
+    const approverId = String(voidedById || voidedBy || '').trim();
+    const approver = approverId ? await Employee.findById(approverId).select('name firstName lastName role').lean() : null;
+    const approverRole = String(approver?.role || '').trim();
+    if (approverRole !== 'Owner' && approverRole !== 'Manager') {
+      return res.status(403).json({
+        success: false,
+        message: 'Only Owner or Manager can void a transaction'
+      });
+    }
+    const approverName = String(
+      voidedByName ||
+      approver?.name ||
+      `${approver?.firstName || ''} ${approver?.lastName || ''}`.trim() ||
+      ''
+    ).trim();
+
     const voidId = await generateVoidId();
 
     // Update transaction status
@@ -447,7 +465,7 @@ exports.voidTransaction = async (req, res) => {
     transaction.voidReason = voidReason;
     transaction.voidedBy = voidedBy || voidedById;
     transaction.voidedById = voidedById || voidedBy;
-    transaction.voidedByName = voidedByName;
+    transaction.voidedByName = approverName;
     transaction.voidedAt = new Date();
     await transaction.save();
 
@@ -469,7 +487,9 @@ exports.voidTransaction = async (req, res) => {
       voidReason,
       voidedBy: voidedBy || voidedById,
       voidedById: voidedById || voidedBy,
-      voidedByName,
+      voidedByName: approverName,
+      approvedBy: approverName || null,
+      approvedByRole: approverRole || null,
       voidedAt: new Date(),
       originalTransactionId: transaction._id,
       source: 'transaction'

@@ -2928,7 +2928,10 @@ const Terminal = () => {
           setItemToRemove(null);
         }}
         onConfirm={confirmRemoveItem}
-        item={itemToRemove} />
+        item={itemToRemove}
+        allowedRoles={["Owner", "Manager"]}
+        subtitle="This action requires Owner/Manager authorization."
+        pinLabel="Manager/Owner PIN" />
 
 
       <DuplicateItemModal
