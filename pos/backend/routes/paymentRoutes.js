@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const {
   createGCashPayment,
+  createGCashQrOnly,
   checkPaymentStatus,
   handleWebhook,
   cancelPayment,
@@ -13,6 +14,9 @@ router.get("/gcash/config-status", getConfigStatus);
 
 // POST /api/payments/gcash/create — Create GCash payment + dynamic QR
 router.post("/gcash/create", createGCashPayment);
+
+// POST /api/payments/gcash/create-qr — Create checkout URL for QR-only usage
+router.post("/gcash/create-qr", createGCashQrOnly);
 
 // GET /api/payments/gcash/status/:merchantOrderId — Poll payment status
 router.get("/gcash/status/:merchantOrderId", checkPaymentStatus);

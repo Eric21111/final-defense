@@ -295,6 +295,49 @@ exports.createGCashPayment = async (req, res) => {
 };
 
 /**
+ * POST /api/payments/gcash/create-qr
+ *
+ * Creates a checkout URL for QR display only (no transaction persisted).
+ * Used by split payment flow when staff optionally wants a GCash QR.
+ */
+exports.createGCashQrOnly = async (req, res) => {
+  try {
+    const { totalAmount, description } = req.body || {};
+
+    if (!Number.isFinite(Number(totalAmount)) || Number(totalAmount) <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid total amount is required",
+      });
+    }
+
+    const merchantOrderId = gcashService.generateMerchantOrderId();
+    const paymentSource = await gcashService.createPaymentSource({
+      merchantOrderId,
+      amount: Number(totalAmount),
+      description: description || `Split payment QR ${merchantOrderId}`,
+    });
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        merchantOrderId,
+        sourceId: paymentSource.sourceId,
+        checkoutUrl: paymentSource.checkoutUrl,
+        amount: Number(totalAmount),
+        status: paymentSource.status || "PENDING",
+      },
+    });
+  } catch (error) {
+    console.error("[GCash] Error creating QR-only checkout:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create GCash QR",
+    });
+  }
+};
+
+/**
  * GET /api/payments/gcash/status/:merchantOrderId
  *
  * Poll payment status from the POS frontend.
