@@ -65,7 +65,6 @@ exports.getAllArchiveItems = async (req, res) => {
   try {
     const {
       search = '',
-      itemType,
       category,
       sortBy = 'date-desc',
       page = 1,
@@ -76,17 +75,14 @@ exports.getAllArchiveItems = async (req, res) => {
 
     if (search) {
       query.$or = [
-        { 'itemData.itemName': { $regex: search, $options: 'i' } },
-        { 'itemData.sku': { $regex: search, $options: 'i' } }
+        { itemName: { $regex: search, $options: 'i' } },
+        { sku: { $regex: search, $options: 'i' } },
+        { brandName: { $regex: search, $options: 'i' } }
       ];
     }
 
-    if (itemType && itemType !== 'All') {
-      query.itemType = itemType;
-    }
-
     if (category && category !== 'All') {
-      query['itemData.category'] = category;
+      query.category = category;
     }
 
 
@@ -96,20 +92,41 @@ exports.getAllArchiveItems = async (req, res) => {
         sort = { archivedAt: 1 };
         break;
       case 'name-asc':
-        sort = { 'itemData.itemName': 1 };
+        sort = { itemName: 1 };
         break;
       case 'name-desc':
-        sort = { 'itemData.itemName': -1 };
+        sort = { itemName: -1 };
         break;
     }
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const parsedPage = Math.max(1, parseInt(page, 10) || 1);
+    const parsedLimit = Math.min(1000, Math.max(1, parseInt(limit, 10) || 50));
+    const skip = (parsedPage - 1) * parsedLimit;
+    const projection = {
+      _id: 1,
+      productId: 1,
+      itemName: 1,
+      sku: 1,
+      variant: 1,
+      selectedSize: 1,
+      category: 1,
+      brandName: 1,
+      itemPrice: 1,
+      quantity: 1,
+      itemImage: 1,
+      reason: 1,
+      returnReason: 1,
+      archivedBy: 1,
+      notes: 1,
+      archivedAt: 1
+    };
 
     const [archiveItems, total] = await Promise.all([
       Archive.find(query)
+        .select(projection)
         .sort(sort)
         .skip(skip)
-        .limit(parseInt(limit))
+        .limit(parsedLimit)
         .lean(),
       Archive.countDocuments(query)
     ]);
@@ -118,10 +135,10 @@ exports.getAllArchiveItems = async (req, res) => {
       success: true,
       data: archiveItems,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parsedPage,
+        limit: parsedLimit,
         total,
-        pages: Math.ceil(total / parseInt(limit))
+        pages: Math.ceil(total / parsedLimit)
       }
     });
   } catch (error) {

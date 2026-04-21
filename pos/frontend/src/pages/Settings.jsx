@@ -90,6 +90,8 @@ const Settings = () => {
   const [clearArchivesLoading, setClearArchivesLoading] = useState(false);
   const [exportArchivesLoading, setExportArchivesLoading] = useState(false);
   const fileInputRef = useRef(null);
+  const archiveRequestIdRef = useRef(0);
+  const archiveAbortRef = useRef(null);
 
 
   const isDark = theme === "dark";
@@ -199,6 +201,21 @@ const Settings = () => {
 
   const archiveRowId = (a) => String(a._id || a.id);
 
+  const fetchJsonWithTimeout = useCallback(async (url, options = {}, timeoutMs = 15000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      const data = await response.json().catch(() => ({}));
+      return { ok: response.ok, data };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }, []);
+
   const restoreTargetIds = useMemo(
     () =>
       selectedArchiveIds.length > 0
@@ -208,23 +225,41 @@ const Settings = () => {
   );
 
   const fetchArchives = useCallback(async () => {
+    if (archiveAbortRef.current) {
+      archiveAbortRef.current.abort();
+    }
+    const requestId = ++archiveRequestIdRef.current;
+    const controller = new AbortController();
+    archiveAbortRef.current = controller;
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     setArchivesLoading(true);
     try {
       const response = await fetch(`${API_BASE}/api/archive`, {
-        cache: "no-store"
+        cache: "no-store",
+        signal: controller.signal
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
 
-      if (data.success) {
+      if (requestId !== archiveRequestIdRef.current) return;
+
+      if (response.ok && data.success) {
         setArchives(data.data || []);
+        setError("");
       } else {
         setArchives([]);
+        setError(data.message || "Failed to load archives.");
       }
     } catch (error) {
+      if (requestId !== archiveRequestIdRef.current) return;
+      if (error?.name === "AbortError") return;
       console.error("Error fetching archives:", error);
       setArchives([]);
+      setError("Failed to load archives. Please try again.");
     } finally {
-      setArchivesLoading(false);
+      clearTimeout(timeoutId);
+      if (requestId === archiveRequestIdRef.current) {
+        setArchivesLoading(false);
+      }
     }
   }, []);
 
@@ -270,11 +305,10 @@ const Settings = () => {
       const removed = [];
       const failed = [];
       for (const id of ids) {
-        const res = await fetch(`${API_BASE}/api/archive/${id}/restore`, {
+        const { data } = await fetchJsonWithTimeout(`${API_BASE}/api/archive/${id}/restore`, {
           method: "POST",
           cache: "no-store"
         });
-        const data = await res.json().catch(() => ({}));
         if (data.success) {
           removed.push(id);
         } else {
@@ -322,11 +356,10 @@ const Settings = () => {
       const removed = [];
       const failed = [];
       for (const id of ids) {
-        const res = await fetch(`${API_BASE}/api/archive/${id}`, {
+        const { data } = await fetchJsonWithTimeout(`${API_BASE}/api/archive/${id}`, {
           method: "DELETE",
           cache: "no-store"
         });
-        const data = await res.json().catch(() => ({}));
         if (data.success) {
           removed.push(id);
         } else {
@@ -517,6 +550,9 @@ const Settings = () => {
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      if (archiveAbortRef.current) {
+        archiveAbortRef.current.abort();
+      }
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisibility);
     };
