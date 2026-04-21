@@ -65,6 +65,10 @@ const employeeSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  profileImagePublicId: {
+    type: String,
+    default: ''
+  },
   // User Access Control Permissions
   permissions: {
     posTerminal: {

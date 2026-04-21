@@ -2,6 +2,7 @@ const Employee = require('../models/Employee');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { sendEmail } = require('../utils/emailService');
+const { cloudinary, ensureCloudinaryConfigured } = require('../config/cloudinary');
 
 // In-memory cache for fast PIN logins avoiding O(N) bcrypt hashes. Map<sha256(pin), employeeId>
 const pinCache = new Map();
@@ -9,6 +10,64 @@ const pinCache = new Map();
 const getFastPinHash = (rawPin) => {
   const hmacSecret = process.env.PIN_SECRET || 'fallback-secret-for-pos-pin';
   return crypto.createHmac('sha256', hmacSecret).update(String(rawPin)).digest('hex');
+};
+
+const isDataImage = (value) => /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(String(value || ''));
+const isHttpUrl = (value) => /^https?:\/\//i.test(String(value || ''));
+
+const uploadEmployeeImageIfNeeded = async (profileImage, employeeId) => {
+  const raw = String(profileImage || '').trim();
+  if (!raw || !isDataImage(raw)) {
+    return {
+      profileImage: raw,
+      profileImagePublicId: ''
+    };
+  }
+
+  try {
+    ensureCloudinaryConfigured();
+    const folderRoot = String(process.env.CLOUDINARY_FOLDER || 'pos-system').trim() || 'pos-system';
+    const folder = `${folderRoot}/employees`;
+    const result = await cloudinary.uploader.upload(raw, {
+      folder,
+      resource_type: 'image',
+      overwrite: true,
+      public_id: employeeId ? `employee-${employeeId}` : undefined
+    });
+
+    return {
+      profileImage: result.secure_url || result.url || raw,
+      profileImagePublicId: result.public_id || ''
+    };
+  } catch (error) {
+    if (error?.code === 'CLOUDINARY_NOT_CONFIGURED') {
+      return {
+        profileImage: raw,
+        profileImagePublicId: ''
+      };
+    }
+    console.error('Error uploading employee image to Cloudinary:', error);
+    return {
+      profileImage: raw,
+      profileImagePublicId: ''
+    };
+  }
+};
+
+const removeCloudinaryImageByPublicId = async (publicId) => {
+  const id = String(publicId || '').trim();
+  if (!id) return;
+  try {
+    ensureCloudinaryConfigured();
+    await cloudinary.uploader.destroy(id, {
+      resource_type: 'image',
+      invalidate: true
+    });
+  } catch (error) {
+    if (error?.code !== 'CLOUDINARY_NOT_CONFIGURED') {
+      console.error('Error deleting Cloudinary employee image:', error);
+    }
+  }
 };
 
 const isPinAlreadyUsedByOther = async (rawPin, excludeEmployeeId = null) => {
@@ -92,6 +151,11 @@ exports.getEmployeeImage = async (req, res) => {
       return res.status(404).send('No image found');
     }
 
+    if (isHttpUrl(employee.profileImage)) {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.redirect(employee.profileImage);
+    }
+
     // Extract base64 and send as image buffer
     const base64Data = employee.profileImage.replace(/^data:image\/\w+;base64,/, "");
     const imgBuffer = Buffer.from(base64Data, 'base64');
@@ -172,11 +236,18 @@ exports.createEmployee = async (req, res) => {
       dateJoinedActual: dateJoinedActual || new Date(),
       status: status || 'Active',
       profileImage: profileImage || '',
+      profileImagePublicId: '',
       permissions: permissions || {},
       requiresPinReset: requiresPinReset !== undefined ? requiresPinReset : true // Default to true for new employees
     };
 
     const employee = await Employee.create(employeeData);
+    if (isDataImage(profileImage)) {
+      const uploaded = await uploadEmployeeImageIfNeeded(profileImage, employee._id?.toString());
+      employee.profileImage = uploaded.profileImage;
+      employee.profileImagePublicId = uploaded.profileImagePublicId;
+      await employee.save();
+    }
 
     const { pin: _, profileImage: __, ...employeeWithoutPin } = employee.toObject();
 
@@ -255,6 +326,16 @@ exports.updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
+    const shouldProcessProfileImage = Object.prototype.hasOwnProperty.call(updateData, 'profileImage');
+    const incomingProfileImage = updateData.profileImage;
+
+    const existingEmployee = await Employee.findById(id).select('profileImagePublicId');
+    if (!existingEmployee) {
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      });
+    }
 
     // If PIN is being updated, hash it
     if (updateData.pin) {
@@ -272,6 +353,20 @@ exports.updateEmployee = async (req, res) => {
     }
 
     updateData.lastUpdated = Date.now();
+
+    if (shouldProcessProfileImage) {
+      const uploaded = await uploadEmployeeImageIfNeeded(incomingProfileImage, id);
+      updateData.profileImage = uploaded.profileImage;
+      updateData.profileImagePublicId = uploaded.profileImagePublicId;
+      const replacingWithDifferentImage =
+        !incomingProfileImage ||
+        (uploaded.profileImagePublicId &&
+          uploaded.profileImagePublicId !== existingEmployee.profileImagePublicId);
+
+      if (replacingWithDifferentImage && existingEmployee.profileImagePublicId) {
+        await removeCloudinaryImageByPublicId(existingEmployee.profileImagePublicId);
+      }
+    }
 
     const employee = await Employee.findByIdAndUpdate(
       id,
@@ -306,13 +401,17 @@ exports.updateEmployee = async (req, res) => {
 // Delete employee
 exports.deleteEmployee = async (req, res) => {
   try {
-    const employee = await Employee.findByIdAndDelete(req.params.id).select('_id');
+    const employee = await Employee.findByIdAndDelete(req.params.id).select('_id profileImagePublicId');
 
     if (!employee) {
       return res.status(404).json({
         success: false,
         message: 'Employee not found'
       });
+    }
+
+    if (employee.profileImagePublicId) {
+      await removeCloudinaryImageByPublicId(employee.profileImagePublicId);
     }
 
     res.json({
