@@ -380,10 +380,6 @@ exports.getRemittanceKpiStats = async (req, res) => {
                       .lean()
                 : [];
 
-        const salesAfterReturnDeductions = completedTransactions.reduce(
-            (s, t) => s + (Number(t.totalAmount) || 0),
-            0
-        );
         const returnsAgainstOwnSales = roundMoney(
             ownSalesReturnTransactions.reduce(
                 (s, t) => s + Math.abs(Number(t.totalAmount) || 0),
@@ -412,7 +408,8 @@ exports.getRemittanceKpiStats = async (req, res) => {
         res.json({
             success: true,
             data: {
-                posNetSales: salesAfterReturnDeductions,
+                // Keep KPI aligned with remittance math: gross own sales minus own-sales returns.
+                posNetSales: netRemittance,
                 grossSales,
                 returns: returnsAgainstOwnSales,
                 netRemittance,
