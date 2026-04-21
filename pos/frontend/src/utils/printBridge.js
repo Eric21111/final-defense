@@ -119,6 +119,24 @@ export const buildReceiptLines = (receipt) => {
   const location = r.location || 'Pasonanca, Zamboanga City';
   const receiptNo = r.receiptNo || '000000';
   const paymentMethod = r.paymentMethod || 'Cash';
+  const paymentMethodLower = String(paymentMethod || '').toLowerCase();
+  const isSplitPayment = paymentMethodLower.includes('split');
+  const isGcashOnlyPayment = paymentMethodLower === 'gcash';
+  const isCashOnlyPayment = paymentMethodLower === 'cash';
+  const gcashAmount = isSplitPayment
+    ? r?.splitPayment?.gcash
+    : isGcashOnlyPayment
+      ? (r.gcash ?? Number(r.total ?? r.totalAmount ?? 0))
+      : null;
+  const cashAmount = isSplitPayment
+    ? r?.splitPayment?.cash
+    : isCashOnlyPayment
+      ? r.cash
+      : null;
+  const paymentSlot = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `PHP ${parsed.toFixed(2)}` : '-';
+  };
   const cashier = r.cashier || r.cashierName || r.performedByName || 'Staff';
 
 
@@ -217,6 +235,9 @@ export const buildReceiptLines = (receipt) => {
     lines.push(padLine('Total:', `PHP ${totalPay.toFixed(2)}`));
   }
 
+  lines.push(padLine('GCash:', paymentSlot(gcashAmount)));
+  lines.push(padLine('Cash:', paymentSlot(cashAmount)));
+
   if (r.cash !== undefined) {
     lines.push(padLine('Amount Received:', `PHP ${Number(r.cash).toFixed(2)}`));
   }
@@ -251,6 +272,10 @@ const buildReceiptHTML = (receiptRaw) => {
   const tagline = (receipt.receiptTagline || '').trim();
   const receiptNo = receipt.receiptNo || '000000';
   const paymentMethod = receipt.paymentMethod || 'Cash';
+  const paymentMethodLower = String(paymentMethod || '').toLowerCase();
+  const isSplitPayment = paymentMethodLower.includes('split');
+  const isGcashOnlyPayment = paymentMethodLower === 'gcash';
+  const isCashOnlyPayment = paymentMethodLower === 'cash';
   const subtotal = Number(receipt.subtotal || 0);
   const discount = Number(receipt.discount || 0);
   const total = Number(receipt.total ?? receipt.totalAmount ?? 0);
@@ -267,6 +292,20 @@ const buildReceiptHTML = (receiptRaw) => {
   const vrHtml = Number(receipt.vatRateApplied || 12);
   const cash = receipt.cash !== undefined ? Number(receipt.cash) : null;
   const change = receipt.change !== undefined ? Number(receipt.change) : null;
+  const gcashAmount = isSplitPayment
+    ? receipt?.splitPayment?.gcash
+    : isGcashOnlyPayment
+      ? (receipt.gcash ?? Number(receipt.total ?? receipt.totalAmount ?? 0))
+      : null;
+  const cashAmount = isSplitPayment
+    ? receipt?.splitPayment?.cash
+    : isCashOnlyPayment
+      ? receipt.cash
+      : null;
+  const paymentSlot = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `PHP ${parsed.toFixed(2)}` : '-';
+  };
   const cashier = receipt.cashier || receipt.cashierName || receipt.performedByName || 'Staff';
 
 
@@ -462,6 +501,16 @@ const buildReceiptHTML = (receiptRaw) => {
             <span style="color: #1a202c;">PHP ${cash.toFixed(2)}</span>
           </div>
           ` : ''}
+
+          <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
+            <span style="color: #4a5568;">GCash:</span>
+            <span style="color: #1a202c;">${paymentSlot(gcashAmount)}</span>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
+            <span style="color: #4a5568;">Cash:</span>
+            <span style="color: #1a202c;">${paymentSlot(cashAmount)}</span>
+          </div>
           
           ${change !== null ? `
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
@@ -528,6 +577,8 @@ export async function sendReceiptToPrinter(receipt) {
     discounts: merged.discounts || [],
     total: merged.total || 0,
     cash: merged.cash,
+    gcash: merged.gcash,
+    splitPayment: merged.splitPayment,
     change: merged.change
   };
 

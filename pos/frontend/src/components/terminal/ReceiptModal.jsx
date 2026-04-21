@@ -78,6 +78,24 @@ const ReceiptModal = ({
     receipt.vatAmount != null;
   const totalPay = Number(receipt.total ?? receipt.totalAmount ?? 0);
   const isSeniorPwdTxn = hasSeniorPwdDiscount(receipt);
+  const paymentMethodLower = String(receipt.paymentMethod || '').toLowerCase();
+  const isSplitPayment = paymentMethodLower.includes('split');
+  const isGcashOnlyPayment = paymentMethodLower === 'gcash';
+  const isCashOnlyPayment = paymentMethodLower === 'cash';
+  const receiptGcashAmount = isSplitPayment ?
+    receipt?.splitPayment?.gcash :
+    isGcashOnlyPayment ?
+      receipt.gcash ?? totalPay :
+      null;
+  const receiptCashAmount = isSplitPayment ?
+    receipt?.splitPayment?.cash :
+    isCashOnlyPayment ?
+      receipt.cash :
+      null;
+  const formatPaymentSlot = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? `PHP ${parsed.toFixed(2)}` : '-';
+  };
   const netOfVatAmount = isSeniorPwdTxn ? 0 : Number(receipt.netOfVat ?? 0);
   const vatAmount = isSeniorPwdTxn ? 0 : Number(receipt.vatAmount ?? 0);
   const vatExemptSales = isSeniorPwdTxn
@@ -258,8 +276,16 @@ const ReceiptModal = ({
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+            <span style={{ color: '#4a5568' }}>GCash:</span>
+            <span style={{ color: '#1a202c' }}>{formatPaymentSlot(receiptGcashAmount)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
+            <span style={{ color: '#4a5568' }}>Cash:</span>
+            <span style={{ color: '#1a202c' }}>{formatPaymentSlot(receiptCashAmount)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Amount Received:</span>
-            <span style={{ color: '#1a202c' }}>PHP {receipt.cash.toFixed(2)}</span>
+            <span style={{ color: '#1a202c' }}>PHP {Number(receipt.cash || 0).toFixed(2)}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', margin: '4px 0' }}>
             <span style={{ color: '#4a5568' }}>Change:</span>
@@ -379,8 +405,16 @@ const ReceiptModal = ({
                 </div>
               )}
               <div className="flex justify-between text-sm">
+                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>GCash:</span>
+                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>{formatPaymentSlot(receiptGcashAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Cash:</span>
+                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>{formatPaymentSlot(receiptCashAmount)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Amount Received:</span>
-                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {receipt.cash.toFixed(2)}</span>
+                <span className={theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}>PHP {Number(receipt.cash || 0).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className={theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}>Change:</span>
