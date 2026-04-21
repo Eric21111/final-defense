@@ -235,10 +235,11 @@ export const buildReceiptLines = (receipt) => {
     lines.push(padLine('Total:', `PHP ${totalPay.toFixed(2)}`));
   }
 
-  lines.push(padLine('GCash:', paymentSlot(gcashAmount)));
-  lines.push(padLine('Cash:', paymentSlot(cashAmount)));
-
-  if (r.cash !== undefined) {
+  if (isSplitPayment) {
+    lines.push(padLine('Amount Received:', '-'));
+    lines.push(padLine('  GCash:', paymentSlot(gcashAmount)));
+    lines.push(padLine('  Cash:', paymentSlot(cashAmount)));
+  } else if (r.cash !== undefined) {
     lines.push(padLine('Amount Received:', `PHP ${Number(r.cash).toFixed(2)}`));
   }
 
@@ -495,22 +496,25 @@ const buildReceiptHTML = (receiptRaw) => {
           </div>
           `}
           
-          ${cash !== null ? `
+          ${isSplitPayment ? `
+          <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
+            <span style="color: #4a5568;">Amount Received:</span>
+            <span style="color: #1a202c;">-</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 4px 0; padding-left: 8px; font-size: 11px;">
+            <span style="color: #4a5568;">GCash:</span>
+            <span style="color: #1a202c;">${paymentSlot(gcashAmount)}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin: 4px 0; padding-left: 8px; font-size: 11px;">
+            <span style="color: #4a5568;">Cash:</span>
+            <span style="color: #1a202c;">${paymentSlot(cashAmount)}</span>
+          </div>
+          ` : cash !== null ? `
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
             <span style="color: #4a5568;">Amount Received:</span>
             <span style="color: #1a202c;">PHP ${cash.toFixed(2)}</span>
           </div>
           ` : ''}
-
-          <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
-            <span style="color: #4a5568;">GCash:</span>
-            <span style="color: #1a202c;">${paymentSlot(gcashAmount)}</span>
-          </div>
-
-          <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
-            <span style="color: #4a5568;">Cash:</span>
-            <span style="color: #1a202c;">${paymentSlot(cashAmount)}</span>
-          </div>
           
           ${change !== null ? `
           <div style="display: flex; justify-content: space-between; margin: 4px 0; font-size: 11px;">
