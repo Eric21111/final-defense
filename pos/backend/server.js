@@ -157,6 +157,12 @@ server.on("upgrade", (request, socket, head) => {
 connectDB();
 
 // CORS: Restrict to known origins
+// Extra origins via env (comma-separated), e.g. Cloudflare Pages: https://my-pos.pages.dev,https://pos.example.com
+const extraCorsOrigins = String(process.env.CORS_ALLOWED_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 const allowedOrigins = [
   "http://localhost:5173",    // Vite dev server
   "http://localhost:3000",    // Alternate dev port
@@ -170,12 +176,15 @@ const allowedOrigins = [
   "https://www.createyourstyle.me", // www is a different origin than apex
   process.env.FRONTEND_URL,  // Production frontend URL (set in .env)
   process.env.WEBHOOK_BASE_URL, // ngrok tunnel URL
+  ...extraCorsOrigins,
 ].filter(Boolean); // Remove undefined values
 
 // Regex patterns for dynamic origins (Vercel preview deployments)
 const allowedOriginPatterns = [
   /\.vercel\.app$/,           // All Vercel deployments
   /\.onrender\.com$/,         // Render deployments
+  /\.pages\.dev$/,            // Cloudflare Pages default hostnames
+  /\.cloudflareapp\.com$/,    // Legacy Cloudflare hostnames
 ];
 
 app.use(
