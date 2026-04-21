@@ -146,9 +146,13 @@ exports.createGCashPayment = async (req, res) => {
 
     let receiptNo;
     let resolvedTerminalId = null;
+    const effectiveTerminalId =
+      String(bodyTerminalId || "").trim() ||
+      String(gs.posTerminalId || "").trim();
+
     if (birOn) {
       try {
-        const seq = await getNextSequentialReceiptNo(bodyTerminalId);
+        const seq = await getNextSequentialReceiptNo(effectiveTerminalId);
         receiptNo = seq.receiptNo;
         resolvedTerminalId = seq.terminalId;
       } catch (e) {
@@ -156,7 +160,7 @@ exports.createGCashPayment = async (req, res) => {
           return res.status(400).json({
             success: false,
             message:
-              "Terminal ID is required for BIR-compliant GCash sales. Set it under Settings → Receipt on this device.",
+              "Terminal ID is required for BIR-compliant GCash sales. Set it in Settings → Receipt Layout (store setting).",
           });
         }
         throw e;

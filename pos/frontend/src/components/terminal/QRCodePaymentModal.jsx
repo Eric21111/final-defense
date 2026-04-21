@@ -149,15 +149,6 @@ const QRCodePaymentModal = ({
   const initiatePayment = useCallback(async () => {
     if (paymentStatus !== STATUS.IDLE) return;
 
-    const profile = getReceiptProfile();
-    if (profile.birCompliantEnabled && !getTerminalId()) {
-      setPaymentStatus(STATUS.FAILED);
-      setErrorMessage(
-        "Terminal ID is required when BIR-compliant receipts are on. Set it under Settings → Receipt on this device."
-      );
-      return;
-    }
-
     setPaymentStatus(STATUS.CREATING);
     setErrorMessage("");
 

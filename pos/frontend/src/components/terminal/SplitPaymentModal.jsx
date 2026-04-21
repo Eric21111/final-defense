@@ -5,7 +5,6 @@ import { API_BASE_URL } from "../../config/api";
 import { useTheme } from "../../context/ThemeContext";
 import { sendReceiptToPrinter } from "../../utils/printBridge";
 import { getReceiptProfile } from "../../utils/receiptProfile";
-import { getTerminalId } from "../../utils/terminalIdentity";
 import CheckoutConfirmationModal from "./CheckoutConfirmationModal";
 import PrintingModal from "./PrintingModal";
 import ReceiptModal from "./ReceiptModal";
@@ -146,13 +145,6 @@ const SplitPaymentModal = ({
     setShowConfirmation(false);
 
     const profile = getReceiptProfile();
-    if (profile.birCompliantEnabled && !getTerminalId()) {
-      alert(
-        "BIR-compliant receipts are on. Set a Terminal ID under Settings → Receipt on this device before checking out."
-      );
-      return;
-    }
-
     setShowSuccess(true);
 
     try {

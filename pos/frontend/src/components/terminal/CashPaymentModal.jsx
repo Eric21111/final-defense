@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { FaTimes } from "react-icons/fa";
 import { useTheme } from "../../context/ThemeContext";
 import { getReceiptProfile } from "../../utils/receiptProfile";
-import { getTerminalId } from "../../utils/terminalIdentity";
 import { sendReceiptToPrinter } from "../../utils/printBridge";
 import CheckoutConfirmationModal from "./CheckoutConfirmationModal";
 import PrintingModal from "./PrintingModal";
@@ -85,13 +84,6 @@ const CashPaymentModal = ({
     setShowConfirmation(false);
 
     const profile = getReceiptProfile();
-    if (profile.birCompliantEnabled && !getTerminalId()) {
-      alert(
-        "BIR-compliant receipts are on. Set a Terminal ID under Settings → Receipt on this device before checking out."
-      );
-      return;
-    }
-
     setShowSuccess(true);
 
     try {
