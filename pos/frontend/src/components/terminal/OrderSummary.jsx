@@ -161,7 +161,6 @@ const OrderSummary = memo(({
 
   const handleSplitButtonClick = () => {
     setSelectedPaymentMethod('split');
-    setShowSplitPaymentModal(true);
     setSplitError('');
   };
 
