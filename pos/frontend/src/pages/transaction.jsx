@@ -365,7 +365,9 @@ const Transaction = () => {
         params.set("limit", String(PAGE_LIMIT));
         params.set("page", String(page));
         const qs = params.toString() ? `?${params.toString()}` : "";
-        const response = await fetch(`${API_BASE_URL}/api/transactions${qs}`);
+        const response = await fetch(`${API_BASE_URL}/api/transactions${qs}`, {
+          cache: "no-store",
+        });
         const data = await response.json().catch(() => ({}));
         if (!data?.success || !Array.isArray(data.data)) break;
         const chunk = data.data;

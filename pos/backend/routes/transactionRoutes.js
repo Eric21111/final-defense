@@ -24,7 +24,8 @@ const clearCache = (req, res, next) => {
   next();
 };
 
-router.get('/', cache('30 seconds'), getAllTransactions);
+// Keep transaction list uncached to avoid stale totals right after returns/voids.
+router.get('/', getAllTransactions);
 router.get('/stats', cache('2 minutes'), getTransactionStats);
 router.get('/dashboard/stats', cache('2 minutes'), getDashboardStats);
 router.get('/top-selling', cache('2 minutes'), getTopSellingProducts);

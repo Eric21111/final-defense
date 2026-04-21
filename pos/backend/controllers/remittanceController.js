@@ -165,7 +165,11 @@ exports.getRemittanceSummary = async (req, res) => {
         const returnsAgainstOwnSales = roundMoney(
             returnTransactionsAgainstOwnSales.reduce((sum, t) => sum + Math.abs(Number(t.totalAmount) || 0), 0)
         );
-        const netRemittance = roundMoney(grossSales - returnsAgainstOwnSales);
+        // Keep remittance "net" aligned with Transactions page KPI:
+        // sum of non-return transaction totals (already reflects returns/adjustments).
+        const netRemittance = roundMoney(
+            completedTransactions.reduce((sum, t) => sum + (Number(t.totalAmount) || 0), 0)
+        );
         const noOfSales = completedTransactions.length;
 
         res.json({
@@ -386,10 +390,14 @@ exports.getRemittanceKpiStats = async (req, res) => {
                 0
             )
         );
+        const salesAfterReturnDeductions = roundMoney(
+            completedTransactions.reduce((s, t) => s + (Number(t.totalAmount) || 0), 0)
+        );
         const grossSales = roundMoney(
             completedTransactions.reduce((s, t) => s + grossOriginalSaleAmount(t), 0)
         );
-        const netRemittance = roundMoney(grossSales - returnsAgainstOwnSales);
+        // Match Transactions KPI basis to avoid cross-page mismatch.
+        const netRemittance = salesAfterReturnDeductions;
 
         const row = remitAgg[0] || {
             totalRemitted: 0,
@@ -408,8 +416,7 @@ exports.getRemittanceKpiStats = async (req, res) => {
         res.json({
             success: true,
             data: {
-                // Keep KPI aligned with remittance math: gross own sales minus own-sales returns.
-                posNetSales: netRemittance,
+                posNetSales: salesAfterReturnDeductions,
                 grossSales,
                 returns: returnsAgainstOwnSales,
                 netRemittance,
