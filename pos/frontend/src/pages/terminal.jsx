@@ -182,6 +182,7 @@ const Terminal = () => {
   const [seniorPwdInput, setSeniorPwdInput] = useState("");
   const [showSeniorPwdPinModal, setShowSeniorPwdPinModal] = useState(false);
   const [vatConfig, setVatConfig] = useState({ enabled: false, rate: 12 });
+  const [gcashPaymentsEnabled, setGcashPaymentsEnabled] = useState(false);
   const pendingSeniorPwdRef = useRef(null);
   const [sortOption, setSortOption] = useState("newest");
   const [isProcessingTransaction, setIsProcessingTransaction] = useState(false);
@@ -222,6 +223,38 @@ const Terminal = () => {
     loadVatConfig();
     return () => {
       active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadGcashPaymentConfig = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/payments/gcash/config-status`, {
+          cache: "no-store"
+        });
+        const data = await response.json();
+        if (!active || !data?.success) return;
+        setGcashPaymentsEnabled(Boolean(data.data?.showGcashPayment));
+      } catch (error) {
+        console.warn("Unable to load GCash payment config.", error);
+        if (active) setGcashPaymentsEnabled(false);
+      }
+    };
+
+    loadGcashPaymentConfig();
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        loadGcashPaymentConfig();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
@@ -2859,6 +2892,7 @@ const Terminal = () => {
               onCashPayment={handleCashPayment}
               onQRPayment={handleQRPayment}
               onSplitPayment={handleSplitPaymentProceed}
+              gcashPaymentsEnabled={gcashPaymentsEnabled}
               onOpenDiscountModal={handleOpenDiscountModal}
               onSelectDiscount={handleSelectDiscount}
               stockAllowsCheckout={cartStockAllowsCheckout}

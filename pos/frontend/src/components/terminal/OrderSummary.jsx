@@ -29,6 +29,7 @@ const OrderSummary = memo(({
   onCashPayment,
   onQRPayment,
   onSplitPayment,
+  gcashPaymentsEnabled = false,
   onOpenDiscountModal,
   onSelectDiscount,
   products = [],
@@ -66,6 +67,12 @@ const OrderSummary = memo(({
   const promoInputsDisabled =
     selectedDiscounts.length > 0 || seniorPwdAppliedAmount > 0;
   const seniorPwdInputsDisabled = selectedDiscounts.length > 0;
+
+  useEffect(() => {
+    if (!gcashPaymentsEnabled && (selectedPaymentMethod === 'qr' || selectedPaymentMethod === 'split')) {
+      setSelectedPaymentMethod(null);
+    }
+  }, [gcashPaymentsEnabled, selectedPaymentMethod]);
 
   useEffect(() => {
     if (!seniorPwdModeEnabled) {
@@ -1001,28 +1008,32 @@ const OrderSummary = memo(({
               <img src={cashIcon} alt="Cash" className="w-7 h-7 mb-1" />
               <span className={`text-xs font-medium ${selectedPaymentMethod === 'cash' ? 'text-gray-900' : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Cash</span>
             </button>
-            <button
-              type="button"
-              onClick={() => setSelectedPaymentMethod('qr')}
-              className={`w-24 flex flex-col items-center justify-center py-0 rounded-lg border-2 transition-all ${selectedPaymentMethod === 'qr' ?
-                'border-[#AD7F65] bg-[#f5f0ed]' :
-                theme === 'dark' ? 'border-gray-600 bg-[#2A2724] hover:border-gray-500' : 'border-gray-300 bg-white hover:border-gray-400'}`
-              }>
+            {gcashPaymentsEnabled && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentMethod('qr')}
+                  className={`w-24 flex flex-col items-center justify-center py-0 rounded-lg border-2 transition-all ${selectedPaymentMethod === 'qr' ?
+                    'border-[#AD7F65] bg-[#f5f0ed]' :
+                    theme === 'dark' ? 'border-gray-600 bg-[#2A2724] hover:border-gray-500' : 'border-gray-300 bg-white hover:border-gray-400'}`
+                  }>
 
-              <img src={qrIcon} alt="QR Code" className="w-12 h-12 mb-4 " />
-              <span className={`absolute text-xs font-medium translate-y-4 ${selectedPaymentMethod === 'qr' ? 'text-gray-900' : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Gcash</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleSplitButtonClick}
-              className={`w-24 flex flex-col items-center justify-center py-2 rounded-lg border-2 transition-all ${selectedPaymentMethod === 'split' ?
-                'border-[#AD7F65] bg-[#f5f0ed]' :
-                theme === 'dark' ? 'border-gray-600 bg-[#2A2724] hover:border-gray-500' : 'border-gray-300 bg-white hover:border-gray-400'}`
-              }>
+                  <img src={qrIcon} alt="QR Code" className="w-12 h-12 mb-4 " />
+                  <span className={`absolute text-xs font-medium translate-y-4 ${selectedPaymentMethod === 'qr' ? 'text-gray-900' : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Gcash</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSplitButtonClick}
+                  className={`w-24 flex flex-col items-center justify-center py-2 rounded-lg border-2 transition-all ${selectedPaymentMethod === 'split' ?
+                    'border-[#AD7F65] bg-[#f5f0ed]' :
+                    theme === 'dark' ? 'border-gray-600 bg-[#2A2724] hover:border-gray-500' : 'border-gray-300 bg-white hover:border-gray-400'}`
+                  }>
 
-              <FaQrcode className="w-7 h-7 mb-1" />
-              <span className={`text-xs font-medium ${selectedPaymentMethod === 'split' ? 'text-gray-900' : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Split</span>
-            </button>
+                  <FaQrcode className="w-7 h-7 mb-1" />
+                  <span className={`text-xs font-medium ${selectedPaymentMethod === 'split' ? 'text-gray-900' : theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Split</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 

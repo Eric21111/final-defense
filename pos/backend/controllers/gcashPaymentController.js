@@ -658,10 +658,14 @@ exports.getConfigStatus = async (req, res) => {
     const MerchantSettings = require("../models/MerchantSettings");
     const config = await MerchantSettings.getActiveConfig();
 
+    const gcashEnabled = config?.gcashEnabled !== false;
+
     res.json({
       success: true,
       data: {
         isConfigured: !!config,
+        gcashEnabled,
+        showGcashPayment: Boolean(config) && gcashEnabled,
         environment: config?.environment || null,
         merchantName: config?.merchantName || null,
       },

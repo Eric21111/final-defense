@@ -102,6 +102,8 @@ const Settings = () => {
   const [merchantName, setMerchantName] = useState("POS System");
   const [paymentExpiryMinutes, setPaymentExpiryMinutes] = useState(15);
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [gcashEnabled, setGcashEnabled] = useState(true);
+  const [gcashToggleSaving, setGcashToggleSaving] = useState(false);
   const [isConfigured, setIsConfigured] = useState(false);
   const [gcashLoading, setGcashLoading] = useState(false);
   const [gcashSaving, setGcashSaving] = useState(false);
@@ -182,11 +184,13 @@ const Settings = () => {
         setMerchantName(settings.merchantName || "POS System");
         setPaymentExpiryMinutes(settings.paymentExpiryMinutes || 15);
         setWebhookUrl(settings.webhookUrl || "");
+        setGcashEnabled(settings.gcashEnabled !== false);
         setIsConfigured(true);
         setLastUpdated(settings.updatedAt || settings.createdAt);
         setPrivateKey("");
       } else {
         setIsConfigured(false);
+        setGcashEnabled(true);
       }
     } catch (error) {
       console.error("Error fetching GCash settings:", error);
@@ -429,6 +433,7 @@ const Settings = () => {
           environment: gcashEnvironment,
           merchantName: merchantName.trim(),
           paymentExpiryMinutes,
+          gcashEnabled,
           configuredBy: currentUser?._id || currentUser?.id || "",
           configuredByName: currentUser?.name || ""
         })
@@ -459,6 +464,47 @@ const Settings = () => {
       });
     } finally {
       setGcashSaving(false);
+    }
+  };
+
+  const handleGcashEnabledToggle = async (enabled) => {
+    if (!isConfigured) {
+      setGcashEnabled(enabled);
+      return;
+    }
+
+    setGcashToggleSaving(true);
+    setGcashMessage({ type: "", text: "" });
+
+    try {
+      const response = await fetch(`${API_BASE}/api/merchant-settings/gcash-enabled`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gcashEnabled: enabled })
+      });
+      const data = await response.json();
+
+      if (data.success) {
+        setGcashEnabled(enabled);
+        setGcashMessage({
+          type: "success",
+          text: enabled
+            ? "GCash and split payment are now visible in POS."
+            : "GCash and split payment are now hidden in POS."
+        });
+      } else {
+        setGcashMessage({
+          type: "error",
+          text: data.message || "Failed to update GCash payment setting."
+        });
+      }
+    } catch (error) {
+      setGcashMessage({
+        type: "error",
+        text: "Network error. Please try again."
+      });
+    } finally {
+      setGcashToggleSaving(false);
     }
   };
 
@@ -521,6 +567,7 @@ const Settings = () => {
         setGcashEnvironment("sandbox");
         setMerchantName("POS System");
         setWebhookUrl("");
+        setGcashEnabled(true);
         setIsConfigured(false);
         setLastUpdated(null);
       } else {
@@ -1106,6 +1153,53 @@ const Settings = () => {
                       </span>
                     </div>
                   }
+                </div>
+              </div>
+
+              <div className="px-8 pb-4">
+                <div
+                  className={`rounded-xl p-4 ${isDark ? "bg-[#1E1B18] border border-gray-700" : "bg-gray-50 border border-gray-200"}`}>
+                  <label
+                    className={`block text-sm font-semibold mb-1 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                    GCash payments in POS
+                  </label>
+                  <p className={`text-xs mb-3 ${isDark ? "text-gray-500" : "text-gray-600"}`}>
+                    When on, cashiers see GCash and split payment in the terminal. When off, both options are hidden.
+                  </p>
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleGcashEnabledToggle(true)}
+                      disabled={gcashToggleSaving || (isConfigured && gcashEnabled)}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${gcashEnabled ?
+                          "bg-[#AD7F65] text-white shadow" :
+                          isDark ?
+                            "bg-[#2A2724] border border-gray-600 text-gray-400" :
+                            "bg-white border border-gray-200 text-gray-600"} disabled:opacity-50`}
+                    >
+                      On
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleGcashEnabledToggle(false)}
+                      disabled={gcashToggleSaving || (isConfigured && !gcashEnabled)}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${!gcashEnabled ?
+                          "bg-[#AD7F65] text-white shadow" :
+                          isDark ?
+                            "bg-[#2A2724] border border-gray-600 text-gray-400" :
+                            "bg-white border border-gray-200 text-gray-600"} disabled:opacity-50`}
+                    >
+                      Off
+                    </button>
+                    {gcashToggleSaving && (
+                      <FaSpinner className="w-4 h-4 text-[#8B7355] animate-spin" />
+                    )}
+                  </div>
+                  {!isConfigured && (
+                    <p className={`text-xs mt-2 ${isDark ? "text-gray-500" : "text-gray-500"}`}>
+                      Save your gateway credentials below to apply this setting in POS.
+                    </p>
+                  )}
                 </div>
               </div>
 

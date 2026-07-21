@@ -4,6 +4,7 @@ const {
   getSettings,
   saveSettings,
   deleteSettings,
+  updateGcashEnabled,
   testConnection,
 } = require("../controllers/merchantSettingsController");
 
@@ -15,6 +16,9 @@ router.post("/", saveSettings);
 
 // DELETE /api/merchant-settings — Remove/deactivate config
 router.delete("/", deleteSettings);
+
+// PATCH /api/merchant-settings/gcash-enabled — Toggle POS GCash visibility
+router.patch("/gcash-enabled", updateGcashEnabled);
 
 // POST /api/merchant-settings/test — Test gateway connection
 router.post("/test", testConnection);

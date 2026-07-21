@@ -54,6 +54,7 @@ exports.saveSettings = async (req, res) => {
       environment,
       merchantName,
       paymentExpiryMinutes,
+      gcashEnabled,
       configuredBy,
       configuredByName,
     } = req.body;
@@ -97,6 +98,7 @@ exports.saveSettings = async (req, res) => {
       webhookUrl,
       merchantName: merchantName?.trim() || "POS System",
       paymentExpiryMinutes: paymentExpiryMinutes || 15,
+      gcashEnabled: gcashEnabled !== false,
       configuredBy: configuredBy || "",
       configuredByName: configuredByName || "",
     });
@@ -146,6 +148,50 @@ exports.deleteSettings = async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Failed to remove payment settings",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * PATCH /api/merchant-settings/gcash-enabled
+ * Toggle GCash / split payment visibility in POS
+ */
+exports.updateGcashEnabled = async (req, res) => {
+  try {
+    const { gcashEnabled } = req.body;
+
+    if (typeof gcashEnabled !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "gcashEnabled must be a boolean",
+      });
+    }
+
+    const settings = await MerchantSettings.getActiveConfig();
+
+    if (!settings) {
+      return res.status(404).json({
+        success: false,
+        message: "No payment gateway configured",
+      });
+    }
+
+    settings.gcashEnabled = gcashEnabled;
+    await settings.save();
+
+    res.json({
+      success: true,
+      message: gcashEnabled
+        ? "GCash payments enabled in POS"
+        : "GCash payments disabled in POS",
+      data: settings.toSafeJSON(),
+    });
+  } catch (error) {
+    console.error("[MerchantSettings] Error updating gcashEnabled:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update GCash payment setting",
       error: error.message,
     });
   }

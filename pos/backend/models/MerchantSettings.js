@@ -56,6 +56,11 @@ const merchantSettingsSchema = new mongoose.Schema(
       min: 5,
       max: 60,
     },
+    // Show GCash and split payment options in POS when true
+    gcashEnabled: {
+      type: Boolean,
+      default: true,
+    },
     // Who configured this
     configuredBy: {
       type: String,
